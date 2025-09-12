@@ -1,0 +1,8 @@
+bin/
+*compile_commands.json
+.idea/
+.cache/
+build/
+obj/
+out/
+bin-vs/
