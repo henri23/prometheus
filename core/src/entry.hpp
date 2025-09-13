@@ -2,7 +2,8 @@
 
 #include "defines.hpp"
 #include "stdio.h"
-#include "application/application.hpp"
+#include "core/application.hpp"
+#include "core/logger.hpp"
 
 extern b8 create_client();
 
@@ -11,7 +12,9 @@ int main() {
     return -1;
   }
 
-  printf("Test");
+  application_init();
+
+  application_run();
 
   return 0;
 }

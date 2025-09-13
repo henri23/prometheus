@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(prometheus_core)
 
 set(CMAKE_CXX_STANDARD 17)
-
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(VULKAN_SDK $ENV{VULKAN_SDK})
 
 add_compile_definitions(API_EXPORT)
@@ -16,6 +16,7 @@ message(STATUS "Core headers found: ${HEADERS}")
 
 find_package(Vulkan REQUIRED)
 find_package(SDL3 REQUIRED)
+find_package(spdlog REQUIRED)
 
 # Create the prometheus core .dll library for the time being (maybe switch to static later)
 add_library(${PROJECT_NAME} SHARED ${ENGINE_SRC} ${HEADERS})
@@ -23,6 +24,7 @@ add_library(${PROJECT_NAME} SHARED ${ENGINE_SRC} ${HEADERS})
 # Link libraries (Vulkan and SDL3)
 target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog)
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PUBLIC "src") 

@@ -13,6 +13,7 @@ time cmake -G Ninja \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=YES \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_BUILD_TYPE=Debug \
+	-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -B bin \
     .
 
