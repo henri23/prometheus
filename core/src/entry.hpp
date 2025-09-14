@@ -1,20 +1,20 @@
 #pragma once
 
-#include "defines.hpp"
-#include "stdio.h"
 #include "core/application.hpp"
-#include "core/logger.hpp"
+#include "defines.hpp"
 
 extern b8 create_client();
 
 int main() {
-  if (!create_client()) {
-    return -1;
-  }
+    if (!create_client()) {
+        return -1;
+    }
 
-  application_init();
+    if (!application_init()) {
+        return -1;
+    }
 
-  application_run();
+    application_run();
 
-  return 0;
+    return 0;
 }

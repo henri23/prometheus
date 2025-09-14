@@ -44,6 +44,8 @@ constexpr u64 KIB (1 << 10);
 #define internal_variable static
 #define global_variable static
 
+#define INTERNAL_FUNC static
+
 // Platform detection
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
 #define PLATFORM_WINDOWS 1
@@ -114,6 +116,6 @@ constexpr u64 KIB (1 << 10);
 #define FORCE_INLINE __forceinline
 #define FORCE_NOT_INLINE __declspec(noinline)
 #else
-#define FORCE_INLINE static inline
+#define FORCE_INLINE inline
 #define FORCE_NOT_INLINE
 #endif

@@ -12,19 +12,18 @@
 #define LOG_TRACE_ENABLED 0
 #endif
 
-enum class Log_Level {
+enum class Log_Level : u8 {
     FATAL = 0,
-    ERROR = 1,
-    WARN = 2,
-    INFO = 3,
-    DEBUG = 4,
-    TRACE = 5
+    ERROR,
+    WARN,
+    INFO,
+    DEBUG,
+    TRACE
 };
 
-enum class Log_Scope {
+enum class Log_Scope : u8 {
     CORE = 0,
-    CLIENT = 1,
-    ASSERTS = 2
+    CLIENT
 };
 
 b8 log_init();
