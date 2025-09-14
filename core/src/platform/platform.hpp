@@ -2,14 +2,23 @@
 
 #include "defines.hpp"
 
+#include <SDL3/SDL.h>
+
+struct Platform_State {
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+	f32 main_scale;
+};
+
 b8 platform_startup(
+	Platform_State* state,
     const char* application_name,
     s32 width,
     s32 height);
 
-void platform_shutdown();
+void platform_shutdown(Platform_State* state);
 
-b8 platform_message_pump();
+b8 platform_message_pump(Platform_State* state);
 
 void* platform_allocate(u64 size, b8 aligned);
 
