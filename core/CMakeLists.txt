@@ -8,6 +8,17 @@ set(VULKAN_SDK $ENV{VULKAN_SDK})
 add_compile_definitions(API_EXPORT)
 add_compile_definitions(DEBUG_BUILD)
 
+# Windows/MSVC specific settings
+if(WIN32)
+    # Disable some MSVC warnings
+    if(MSVC)
+        add_compile_options(/W4)  # High warning level
+        add_compile_definitions(_CRT_SECURE_NO_WARNINGS)  # Disable security warnings for standard C functions
+        add_compile_definitions(NOMINMAX)  # Prevent windows.h from defining min/max macros
+        add_compile_definitions(WIN32_LEAN_AND_MEAN)  # Reduce Windows header bloat
+    endif()
+endif()
+
 file(GLOB_RECURSE ENGINE_SRC "src/*.cpp")
 file(GLOB_RECURSE HEADERS "src/*.hpp")
 
