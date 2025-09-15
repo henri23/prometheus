@@ -4,11 +4,10 @@
 #include <string.h>
 
 #include "SDL3/SDL_vulkan.h"
+#include "imgui_impl_sdl3.h"
 
 #include "containers/auto_array.hpp"
 #include "core/logger.hpp"
-
-#include "imgui_impl_sdl3.h"
 #include "renderer/vulkan_types.hpp"
 
 internal_variable Platform_State* state_ptr = nullptr;
@@ -83,6 +82,8 @@ b8 platform_message_pump() {
     b8 quit_flagged = false;
 
     while (SDL_PollEvent(&event)) {
+        ImGui_ImplSDL3_ProcessEvent(&event);
+        
         switch (event.type) {
 		case SDL_EVENT_QUIT:
             quit_flagged = true;

@@ -337,8 +337,6 @@ b8 renderer_initialize() {
             &properties_count,
             nullptr);
 
-        // TODO: Pick optimal GPU not just the first one
-
         properties.resize(properties_count);
 
         vkEnumerateDeviceExtensionProperties(
