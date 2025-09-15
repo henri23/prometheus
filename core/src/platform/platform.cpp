@@ -8,13 +8,18 @@
 #include "containers/auto_array.hpp"
 #include "core/logger.hpp"
 
+#include "imgui_impl_sdl3.h"
 #include "renderer/vulkan_types.hpp"
+
+internal_variable Platform_State* state_ptr = nullptr;
 
 b8 platform_startup(
     Platform_State* state,
     const char* application_name,
     s32 width,
     s32 height) {
+
+	state_ptr = state;
 
     CORE_DEBUG("Starting platform subsystem...");
 
@@ -30,19 +35,20 @@ b8 platform_startup(
 
     // Create window with Vulkan graphics context
     f32 main_scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
+    state_ptr->main_scale = main_scale;
 
     SDL_WindowFlags window_flags =
 		SDL_WINDOW_VULKAN |
         SDL_WINDOW_RESIZABLE |
         SDL_WINDOW_HIGH_PIXEL_DENSITY;
 
-    state->window = SDL_CreateWindow(
+    state_ptr->window = SDL_CreateWindow(
         application_name,
         width,
         height,
         window_flags);
 
-    if (state->window == nullptr) {
+    if (state_ptr->window == nullptr) {
         CORE_ERROR(
             "SDL_CreateWindow() failed with message: '%s'",
             SDL_GetError());
@@ -52,8 +58,8 @@ b8 platform_startup(
 
     CORE_DEBUG("Window created successfully");
 
-    SDL_SetWindowPosition(state->window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-    SDL_ShowWindow(state->window);
+    SDL_SetWindowPosition(state_ptr->window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    SDL_ShowWindow(state_ptr->window);
 
     CORE_DEBUG("Window positioned and shown");
     CORE_INFO("Platform subsystem initialized successfully");
@@ -61,40 +67,40 @@ b8 platform_startup(
     return true;
 }
 
-void platform_shutdown(Platform_State* state) {
+void platform_shutdown() {
 
-    if (state->window) {
-        SDL_DestroyWindow(state->window);
-        state->window = nullptr;
+    if (state_ptr != nullptr && state_ptr->window) {
+        SDL_DestroyWindow(state_ptr->window);
+        state_ptr->window = nullptr;
     }
 
     SDL_Quit();
 }
 
-b8 platform_message_pump(Platform_State* state) {
+b8 platform_message_pump() {
     SDL_Event event;
 
     b8 quit_flagged = false;
 
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
-        case SDL_EVENT_QUIT:
+		case SDL_EVENT_QUIT:
             quit_flagged = true;
             break; // Signal application should quit
 
-        case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+		case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
             quit_flagged = true;
             break; // Window close button clicked
 
-        case SDL_EVENT_KEY_DOWN:
+		case SDL_EVENT_KEY_DOWN:
             // Handle key presses if needed
             break;
 
-        case SDL_EVENT_WINDOW_RESIZED:
+		case SDL_EVENT_WINDOW_RESIZED:
             // Handle window resize if needed
             break;
 
-        default:
+		default: 
             // Handle other events as needed
             break;
         }
@@ -114,11 +120,12 @@ void platform_get_vulkan_extensions(Auto_Array<const char*>* extensions) {
 }
 
 b8 platform_create_vulkan_surface(
-	Platform_State* plat_state, 
 	Vulkan_Context* context){
 
+	if(!state_ptr) return false;
+
     if (SDL_Vulkan_CreateSurface(
-			plat_state->window, 
+			state_ptr->window, 
 			context->instance, 
 			context->allocator, 
 			&context->surface) == 0)
@@ -131,20 +138,23 @@ b8 platform_create_vulkan_surface(
 }
 
 b8 platform_get_window_details(
-	Platform_State* plat_state,
 	u32* width,
 	u32* height,
 	f32* main_scale) {
 
 	int w, h;
 	
-    SDL_GetWindowSize(plat_state->window, &w, &h);
+    SDL_GetWindowSize(state_ptr->window, &w, &h);
 
 	*width = w;
 	*height = h;
-	*main_scale = plat_state->main_scale;
+	*main_scale = state_ptr->main_scale;
 
 	return true;
+}
+
+void platform_init_vulkan() {
+    ImGui_ImplSDL3_InitForVulkan(state_ptr->window);
 }
 
 void* platform_allocate(u64 size, b8 aligned) {

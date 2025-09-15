@@ -8,8 +8,6 @@
 #include "vulkan_platform.hpp"
 #include "vulkan_types.hpp"
 
-#include "platform/platform.hpp"
-
 internal_variable Vulkan_Context context;
 
 // Forward declare messenger callback
@@ -18,6 +16,9 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     VkDebugUtilsMessageTypeFlagsEXT message_types,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
     void* user_data);
+
+b8 renderer_frame_render(ImDrawData* draw_data);
+b8 renderer_frame_present();
 
 INTERNAL_FUNC bool is_extension_available(
     const Auto_Array<VkExtensionProperties>& properties,
@@ -96,9 +97,7 @@ INTERNAL_FUNC void setup_vulkan_window(
 }
 
 void setup_imgui_context(
-    ImGui_ImplVulkanH_Window* wd,
-    f32 main_scale,
-    Platform_State* plat_state) {
+    f32 main_scale) {
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -119,7 +118,8 @@ void setup_imgui_context(
     style.FontScaleDpi = main_scale; // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
 
     // Setup Platform/Renderer backends
-    ImGui_ImplSDL3_InitForVulkan(plat_state->window);
+    platform_init_vulkan();
+
     ImGui_ImplVulkan_InitInfo init_info = {};
     // init_info.ApiVersion = VK_API_VERSION_1_3;              // Pass in your value of VkApplicationInfo::apiVersion, otherwise will default to header version.
     init_info.Instance = context.instance;
@@ -129,10 +129,10 @@ void setup_imgui_context(
     init_info.Queue = context.queue;
     init_info.PipelineCache = context.pipeline_cache;
     init_info.DescriptorPool = context.descriptor_pool;
-    init_info.RenderPass = wd->RenderPass;
+    init_info.RenderPass = context.main_window_data.RenderPass;
     init_info.Subpass = 0;
     init_info.MinImageCount = 2;
-    init_info.ImageCount = wd->ImageCount;
+    init_info.ImageCount = context.main_window_data.ImageCount;
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     init_info.Allocator = context.allocator;
     init_info.CheckVkResultFn = nullptr;
@@ -155,7 +155,7 @@ void setup_imgui_context(
     // IM_ASSERT(font != nullptr);
 }
 
-b8 renderer_initialize(struct Platform_State* plat_state) {
+b8 renderer_initialize() {
 
     // TODO: For now do not use custom allocator. Maybe change later...
     context.allocator = nullptr;
@@ -414,7 +414,7 @@ b8 renderer_initialize(struct Platform_State* plat_state) {
     }
 
     // Create window surface
-    if (!platform_create_vulkan_surface(plat_state, &context)) {
+    if (!platform_create_vulkan_surface(&context)) {
         CORE_ERROR("Error while creating vulkan surface.");
         return false;
     }
@@ -422,7 +422,7 @@ b8 renderer_initialize(struct Platform_State* plat_state) {
     u32 width, height;
     f32 main_scale;
 
-    if (!platform_get_window_details(plat_state, &width, &height, &main_scale)) {
+    if (!platform_get_window_details(&width, &height, &main_scale)) {
         CORE_ERROR("Error while retrieving window details");
         return false;
     }
@@ -431,18 +431,279 @@ b8 renderer_initialize(struct Platform_State* plat_state) {
 
     setup_vulkan_window(wd, context.surface, width, height);
 
+	setup_imgui_context(main_scale);
+
     return true;
 }
 
 void renderer_shutdown() {
+
+    ImGui_ImplVulkanH_DestroyWindow(
+        context.instance,
+        context.logical_device,
+        &context.main_window_data,
+        context.allocator);
+
+    vkDestroyDescriptorPool(
+        context.logical_device,
+        context.descriptor_pool,
+        context.allocator);
+
+#ifdef DEBUG_BUILD
+    CORE_DEBUG("Destroying Vulkan debugger...");
+    if (context.debug_messenger) {
+
+        VK_INSTANCE_LEVEL_FUNCTION(
+            context.instance,
+            vkDestroyDebugUtilsMessengerEXT);
+
+        vkDestroyDebugUtilsMessengerEXT(
+            context.instance,
+            context.debug_messenger,
+            context.allocator);
+    }
+#endif
+
+    vkDestroyDevice(context.logical_device, context.allocator);
+    vkDestroyInstance(context.instance, context.allocator);
 }
 
-b8 renderer_frame_render() {
+static const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+// TODO: Move ImGui specific functions into ui subsystem
+b8 renderer_draw_frame(b8* show_demo) {
+
+    // Resize swap chain?
+    u32 fb_width, fb_height;
+    f32 not_important;
+
+    platform_get_window_details(
+        &fb_width,
+        &fb_height,
+        &not_important);
+
+    if (fb_width > 0 &&
+        fb_height > 0 &&
+        (context.swapchain_rebuild ||
+         context.main_window_data.Width != fb_width ||
+         context.main_window_data.Height != fb_height)) {
+
+        ImGui_ImplVulkan_SetMinImageCount(2);
+        ImGui_ImplVulkanH_CreateOrResizeWindow(
+            context.instance,
+            context.physical_device,
+            context.logical_device,
+            &context.main_window_data,
+            context.queue_family, 
+			context.allocator, 
+			fb_width, 
+			fb_height, 
+			2);
+
+        context.main_window_data.FrameIndex = 0;
+        context.swapchain_rebuild = false;
+    }
+
+    // Start the Dear ImGui frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
+    // 1. Show the big demo window
+    if (*show_demo)
+        ImGui::ShowDemoWindow();
+
+    // 2. Show a simple window that we create ourselves.
+    {
+        static float f = 0.0f;
+        static int counter = 0;
+
+        ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
+
+        ImGui::Text("This is some useful text.");   // Display some text (you can use a format strings too)
+        ImGui::Checkbox("Demo Window", show_demo); // Edit bools storing our window open/close state
+
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+        if (ImGui::Button("Button")) // Buttons return true when clicked (most widgets return true when edited/activated)
+            counter++;
+
+        ImGui::SameLine();
+        ImGui::Text("counter = %d", counter);
+
+        // TODO: check perfomance implications of doing this inside the
+        // draw frame every time
+        ImGuiIO& io = ImGui::GetIO();
+        (void)io;
+
+        ImGui::Text(
+            "Application average %.3f ms/frame (%.1f FPS)",
+            1000.0f / io.Framerate, io.Framerate);
+        ImGui::End();
+    }
+
+    // Rendering
+    ImGui::Render();
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    const bool is_minimized =
+        (draw_data->DisplaySize.x <= 0.0f ||
+         draw_data->DisplaySize.y <= 0.0f);
+
+    if (!is_minimized) {
+        context.main_window_data.ClearValue.color.float32[0] =
+            clear_color.x * clear_color.w;
+        context.main_window_data.ClearValue.color.float32[1] =
+            clear_color.y * clear_color.w;
+        context.main_window_data.ClearValue.color.float32[2] =
+            clear_color.z * clear_color.w;
+        context.main_window_data.ClearValue.color.float32[3] =
+            clear_color.w;
+
+        renderer_frame_render(draw_data);
+        renderer_frame_present();
+    }
+
+	return true;
+}
+
+b8 renderer_frame_render(ImDrawData* draw_data) {
+    auto wd = &context.main_window_data;
+
+    VkSemaphore image_acquired_semaphore =
+        wd->FrameSemaphores[wd->SemaphoreIndex].ImageAcquiredSemaphore;
+
+    VkSemaphore render_complete_semaphore =
+        wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
+
+    VkResult err = vkAcquireNextImageKHR(
+        context.logical_device,
+        wd->Swapchain,
+        UINT64_MAX,
+        image_acquired_semaphore,
+        VK_NULL_HANDLE,
+        &wd->FrameIndex);
+
+    if (err == VK_ERROR_OUT_OF_DATE_KHR) {
+        context.swapchain_rebuild = true;
+    }
+    if (err != VK_SUCCESS && err != VK_SUBOPTIMAL_KHR) {
+        CORE_FATAL("Failed to acquire swapchain image!");
+        return false;
+    }
+
+    ImGui_ImplVulkanH_Frame* fd = &wd->Frames[wd->FrameIndex];
+    {
+        // wait indefinitely instead of periodically checking
+        VK_CHECK(
+            vkWaitForFences(
+                context.logical_device,
+                1,
+                &fd->Fence,
+                VK_TRUE,
+                UINT64_MAX));
+
+        VK_CHECK(
+            vkResetFences(
+                context.logical_device,
+                1,
+                &fd->Fence));
+    }
+    {
+        VK_CHECK(
+            vkResetCommandPool(
+                context.logical_device,
+                fd->CommandPool,
+                0));
+
+        VkCommandBufferBeginInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VK_CHECK(
+            vkBeginCommandBuffer(
+                fd->CommandBuffer,
+                &info));
+    }
+    {
+        VkRenderPassBeginInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        info.renderPass = wd->RenderPass;
+        info.framebuffer = fd->Framebuffer;
+        info.renderArea.extent.width = wd->Width;
+        info.renderArea.extent.height = wd->Height;
+        info.clearValueCount = 1;
+        info.pClearValues = &wd->ClearValue;
+        vkCmdBeginRenderPass(
+            fd->CommandBuffer,
+            &info,
+            VK_SUBPASS_CONTENTS_INLINE);
+    }
+
+    // Record dear imgui primitives into command buffer
+    ImGui_ImplVulkan_RenderDrawData(draw_data, fd->CommandBuffer);
+
+    // Submit command buffer
+    vkCmdEndRenderPass(fd->CommandBuffer);
+    {
+        VkPipelineStageFlags wait_stage =
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+        VkSubmitInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        info.waitSemaphoreCount = 1;
+        info.pWaitSemaphores = &image_acquired_semaphore;
+        info.pWaitDstStageMask = &wait_stage;
+        info.commandBufferCount = 1;
+        info.pCommandBuffers = &fd->CommandBuffer;
+        info.signalSemaphoreCount = 1;
+        info.pSignalSemaphores = &render_complete_semaphore;
+
+        VK_CHECK(
+            vkEndCommandBuffer(fd->CommandBuffer));
+
+        VK_CHECK(
+            vkQueueSubmit(
+                context.queue,
+                1,
+                &info,
+                fd->Fence));
+    }
     return true;
 }
 
-b8 vulkan_frame_present() {
+b8 renderer_frame_present() {
+
+    auto wd = &context.main_window_data;
+
+    if (context.swapchain_rebuild)
+        return false;
+
+    VkSemaphore render_complete_semaphore =
+        wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
+
+    VkPresentInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    info.waitSemaphoreCount = 1;
+    info.pWaitSemaphores = &render_complete_semaphore;
+    info.swapchainCount = 1;
+    info.pSwapchains = &wd->Swapchain;
+    info.pImageIndices = &wd->FrameIndex;
+
+    VkResult err = vkQueuePresentKHR(context.queue, &info);
+
+    if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
+        context.swapchain_rebuild = true;
+    if (err == VK_ERROR_OUT_OF_DATE_KHR)
+        return false;
+    if (err != VK_SUBOPTIMAL_KHR) {
+        VK_CHECK(err);
+    }
+
+    // Now we can use the next set of semaphores
+    wd->SemaphoreIndex =
+        (wd->SemaphoreIndex + 1) % wd->SemaphoreCount;
+
     return true;
 }
 

@@ -7,6 +7,7 @@
 
 struct App_State {
 	b8 is_running;
+	b8 is_suspended;
 	Platform_State plat_state;
 };
 
@@ -28,10 +29,13 @@ b8 application_init() {
         return false;
     }
 
-	if(!renderer_initialize(&state.plat_state)){
+	if(!renderer_initialize()){
         CORE_FATAL("Failed to initialize renderer");
         return false;
 	}
+
+	state.is_running = false;
+	state.is_suspended = false;
 
     CORE_INFO("Subsystems initialized correctly.");
 
@@ -42,10 +46,19 @@ b8 application_init() {
 
 void application_run() {
 	state.is_running = true;
+	b8 show_demo = true;
 
 	while(state.is_running) {
-		if(!platform_message_pump(&state.plat_state)) {
+		// For each iteration read the new messages from the queue
+		if(!platform_message_pump()) {
 			state.is_running = false;
+		}
+
+		// Frame
+		if(!state.is_suspended) {
+			if(!renderer_draw_frame(&show_demo)) {
+				state.is_running = false;
+			}
 		}
 	}
 
@@ -53,6 +66,6 @@ void application_run() {
 }
 
 void application_shutdown() {
-    platform_shutdown(&state.plat_state);
+    platform_shutdown();
     log_shutdown();
 }

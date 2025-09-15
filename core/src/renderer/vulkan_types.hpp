@@ -21,6 +21,7 @@ struct Vulkan_Context {
 	VkPipelineCache pipeline_cache;
 	VkDescriptorPool descriptor_pool;
 	ImGui_ImplVulkanH_Window main_window_data;
+	b8 swapchain_rebuild;
 };
 
 #define VK_DEVICE_LEVEL_FUNCTION(device, name)                        \
