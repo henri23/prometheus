@@ -94,7 +94,9 @@ b8 platform_message_pump() {
             break; // Window close button clicked
 
 		case SDL_EVENT_KEY_DOWN:
-            // Handle key presses if needed
+            if (event.key.key == SDLK_ESCAPE) {
+                quit_flagged = true;
+            }
             break;
 
 		case SDL_EVENT_WINDOW_RESIZED:

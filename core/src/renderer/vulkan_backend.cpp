@@ -209,10 +209,30 @@ b8 renderer_initialize() {
 
         // Enabling validation layers
 #ifdef DEBUG_BUILD
-        const char* layers[] = {"VK_LAYER_KHRONOS_validation"};
-        create_info.enabledLayerCount = 1;
-        create_info.ppEnabledLayerNames = layers;
-        instance_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        // Check if validation layers are available
+        uint32_t layer_count;
+        vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+        Auto_Array<VkLayerProperties> available_layers;
+        available_layers.resize(layer_count);
+        vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data);
+        
+        bool validation_layer_found = false;
+        for (const auto& layer : available_layers) {
+            if (strcmp(layer.layerName, "VK_LAYER_KHRONOS_validation") == 0) {
+                validation_layer_found = true;
+                break;
+            }
+        }
+        
+        if (validation_layer_found) {
+            const char* layers[] = {"VK_LAYER_KHRONOS_validation"};
+            create_info.enabledLayerCount = 1;
+            create_info.ppEnabledLayerNames = layers;
+            instance_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            CORE_DEBUG("Vulkan validation layers enabled");
+        } else {
+            CORE_WARN("Vulkan validation layers not available");
+        }
 #endif
 
         // Create Vulkan Instance
@@ -227,6 +247,7 @@ b8 renderer_initialize() {
 
         // Setup the debug report callback
 #ifdef DEBUG_BUILD
+        if (validation_layer_found) {
         VkDebugUtilsMessengerCreateInfoEXT debug_create_info =
             {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
 
@@ -249,6 +270,20 @@ b8 renderer_initialize() {
         // Optional pointer that can be passed to the logger. Essentially we can
         // pass whatever data we want and use it in the callback function. Not used
         debug_create_info.pUserData = nullptr;
+        
+        // Enable additional validation features
+        VkValidationFeatureEnableEXT validation_features[] = {
+            VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+            VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+            VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+        };
+        
+        VkValidationFeaturesEXT validation_features_ext = {};
+        validation_features_ext.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+        validation_features_ext.enabledValidationFeatureCount = sizeof(validation_features) / sizeof(validation_features[0]);
+        validation_features_ext.pEnabledValidationFeatures = validation_features;
+        
+        debug_create_info.pNext = &validation_features_ext;
 
         // The vkCreateDebugUtilsMessengerEXT is an extension function so it is not
         // loaded automatically. Its address must be looked up manually
@@ -264,6 +299,7 @@ b8 renderer_initialize() {
                 &context.debug_messenger));
 
         CORE_DEBUG("Vulkan debugger created");
+        }
 #endif
     }
 
@@ -435,6 +471,12 @@ b8 renderer_initialize() {
 }
 
 void renderer_shutdown() {
+
+    VK_CHECK(vkDeviceWaitIdle(context.logical_device));
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
 
     ImGui_ImplVulkanH_DestroyWindow(
         context.instance,

@@ -66,6 +66,7 @@ void application_run() {
 }
 
 void application_shutdown() {
+	renderer_shutdown();
     platform_shutdown();
     log_shutdown();
 }
