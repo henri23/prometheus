@@ -10,6 +10,9 @@ struct Platform_State {
 	f32 main_scale;
 };
 
+// Event callback type for UI subsystem integration
+typedef b8 (*Platform_EventCallback)(const SDL_Event* event);
+
 b8 platform_startup(
 	Platform_State* state,
     const char* application_name,
@@ -35,3 +38,9 @@ void* platform_set_memory(void* dest, s32 value, u64 size);
 f64 platform_get_absolute_time();
 
 void platform_sleep(u64 ms);
+
+// Event callback registration for UI subsystem
+void platform_set_event_callback(Platform_EventCallback callback);
+
+// Temporary accessor for UI subsystem (TODO: improve architecture)
+Platform_State* get_platform_state();

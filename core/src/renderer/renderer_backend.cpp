@@ -2,9 +2,9 @@
 
 #include "containers/auto_array.hpp"
 #include "core/logger.hpp"
-
-#include "imgui_impl_sdl3.h"
+#include "imgui.h"
 #include "memory/memory.hpp"
+#include "platform/platform.hpp"
 #include "renderer_platform.hpp"
 #include "vulkan_types.hpp"
 
@@ -97,30 +97,9 @@ INTERNAL_FUNC void setup_vulkan_window(
         2);
 }
 
-void setup_imgui_context(
-    f32 main_scale) {
-
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    (void)io;
-
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    // ImGui::StyleColorsLight();
-
-    // Setup scaling
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(main_scale);
-    style.FontScaleDpi = main_scale;
-
-    // Setup Platform/Renderer backends
-    platform_init_vulkan();
-
+// Function to initialize Vulkan backend for ImGui
+// This will be called by the UI subsystem during initialization
+b8 renderer_init_imgui_vulkan() {
     ImGui_ImplVulkan_InitInfo init_info = {};
     init_info.Instance = context.instance;
     init_info.PhysicalDevice = context.physical_device;
@@ -136,16 +115,8 @@ void setup_imgui_context(
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     init_info.Allocator = context.allocator;
     init_info.CheckVkResultFn = nullptr;
-    ImGui_ImplVulkan_Init(&init_info);
 
-    // style.FontSizeBase = 20.0f;
-    // io.Fonts->AddFontDefault();
-    // io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf");
-    // io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf");
-    // io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf");
-    // io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf");
-    // ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf");
-    // IM_ASSERT(font != nullptr);
+    return ImGui_ImplVulkan_Init(&init_info);
 }
 
 b8 renderer_initialize() {
@@ -459,8 +430,7 @@ b8 renderer_initialize() {
 
     setup_vulkan_window(wd, context.surface, width, height);
 
-    setup_imgui_context(main_scale);
-
+    CORE_INFO("Vulkan renderer initialized successfully");
     return true;
 }
 
@@ -469,9 +439,7 @@ void renderer_shutdown() {
 
     VK_CHECK(vkDeviceWaitIdle(context.logical_device));
 
-    ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplSDL3_Shutdown();
-    ImGui::DestroyContext();
+    // Note: ImGui shutdown is handled by UI subsystem
 
     ImGui_ImplVulkanH_DestroyWindow(
         context.instance,
@@ -505,12 +473,37 @@ void renderer_shutdown() {
     CORE_DEBUG("Renderer shut down.");
 }
 
+b8 renderer_wait_idle() {
+    if (context.logical_device == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    VkResult result = vkDeviceWaitIdle(context.logical_device);
+    if (result != VK_SUCCESS) {
+        CORE_ERROR("Failed to wait for device idle: VkResult = %d", result);
+        return false;
+    }
+
+    return true;
+}
+
+void* renderer_get_sdl_window() {
+    // Get platform state to access SDL window
+    extern Platform_State* get_platform_state();
+    Platform_State* platform_state = get_platform_state();
+
+    if (!platform_state || !platform_state->window) {
+        CORE_ERROR("Platform state not available for renderer SDL window access");
+        return nullptr;
+    }
+
+    return platform_state->window;
+}
+
 static const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-// TODO: Move ImGui specific functions into ui subsystem
-b8 renderer_draw_frame(b8* show_demo) {
-
-    // Resize swap chain?
+b8 renderer_draw_frame(ImDrawData* draw_data) {
+    // Handle window resize
     u32 fb_width, fb_height;
     f32 not_important;
 
@@ -541,53 +534,12 @@ b8 renderer_draw_frame(b8* show_demo) {
         context.swapchain_rebuild = false;
     }
 
-    // Start the Dear ImGui frame
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplSDL3_NewFrame();
-    ImGui::NewFrame();
+    // Only render if we have valid draw data (not minimized)
+    if (draw_data &&
+        draw_data->DisplaySize.x > 0.0f &&
+        draw_data->DisplaySize.y > 0.0f) {
 
-    // 1. Show the big demo window
-    if (*show_demo)
-        ImGui::ShowDemoWindow();
-
-    // 2. Show a simple window that we create ourselves.
-    {
-        static float f = 0.0f;
-        static int counter = 0;
-
-        ImGui::Begin("Hello, world!");
-
-        ImGui::Text("This is some useful text.");
-        ImGui::Checkbox("Demo Window", show_demo);
-
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-        ImGui::ColorEdit3("clear color", (float*)&clear_color);
-
-        if (ImGui::Button("Button"))
-            counter++;
-
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
-
-        // TODO: check perfomance implications of doing this inside the
-        // draw frame every time
-        ImGuiIO& io = ImGui::GetIO();
-        (void)io;
-
-        ImGui::Text(
-            "Application average %.3f ms/frame (%.1f FPS)",
-            1000.0f / io.Framerate, io.Framerate);
-        ImGui::End();
-    }
-
-    // Rendering
-    ImGui::Render();
-    ImDrawData* draw_data = ImGui::GetDrawData();
-    const bool is_minimized =
-        (draw_data->DisplaySize.x <= 0.0f ||
-         draw_data->DisplaySize.y <= 0.0f);
-
-    if (!is_minimized) {
+        // Set clear color
         context.main_window_data.ClearValue.color.float32[0] =
             clear_color.x * clear_color.w;
         context.main_window_data.ClearValue.color.float32[1] =

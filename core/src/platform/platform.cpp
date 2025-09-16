@@ -4,13 +4,13 @@
 #include <string.h>
 
 #include "SDL3/SDL_vulkan.h"
-#include "imgui_impl_sdl3.h"
 
 #include "containers/auto_array.hpp"
 #include "core/logger.hpp"
 #include "renderer/vulkan_types.hpp"
 
 internal_variable Platform_State* state_ptr = nullptr;
+internal_variable Platform_EventCallback event_callback = nullptr;
 
 b8 platform_startup(
     Platform_State* state,
@@ -84,9 +84,15 @@ b8 platform_message_pump() {
     b8 quit_flagged = false;
 
     while (SDL_PollEvent(&event)) {
-        ImGui_ImplSDL3_ProcessEvent(&event);
-        
-        switch (event.type) {
+        // Forward event to UI subsystem if callback is registered
+        b8 event_consumed = false;
+        if (event_callback) {
+            event_consumed = event_callback(&event);
+        }
+
+        // Only process platform-level events if not consumed by UI
+        if (!event_consumed) {
+            switch (event.type) {
 		case SDL_EVENT_QUIT:
             quit_flagged = true;
             break; // Signal application should quit
@@ -105,9 +111,10 @@ b8 platform_message_pump() {
             // Handle window resize if needed
             break;
 
-		default: 
+		default:
             // Handle other events as needed
             break;
+            }
         }
     }
 
@@ -159,7 +166,8 @@ b8 platform_get_window_details(
 }
 
 void platform_init_vulkan() {
-    ImGui_ImplSDL3_InitForVulkan(state_ptr->window);
+    // Note: ImGui initialization moved to UI subsystem
+    // Platform layer remains UI-agnostic
 }
 
 void* platform_allocate(u64 size, b8 aligned) {
@@ -188,3 +196,12 @@ void* platform_set_memory(void* dest, s32 value, u64 size) {
 
 // f64 platform_get_absolute_time() {
 // }
+
+void platform_set_event_callback(Platform_EventCallback callback) {
+    event_callback = callback;
+    CORE_DEBUG("Platform event callback registered");
+}
+
+Platform_State* get_platform_state() {
+    return state_ptr;
+}

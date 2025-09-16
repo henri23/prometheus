@@ -4,6 +4,7 @@
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "renderer/renderer_backend.hpp"
+#include "ui/ui.hpp"
 
 struct App_State {
     b8 is_running;
@@ -34,10 +35,18 @@ b8 application_init() {
         return false;
     }
 
+    if (!ui_initialize()) {
+        CORE_FATAL("Failed to initialize UI subsystem");
+        return false;
+    }
+
+    // Register UI event callback with platform
+    platform_set_event_callback(ui_process_event);
+
     state.is_running = false;
     state.is_suspended = false;
 
-    CORE_INFO("Subsystems initialized correctly.");
+    CORE_INFO("All subsystems initialized correctly.");
 
     CORE_DEBUG(memory_get_current_usage()); // WARN: Memory leak because the heap allocated string must be deallocated
 
@@ -46,17 +55,20 @@ b8 application_init() {
 
 void application_run() {
     state.is_running = true;
-    b8 show_demo = true;
 
     while (state.is_running) {
-        // For each iteration read the new messages from the queue
+        // Process platform events (will forward to UI via callback)
         if (!platform_message_pump()) {
             state.is_running = false;
         }
 
-        // Frame
+        // Render frame if not suspended
         if (!state.is_suspended) {
-            if (!renderer_draw_frame(&show_demo)) {
+            // Start new UI frame
+            ui_new_frame();
+
+            // Render the frame
+            if (!renderer_draw_frame(ui_render())) {
                 state.is_running = false;
             }
         }
@@ -66,9 +78,10 @@ void application_run() {
 }
 
 void application_shutdown() {
+    ui_shutdown();
     renderer_shutdown();
     platform_shutdown();
     log_shutdown();
 
-    CORE_INFO("All subsystem shut down correctly.");
+    CORE_INFO("All subsystems shut down correctly.");
 }
