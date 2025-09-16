@@ -55,6 +55,7 @@ set(IMGUI_SRC
 
 add_library(imgui STATIC ${IMGUI_SRC})
 target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
+target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 
 # Link imgui into core
 target_link_libraries(${PROJECT_NAME} PRIVATE imgui)

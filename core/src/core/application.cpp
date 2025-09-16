@@ -3,12 +3,12 @@
 #include "core/logger.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "renderer/vulkan_backend.hpp"
+#include "renderer/renderer_backend.hpp"
 
 struct App_State {
-	b8 is_running;
-	b8 is_suspended;
-	Platform_State plat_state;
+    b8 is_running;
+    b8 is_suspended;
+    Platform_State plat_state;
 };
 
 global_variable App_State state = {};
@@ -21,7 +21,7 @@ b8 application_init() {
     }
 
     if (!platform_startup(
-			&state.plat_state,
+            &state.plat_state,
             "Prometheus client",
             1280,
             720)) {
@@ -29,13 +29,13 @@ b8 application_init() {
         return false;
     }
 
-	if(!renderer_initialize()){
+    if (!renderer_initialize()) {
         CORE_FATAL("Failed to initialize renderer");
         return false;
-	}
+    }
 
-	state.is_running = false;
-	state.is_suspended = false;
+    state.is_running = false;
+    state.is_suspended = false;
 
     CORE_INFO("Subsystems initialized correctly.");
 
@@ -45,28 +45,30 @@ b8 application_init() {
 }
 
 void application_run() {
-	state.is_running = true;
-	b8 show_demo = true;
+    state.is_running = true;
+    b8 show_demo = true;
 
-	while(state.is_running) {
-		// For each iteration read the new messages from the queue
-		if(!platform_message_pump()) {
-			state.is_running = false;
-		}
+    while (state.is_running) {
+        // For each iteration read the new messages from the queue
+        if (!platform_message_pump()) {
+            state.is_running = false;
+        }
 
-		// Frame
-		if(!state.is_suspended) {
-			if(!renderer_draw_frame(&show_demo)) {
-				state.is_running = false;
-			}
-		}
-	}
+        // Frame
+        if (!state.is_suspended) {
+            if (!renderer_draw_frame(&show_demo)) {
+                state.is_running = false;
+            }
+        }
+    }
 
     application_shutdown();
 }
 
 void application_shutdown() {
-	renderer_shutdown();
+    renderer_shutdown();
     platform_shutdown();
     log_shutdown();
+
+    CORE_INFO("All subsystem shut down correctly.");
 }

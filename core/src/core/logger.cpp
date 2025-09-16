@@ -106,6 +106,8 @@ b8 log_init() {
 }
 
 void log_shutdown() {
+	CORE_DEBUG("Logger shutting down...");
+
     // Flush all loggers before shutdown
     if (core_logger)
         core_logger->flush();
@@ -122,6 +124,8 @@ void log_shutdown() {
 
     // Shutdown spdlog completely
     spdlog::shutdown();
+
+	CORE_DEBUG("Logger shut down.");
 }
 
 void log_output(

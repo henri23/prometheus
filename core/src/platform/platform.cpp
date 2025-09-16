@@ -67,6 +67,7 @@ b8 platform_startup(
 }
 
 void platform_shutdown() {
+	CORE_DEBUG("Platform shutting down...");
 
     if (state_ptr != nullptr && state_ptr->window) {
         SDL_DestroyWindow(state_ptr->window);
@@ -74,6 +75,7 @@ void platform_shutdown() {
     }
 
     SDL_Quit();
+	CORE_DEBUG("Platform shut down.");
 }
 
 b8 platform_message_pump() {

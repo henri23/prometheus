@@ -1,11 +1,11 @@
-#include "vulkan_backend.hpp"
+#include "renderer_backend.hpp"
 
 #include "containers/auto_array.hpp"
 #include "core/logger.hpp"
 
 #include "imgui_impl_sdl3.h"
 #include "memory/memory.hpp"
-#include "vulkan_platform.hpp"
+#include "renderer_platform.hpp"
 #include "vulkan_types.hpp"
 
 internal_variable Vulkan_Context context;
@@ -17,6 +17,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
     void* user_data);
 
+// Forward declare internal functions
 b8 renderer_frame_render(ImDrawData* draw_data);
 b8 renderer_frame_present();
 
@@ -114,14 +115,13 @@ void setup_imgui_context(
 
     // Setup scaling
     ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(main_scale); // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-    style.FontScaleDpi = main_scale; // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+    style.ScaleAllSizes(main_scale);
+    style.FontScaleDpi = main_scale;
 
     // Setup Platform/Renderer backends
     platform_init_vulkan();
 
     ImGui_ImplVulkan_InitInfo init_info = {};
-    // init_info.ApiVersion = VK_API_VERSION_1_3;              // Pass in your value of VkApplicationInfo::apiVersion, otherwise will default to header version.
     init_info.Instance = context.instance;
     init_info.PhysicalDevice = context.physical_device;
     init_info.Device = context.logical_device;
@@ -138,13 +138,6 @@ void setup_imgui_context(
     init_info.CheckVkResultFn = nullptr;
     ImGui_ImplVulkan_Init(&init_info);
 
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details. If you like the default font but want it to scale better, consider using the 'ProggyVector' from the same author!
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
     // style.FontSizeBase = 20.0f;
     // io.Fonts->AddFontDefault();
     // io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf");
@@ -215,7 +208,7 @@ b8 renderer_initialize() {
         Auto_Array<VkLayerProperties> available_layers;
         available_layers.resize(layer_count);
         vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data);
-        
+
         bool validation_layer_found = false;
         for (const auto& layer : available_layers) {
             if (strcmp(layer.layerName, "VK_LAYER_KHRONOS_validation") == 0) {
@@ -223,7 +216,7 @@ b8 renderer_initialize() {
                 break;
             }
         }
-        
+
         if (validation_layer_found) {
             const char* layers[] = {"VK_LAYER_KHRONOS_validation"};
             create_info.enabledLayerCount = 1;
@@ -248,57 +241,58 @@ b8 renderer_initialize() {
         // Setup the debug report callback
 #ifdef DEBUG_BUILD
         if (validation_layer_found) {
-        VkDebugUtilsMessengerCreateInfoEXT debug_create_info =
-            {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
+            VkDebugUtilsMessengerCreateInfoEXT debug_create_info =
+                {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
 
-        // Specify the level of events that we want to capture
-        debug_create_info.messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+            // Specify the level of events that we want to capture
+            debug_create_info.messageSeverity =
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 
-        // Specify the nature of events that we want to be fed from the validation
-        // layer
-        debug_create_info.messageType =
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+            // Specify the nature of events that we want to be fed from the validation
+            // layer
+            debug_create_info.messageType =
+                VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
 
-        debug_create_info.pfnUserCallback = vk_debug_callback;
+            debug_create_info.pfnUserCallback = vk_debug_callback;
 
-        // Optional pointer that can be passed to the logger. Essentially we can
-        // pass whatever data we want and use it in the callback function. Not used
-        debug_create_info.pUserData = nullptr;
-        
-        // Enable additional validation features
-        VkValidationFeatureEnableEXT validation_features[] = {
-            VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
-            VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
-            VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
-        };
-        
-        VkValidationFeaturesEXT validation_features_ext = {};
-        validation_features_ext.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-        validation_features_ext.enabledValidationFeatureCount = sizeof(validation_features) / sizeof(validation_features[0]);
-        validation_features_ext.pEnabledValidationFeatures = validation_features;
-        
-        debug_create_info.pNext = &validation_features_ext;
+            // Optional pointer that can be passed to the logger. Essentially we can
+            // pass whatever data we want and use it in the callback function. Not used
+            debug_create_info.pUserData = nullptr;
 
-        // The vkCreateDebugUtilsMessengerEXT is an extension function so it is not
-        // loaded automatically. Its address must be looked up manually
-        VK_INSTANCE_LEVEL_FUNCTION(
-            context.instance,
-            vkCreateDebugUtilsMessengerEXT);
+            // Enable additional validation features
+            VkValidationFeatureEnableEXT validation_features[] = {
+                VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+                VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+                VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT};
 
-        VK_CHECK(
-            vkCreateDebugUtilsMessengerEXT(
+            VkValidationFeaturesEXT validation_features_ext = {};
+            validation_features_ext.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+            validation_features_ext.enabledValidationFeatureCount =
+                sizeof(validation_features) / sizeof(validation_features[0]);
+
+            validation_features_ext.pEnabledValidationFeatures = validation_features;
+
+            debug_create_info.pNext = &validation_features_ext;
+
+            // The vkCreateDebugUtilsMessengerEXT is an extension function so it is not
+            // loaded automatically. Its address must be looked up manually
+            VK_INSTANCE_LEVEL_FUNCTION(
                 context.instance,
-                &debug_create_info,
-                context.allocator,
-                &context.debug_messenger));
+                vkCreateDebugUtilsMessengerEXT);
 
-        CORE_DEBUG("Vulkan debugger created");
+            VK_CHECK(
+                vkCreateDebugUtilsMessengerEXT(
+                    context.instance,
+                    &debug_create_info,
+                    context.allocator,
+                    &context.debug_messenger));
+
+            CORE_DEBUG("Vulkan debugger created");
         }
 #endif
     }
@@ -465,12 +459,13 @@ b8 renderer_initialize() {
 
     setup_vulkan_window(wd, context.surface, width, height);
 
-	setup_imgui_context(main_scale);
+    setup_imgui_context(main_scale);
 
     return true;
 }
 
 void renderer_shutdown() {
+    CORE_DEBUG("Shutting down renderer...");
 
     VK_CHECK(vkDeviceWaitIdle(context.logical_device));
 
@@ -506,6 +501,8 @@ void renderer_shutdown() {
 
     vkDestroyDevice(context.logical_device, context.allocator);
     vkDestroyInstance(context.instance, context.allocator);
+
+    CORE_DEBUG("Renderer shut down.");
 }
 
 static const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -534,11 +531,11 @@ b8 renderer_draw_frame(b8* show_demo) {
             context.physical_device,
             context.logical_device,
             &context.main_window_data,
-            context.queue_family, 
-			context.allocator, 
-			fb_width, 
-			fb_height, 
-			2);
+            context.queue_family,
+            context.allocator,
+            fb_width,
+            fb_height,
+            2);
 
         context.main_window_data.FrameIndex = 0;
         context.swapchain_rebuild = false;
@@ -558,15 +555,15 @@ b8 renderer_draw_frame(b8* show_demo) {
         static float f = 0.0f;
         static int counter = 0;
 
-        ImGui::Begin("Hello, world!"); // Create a window called "Hello, world!" and append into it.
+        ImGui::Begin("Hello, world!");
 
-        ImGui::Text("This is some useful text.");   // Display some text (you can use a format strings too)
-        ImGui::Checkbox("Demo Window", show_demo); // Edit bools storing our window open/close state
+        ImGui::Text("This is some useful text.");
+        ImGui::Checkbox("Demo Window", show_demo);
 
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*)&clear_color);
 
-        if (ImGui::Button("Button")) // Buttons return true when clicked (most widgets return true when edited/activated)
+        if (ImGui::Button("Button"))
             counter++;
 
         ImGui::SameLine();
@@ -604,7 +601,7 @@ b8 renderer_draw_frame(b8* show_demo) {
         renderer_frame_present();
     }
 
-	return true;
+    return true;
 }
 
 b8 renderer_frame_render(ImDrawData* draw_data) {
