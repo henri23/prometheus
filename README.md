@@ -1,4 +1,4 @@
-# Prometheus Engine
+# Prometheus
 
 A modern, cross-platform game engine built with **Vulkan**, **ImGui**, and **SDL3**. Designed with a clean core-client architecture for performance, maintainability, and extensibility.
 
