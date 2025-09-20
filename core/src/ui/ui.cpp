@@ -1,7 +1,6 @@
 #include "ui.hpp"
 #include "assets/assets.hpp"
 #include "ui_config.hpp"
-#include "ui_components.hpp"
 #include "ui_dockspace.hpp"
 #include "ui_titlebar.hpp"
 #include "ui_fonts.hpp"
@@ -194,6 +193,35 @@ void ui_new_frame() {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
+}
+
+static void ui_render_all_components(UI_State* ui_state) {
+    if (!ui_state || !ui_state->is_initialized) {
+        return;
+    }
+
+    // Render dockspace first (if enabled) - it provides the container for other windows
+    if (ui_state->show_dockspace) {
+        ui_dockspace_begin(ui_state);
+    }
+
+    // Render custom titlebar if enabled
+    if (ui_state->custom_titlebar_enabled) {
+        ui_titlebar_render(ui_state);
+    }
+
+    // Render all registered UI components
+    for (u32 i = 0; i < ui_state->component_count; ++i) {
+        UI_Component* component = &ui_state->components[i];
+        if (component->is_active && component->on_render) {
+            component->on_render(component->user_data);
+        }
+    }
+
+    // End dockspace if it was started
+    if (ui_state->show_dockspace) {
+        ui_dockspace_end();
+    }
 }
 
 ImDrawData* ui_render() {
