@@ -3,14 +3,24 @@
 #include "core/application.hpp"
 #include "defines.hpp"
 
-extern b8 create_client();
+// Forward declaration for client UI config
+typedef struct Client_UI_Config Client_UI_Config;
+
+extern Client_UI_Config* create_client();
 
 int main() {
-    if (!create_client()) {
+    Client_UI_Config* client_config = create_client();
+    if (!client_config) {
         return -1;
     }
 
-    if (!application_init()) {
+    App_Config config = application_get_default_config();
+    if (!application_init(&config)) {
+        return -1;
+    }
+
+    // Set client UI configuration for the application
+    if (!application_set_client_ui_config(client_config)) {
         return -1;
     }
 

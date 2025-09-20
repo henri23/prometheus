@@ -26,8 +26,6 @@ message(STATUS "Core sources found: ${ENGINE_SRC}")
 message(STATUS "Core headers found: ${HEADERS}")
 
 find_package(Vulkan REQUIRED)
-find_package(SDL3 REQUIRED)
-find_package(spdlog REQUIRED)
 
 # Create the prometheus core .dll library for the time being (maybe switch to static later)
 add_library(${PROJECT_NAME} SHARED ${ENGINE_SRC} ${HEADERS})
@@ -38,8 +36,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog)
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PUBLIC "src") 
+target_include_directories(${PROJECT_NAME} PUBLIC "src")
 target_include_directories(${PROJECT_NAME} PRIVATE ${VULKAN_SDK}/Include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/external/stb_image)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/assets)
 
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/external/imgui)
 
@@ -57,6 +57,6 @@ add_library(imgui STATIC ${IMGUI_SRC})
 target_include_directories(imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 
-# Link imgui into core
-target_link_libraries(${PROJECT_NAME} PRIVATE imgui)
+# Link imgui into core (PUBLIC so client can access ImGui headers)
+target_link_libraries(${PROJECT_NAME} PUBLIC imgui)
 

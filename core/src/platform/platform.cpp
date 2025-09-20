@@ -8,6 +8,7 @@
 #include "containers/auto_array.hpp"
 #include "core/logger.hpp"
 #include "renderer/vulkan_types.hpp"
+#include "renderer/renderer_backend.hpp"
 
 internal_variable Platform_State* state_ptr = nullptr;
 internal_variable Platform_EventCallback event_callback = nullptr;
@@ -57,7 +58,10 @@ b8 platform_startup(
 
     CORE_DEBUG("Window created successfully");
 
-    SDL_SetWindowPosition(state_ptr->window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    SDL_SetWindowPosition(
+        state_ptr->window,
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED);
     SDL_ShowWindow(state_ptr->window);
 
     CORE_DEBUG("Window positioned and shown");
@@ -108,7 +112,18 @@ b8 platform_message_pump() {
             break;
 
 		case SDL_EVENT_WINDOW_RESIZED:
-            // Handle window resize if needed
+            // Trigger swapchain recreation when window is resized
+            renderer_trigger_swapchain_recreation();
+            CORE_DEBUG("Window resized - triggered swapchain recreation");
+            break;
+
+		case SDL_EVENT_WINDOW_MAXIMIZED:
+		case SDL_EVENT_WINDOW_RESTORED:
+            // Trigger swapchain recreation when window is maximized or
+            // restored
+            renderer_trigger_swapchain_recreation();
+            CORE_DEBUG(
+                "Window state changed - triggered swapchain recreation");
             break;
 
 		default:
@@ -165,11 +180,6 @@ b8 platform_get_window_details(
 	return true;
 }
 
-void platform_init_vulkan() {
-    // Note: ImGui initialization moved to UI subsystem
-    // Platform layer remains UI-agnostic
-}
-
 void* platform_allocate(u64 size, b8 aligned) {
     return malloc(size);
 }
@@ -204,4 +214,42 @@ void platform_set_event_callback(Platform_EventCallback callback) {
 
 Platform_State* get_platform_state() {
     return state_ptr;
+}
+
+void platform_minimize_window() {
+    if (state_ptr && state_ptr->window) {
+        SDL_MinimizeWindow(state_ptr->window);
+        CORE_DEBUG("Window minimized");
+    }
+}
+
+void platform_maximize_window() {
+    if (state_ptr && state_ptr->window) {
+        SDL_MaximizeWindow(state_ptr->window);
+        CORE_DEBUG("Window maximized");
+    }
+}
+
+void platform_restore_window() {
+    if (state_ptr && state_ptr->window) {
+        SDL_RestoreWindow(state_ptr->window);
+        CORE_DEBUG("Window restored");
+    }
+}
+
+void platform_close_window() {
+    if (state_ptr && state_ptr->window) {
+        SDL_Event quit_event;
+        quit_event.type = SDL_EVENT_QUIT;
+        SDL_PushEvent(&quit_event);
+        CORE_DEBUG("Window close requested");
+    }
+}
+
+b8 platform_is_window_maximized() {
+    if (state_ptr && state_ptr->window) {
+        SDL_WindowFlags flags = SDL_GetWindowFlags(state_ptr->window);
+        return (flags & SDL_WINDOW_MAXIMIZED) != 0;
+    }
+    return false;
 }

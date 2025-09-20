@@ -25,7 +25,8 @@ struct Memory_System_State {
 
 internal_variable Memory_System_State state = {};
 
-internal_variable const char* memory_tag_strings[(u64)Memory_Tag::MAX_ENTRIES] = {
+internal_variable const char*
+    memory_tag_strings[(u64)Memory_Tag::MAX_ENTRIES] = {
     "UNKNOWN  	:",
     "DARRAY   	:",
     "LINEAR_ALLOC	:",
@@ -34,7 +35,8 @@ internal_variable const char* memory_tag_strings[(u64)Memory_Tag::MAX_ENTRIES] =
     "GAME     	:",
     "INPUT 		:",
     "RENDERER 	:",
-    "APPLICATION	:"};
+    "APPLICATION	:",
+    "UI		:"};
 
 void memory_init() {
 }
@@ -44,7 +46,9 @@ void memory_shutdown(void* state) {
 
 void* memory_allocate(u64 size, Memory_Tag tag) {
     if (tag == Memory_Tag::UNKNOWN) {
-        CORE_WARN("The memory is being initialized as UNKNOWN. Please allocated it with the proper tag");
+        CORE_WARN(
+            "The memory is being initialized as UNKNOWN. Please allocated it "
+            "with the proper tag");
     }
 
     state.stats.tagged_allocations[(u64)tag] += size;
@@ -78,14 +82,16 @@ void* memory_copy(void* destination, const void* source, u64 size) {
     u64 source_addr = reinterpret_cast<u64>(source);
 
     if (source_addr == dest_addr) {
-        CORE_WARN("Method memory_copy() called with identical source and destination addresses. No action will occur");
+        CORE_WARN(
+            "Method memory_copy() called with identical source and destination "
+            "addresses. No action will occur");
         return destination;
     }
 
-    // Since we are adding the size to the integer value of the address, the compiler must
-    // copy 'size' bytes to the destination. When copying 'size' bytes, the address value
-    // will be incremented by ('size' - 1). So if the max_addr coincides with min_addr + size - 1
-    // there will be overlap.
+    // Since we are adding the size to the integer value of the address, the
+    // compiler must copy 'size' bytes to the destination. When copying 'size'
+    // bytes, the address value will be incremented by ('size' - 1). So if the
+    // max_addr coincides with min_addr + size - 1 there will be overlap.
     if (source_addr > dest_addr && source_addr < dest_addr + size)
         is_overlap = true;
     else if (dest_addr > source_addr && dest_addr < source_addr + size)
@@ -94,7 +100,9 @@ void* memory_copy(void* destination, const void* source, u64 size) {
     if (!is_overlap)
         return platform_copy_memory(destination, source, size);
     else {
-        CORE_DEBUG("Method memory_copy() called with overlapping regions of memory, using memmove() instead");
+        CORE_DEBUG(
+            "Method memory_copy() called with overlapping regions of memory, "
+            "using memmove() instead");
         return platform_move_memory(destination, source, size);
     }
 }
@@ -152,5 +160,5 @@ char* memory_get_current_usage() {
 }
 
 u64 memory_get_allocations_count() {
- 	return state.allocations_count;
+    return state.allocations_count;
 }

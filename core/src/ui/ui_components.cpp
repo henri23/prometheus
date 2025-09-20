@@ -1,5 +1,7 @@
 #include "ui_components.hpp"
 #include "ui.hpp"
+#include "ui_dockspace.hpp"
+#include "ui_titlebar.hpp"
 
 #include "imgui.h"
 #include "core/logger.hpp"
@@ -117,13 +119,26 @@ void ui_render_all_components(UI_State* ui_state) {
         return;
     }
 
-    // Render all active UI components
-    ui_render_demo_window(ui_state);
-    ui_render_prometheus_window(ui_state);
-    ui_render_performance_window(ui_state);
+    // Render dockspace first (if enabled) - it provides the container for other windows
+    if (ui_state->show_dockspace) {
+        ui_dockspace_begin(ui_state);
+    }
 
-    // Future components can be added here:
-    // ui_render_scene_hierarchy(ui_state);
-    // ui_render_asset_browser(ui_state);
-    // ui_render_console(ui_state);
+    // Render custom titlebar if enabled
+    if (ui_state->custom_titlebar_enabled) {
+        ui_titlebar_render(ui_state);
+    }
+
+    // Render all registered UI components
+    for (u32 i = 0; i < ui_state->component_count; ++i) {
+        UI_Component* component = &ui_state->components[i];
+        if (component->is_active && component->on_render) {
+            component->on_render(component->user_data);
+        }
+    }
+
+    // End dockspace if it was started
+    if (ui_state->show_dockspace) {
+        ui_dockspace_end();
+    }
 }

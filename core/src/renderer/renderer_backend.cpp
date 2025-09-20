@@ -6,9 +6,11 @@
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "renderer_platform.hpp"
-#include "vulkan_types.hpp"
 
 internal_variable Vulkan_Context context;
+
+// Vulkan configuration
+internal_variable u32 g_MinImageCount = 2;
 
 // Forward declare messenger callback
 VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
@@ -57,10 +59,10 @@ INTERNAL_FUNC void setup_vulkan_window(
 
     // Select Surface Format
     const VkFormat requestSurfaceImageFormat[] = {
+        VK_FORMAT_R8G8B8A8_UNORM,  // Prefer RGBA over BGRA to avoid red tint
         VK_FORMAT_B8G8R8A8_UNORM,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_FORMAT_B8G8R8_UNORM,
-        VK_FORMAT_R8G8B8_UNORM};
+        VK_FORMAT_R8G8B8_UNORM,
+        VK_FORMAT_B8G8R8_UNORM};
 
     const VkColorSpaceKHR requestSurfaceColorSpace =
         VK_COLORSPACE_SRGB_NONLINEAR_KHR;
@@ -85,6 +87,7 @@ INTERNAL_FUNC void setup_vulkan_window(
         IM_ARRAYSIZE(present_modes));
 
     // Create SwapChain, RenderPass, Framebuffer, etc.
+    RUNTIME_ASSERT(g_MinImageCount >= 2);
     ImGui_ImplVulkanH_CreateOrResizeWindow(
         context.instance,
         context.physical_device,
@@ -94,7 +97,7 @@ INTERNAL_FUNC void setup_vulkan_window(
         context.allocator,
         width,
         height,
-        2);
+        g_MinImageCount);
 }
 
 // Function to initialize Vulkan backend for ImGui
@@ -110,7 +113,7 @@ b8 renderer_init_imgui_vulkan() {
     init_info.DescriptorPool = context.descriptor_pool;
     init_info.RenderPass = context.main_window_data.RenderPass;
     init_info.Subpass = 0;
-    init_info.MinImageCount = 2;
+    init_info.MinImageCount = g_MinImageCount;
     init_info.ImageCount = context.main_window_data.ImageCount;
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     init_info.Allocator = context.allocator;
@@ -178,7 +181,9 @@ b8 renderer_initialize() {
         vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
         Auto_Array<VkLayerProperties> available_layers;
         available_layers.resize(layer_count);
-        vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data);
+        vkEnumerateInstanceLayerProperties(
+            &layer_count,
+            available_layers.data);
 
         bool validation_layer_found = false;
         for (const auto& layer : available_layers) {
@@ -192,7 +197,8 @@ b8 renderer_initialize() {
             const char* layers[] = {"VK_LAYER_KHRONOS_validation"};
             create_info.enabledLayerCount = 1;
             create_info.ppEnabledLayerNames = layers;
-            instance_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            instance_extensions.push_back(
+                VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             CORE_DEBUG("Vulkan validation layers enabled");
         } else {
             CORE_WARN("Vulkan validation layers not available");
@@ -200,7 +206,8 @@ b8 renderer_initialize() {
 #endif
 
         // Create Vulkan Instance
-        create_info.enabledExtensionCount = (u32)instance_extensions.length;
+        create_info.enabledExtensionCount =
+            (u32)instance_extensions.length;
         create_info.ppEnabledExtensionNames = instance_extensions.data;
 
         VK_CHECK(
@@ -222,8 +229,8 @@ b8 renderer_initialize() {
                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 
-            // Specify the nature of events that we want to be fed from the validation
-            // layer
+            // Specify the nature of events that we want to be fed from the
+            // validation layer
             debug_create_info.messageType =
                 VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                 VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
@@ -231,8 +238,9 @@ b8 renderer_initialize() {
 
             debug_create_info.pfnUserCallback = vk_debug_callback;
 
-            // Optional pointer that can be passed to the logger. Essentially we can
-            // pass whatever data we want and use it in the callback function. Not used
+            // Optional pointer that can be passed to the logger. Essentially we
+            // can pass whatever data we want and use it in the callback function.
+            // Not used
             debug_create_info.pUserData = nullptr;
 
             // Enable additional validation features
@@ -242,16 +250,18 @@ b8 renderer_initialize() {
                 VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT};
 
             VkValidationFeaturesEXT validation_features_ext = {};
-            validation_features_ext.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+            validation_features_ext.sType =
+                VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
             validation_features_ext.enabledValidationFeatureCount =
                 sizeof(validation_features) / sizeof(validation_features[0]);
 
-            validation_features_ext.pEnabledValidationFeatures = validation_features;
+            validation_features_ext.pEnabledValidationFeatures =
+                validation_features;
 
             debug_create_info.pNext = &validation_features_ext;
 
-            // The vkCreateDebugUtilsMessengerEXT is an extension function so it is not
-            // loaded automatically. Its address must be looked up manually
+            // The vkCreateDebugUtilsMessengerEXT is an extension function so it
+            // is not loaded automatically. Its address must be looked up manually
             VK_INSTANCE_LEVEL_FUNCTION(
                 context.instance,
                 vkCreateDebugUtilsMessengerEXT);
@@ -379,7 +389,8 @@ b8 renderer_initialize() {
     }
 
     // Create Descriptor Pool
-    // If you wish to load e.g. additional textures you may need to alter pools sizes and maxSets.
+    // If you wish to load e.g. additional textures you may need to alter
+    // pools sizes and maxSets.
     {
         VkDescriptorPoolSize pool_sizes[] =
             {
@@ -487,20 +498,47 @@ b8 renderer_wait_idle() {
     return true;
 }
 
+void renderer_trigger_swapchain_recreation() {
+    context.swapchain_rebuild = true;
+}
+
 void* renderer_get_sdl_window() {
     // Get platform state to access SDL window
     extern Platform_State* get_platform_state();
     Platform_State* platform_state = get_platform_state();
 
     if (!platform_state || !platform_state->window) {
-        CORE_ERROR("Platform state not available for renderer SDL window access");
+        CORE_ERROR(
+            "Platform state not available for renderer SDL window access");
         return nullptr;
     }
 
     return platform_state->window;
 }
 
-static const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+VkDevice renderer_get_device() {
+    return context.logical_device;
+}
+
+VkPhysicalDevice renderer_get_physical_device() {
+    return context.physical_device;
+}
+
+VkQueue renderer_get_queue() {
+    return context.queue;
+}
+
+VkAllocationCallbacks* renderer_get_allocator() {
+    return context.allocator;
+}
+
+VkCommandPool renderer_get_command_pool() {
+    return context.main_window_data
+        .Frames[context.main_window_data.FrameIndex]
+        .CommandPool;
+}
+
+static const ImVec4 clear_color = ImVec4(0.0f, 0.f, 0.f, 1.00f);
 
 b8 renderer_draw_frame(ImDrawData* draw_data) {
     // Handle window resize
@@ -518,7 +556,8 @@ b8 renderer_draw_frame(ImDrawData* draw_data) {
          context.main_window_data.Width != fb_width ||
          context.main_window_data.Height != fb_height)) {
 
-        ImGui_ImplVulkan_SetMinImageCount(2);
+        ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
+        RUNTIME_ASSERT(g_MinImageCount >= 2);
         ImGui_ImplVulkanH_CreateOrResizeWindow(
             context.instance,
             context.physical_device,
@@ -528,7 +567,7 @@ b8 renderer_draw_frame(ImDrawData* draw_data) {
             context.allocator,
             fb_width,
             fb_height,
-            2);
+            g_MinImageCount);
 
         context.main_window_data.FrameIndex = 0;
         context.swapchain_rebuild = false;
@@ -575,9 +614,10 @@ b8 renderer_frame_render(ImDrawData* draw_data) {
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR) {
         context.swapchain_rebuild = true;
+        return true; // Skip this frame and recreate swapchain on next frame
     }
     if (err != VK_SUCCESS && err != VK_SUBOPTIMAL_KHR) {
-        CORE_FATAL("Failed to acquire swapchain image!");
+        CORE_ERROR("Failed to acquire swapchain image, error: %d", err);
         return false;
     }
 

@@ -11,5 +11,3 @@ b8 platform_get_window_details(
 	u32* width,
 	u32* height,
 	f32* main_scale);
-
-void platform_init_vulkan();

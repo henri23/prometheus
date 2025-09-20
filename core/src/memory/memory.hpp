@@ -12,6 +12,7 @@ enum class Memory_Tag {
     INPUT,
     RENDERER,
     APPLICATION,
+    UI,
     MAX_ENTRIES
 };
 

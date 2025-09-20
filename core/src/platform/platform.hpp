@@ -44,3 +44,11 @@ void platform_set_event_callback(Platform_EventCallback callback);
 
 // Temporary accessor for UI subsystem (TODO: improve architecture)
 Platform_State* get_platform_state();
+
+// Window control functions
+b8 platform_get_window_details(u32* width, u32* height, f32* main_scale);
+void platform_minimize_window();
+void platform_maximize_window();
+void platform_restore_window();
+void platform_close_window();
+b8 platform_is_window_maximized();

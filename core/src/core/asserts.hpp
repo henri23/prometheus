@@ -9,6 +9,8 @@
 #include <intrin.h>
 #define debug_break() __debugbreak()
 #else
+// Forward declare the builtin function for template contexts
+extern "C" void __builtin_debugtrap(void);
 #define debug_break() __builtin_debugtrap()  // Stops the applicaiton in a way that the debugger can catch it
 #endif
 
