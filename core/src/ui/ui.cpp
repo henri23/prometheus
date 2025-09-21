@@ -68,7 +68,7 @@ b8 ui_initialize(UI_Theme theme, b8 enable_dockspace, b8 enable_titlebar) {
 
     // Initialize infrastructure components
     ui_dockspace_initialize(nullptr); // Use default config
-    ui_titlebar_initialize(nullptr);  // Use default config
+    ui_titlebar_initialize();  // No config needed
 
     CORE_INFO("UI subsystem initialized successfully");
     return true;

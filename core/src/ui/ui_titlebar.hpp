@@ -8,28 +8,15 @@ struct ImVec2;
 
 /**
  * Custom Titlebar Component
- * Provides a custom window titlebar with embedded icons
+ * Provides a custom window titlebar with embedded icons and integrated menu
  * Replaces the standard OS titlebar when enabled
  */
 
-struct UI_Titlebar_Config {
-    f32 height;
-    b8 show_minimize_button;
-    b8 show_maximize_button;
-    b8 show_close_button;
-    const char* title_text;
-    u32 background_color;
-    u32 text_color;
-    u32 button_hover_color;
-    u32 button_active_color;
-};
-
 /**
  * Initialize the custom titlebar system
- * @param config - titlebar configuration
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_titlebar_initialize(const UI_Titlebar_Config* config);
+PROMETHEUS_API b8 ui_titlebar_initialize();
 
 /**
  * Shutdown the custom titlebar system
@@ -60,3 +47,9 @@ PROMETHEUS_API f32 ui_titlebar_get_height();
  * @param title - new title text
  */
 PROMETHEUS_API void ui_titlebar_set_title(const char* title);
+
+/**
+ * Set whether to show menus in titlebar
+ * @param show_menus - true to show menus, false to hide
+ */
+PROMETHEUS_API void ui_titlebar_set_show_menus(b8 show_menus);

@@ -230,7 +230,8 @@ void ui_dockspace_reset_layout() {
 
 // Internal function implementations
 INTERNAL_FUNC void setup_dockspace_window_flags() {
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    // Don't add MenuBar flag since we use titlebar menus instead
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
 
     if (dockspace_state.config.fullscreen_dockspace) {
         window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
@@ -275,4 +276,11 @@ INTERNAL_FUNC void configure_initial_layout() {
     // This allows users to dock windows naturally where they want them
 
     CORE_DEBUG("Dockspace ready for user-defined layout");
+}
+
+void ui_dockspace_set_show_menubar(b8 show_menubar) {
+    if (dockspace_state.is_initialized) {
+        dockspace_state.config.show_menubar = show_menubar;
+        CORE_DEBUG("Dockspace menubar %s", show_menubar ? "enabled" : "disabled");
+    }
 }

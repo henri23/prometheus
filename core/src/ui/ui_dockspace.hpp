@@ -79,3 +79,9 @@ PROMETHEUS_API unsigned int ui_dockspace_get_id();
  * Reset dockspace layout to default
  */
 PROMETHEUS_API void ui_dockspace_reset_layout();
+
+/**
+ * Set whether dockspace should show menubar
+ * @param show_menubar - true to show menubar, false to hide
+ */
+PROMETHEUS_API void ui_dockspace_set_show_menubar(b8 show_menubar);
