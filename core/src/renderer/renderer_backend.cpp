@@ -6,6 +6,11 @@
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "renderer_platform.hpp"
+#include "ui/ui.hpp"
+#include "ui/ui_themes.hpp"
+
+// Renderer configuration
+// #define UNLIMITED_FRAME_RATE  // Uncomment for software frame limiting (may cause tearing)
 
 internal_variable Vulkan_Context context;
 
@@ -74,17 +79,45 @@ INTERNAL_FUNC void setup_vulkan_window(
         (size_t)IM_ARRAYSIZE(requestSurfaceImageFormat),
         requestSurfaceColorSpace);
 
-    // Select Present Mode
+    // Select Present Mode based on configuration
+#ifdef UNLIMITED_FRAME_RATE
+    // Prioritize unlimited frame rate modes (software frame limiting)
     VkPresentModeKHR present_modes[] = {
-        VK_PRESENT_MODE_MAILBOX_KHR,
-        VK_PRESENT_MODE_FIFO_KHR,
-        VK_PRESENT_MODE_IMMEDIATE_KHR};
+        VK_PRESENT_MODE_IMMEDIATE_KHR,  // No VSync - allows software frame limiting
+        VK_PRESENT_MODE_MAILBOX_KHR,    // VSync with triple buffering (fallback)
+        VK_PRESENT_MODE_FIFO_KHR};      // VSync (fallback)
+#else
+    // Prioritize VSync modes for tear-free rendering (default)
+    VkPresentModeKHR present_modes[] = {
+        VK_PRESENT_MODE_MAILBOX_KHR,    // VSync with triple buffering (smooth)
+        VK_PRESENT_MODE_FIFO_KHR,       // VSync (guaranteed available)
+        VK_PRESENT_MODE_IMMEDIATE_KHR}; // No VSync (fallback only)
+#endif
 
     wd->PresentMode = ImGui_ImplVulkanH_SelectPresentMode(
         context.physical_device,
         wd->Surface,
         &present_modes[0],
         IM_ARRAYSIZE(present_modes));
+
+    // Log which present mode was selected
+    const char* present_mode_name = "Unknown";
+    switch (wd->PresentMode) {
+        case VK_PRESENT_MODE_IMMEDIATE_KHR:
+            present_mode_name = "IMMEDIATE (No VSync)";
+            break;
+        case VK_PRESENT_MODE_MAILBOX_KHR:
+            present_mode_name = "MAILBOX (VSync + Triple Buffer)";
+            break;
+        case VK_PRESENT_MODE_FIFO_KHR:
+            present_mode_name = "FIFO (VSync)";
+            break;
+        case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+            present_mode_name = "FIFO_RELAXED (Adaptive VSync)";
+            break;
+    }
+    CORE_INFO("Selected Vulkan present mode: %s", present_mode_name);
+    CORE_INFO("Swapchain image count: %u", wd->ImageCount);
 
     // Create SwapChain, RenderPass, Framebuffer, etc.
     RUNTIME_ASSERT(g_MinImageCount >= 2);
@@ -538,7 +571,7 @@ VkCommandPool renderer_get_command_pool() {
         .CommandPool;
 }
 
-static const ImVec4 clear_color = ImVec4(0.0f, 0.f, 0.f, 1.00f);
+// Clear color is now determined by the current UI theme
 
 b8 renderer_draw_frame(ImDrawData* draw_data) {
     // Handle window resize
@@ -578,15 +611,17 @@ b8 renderer_draw_frame(ImDrawData* draw_data) {
         draw_data->DisplaySize.x > 0.0f &&
         draw_data->DisplaySize.y > 0.0f) {
 
-        // Set clear color
+        // Set clear color based on current UI theme
+        extern UI_Theme ui_get_current_theme(); // Internal function from ui.cpp
+        ImVec4 theme_clear_color = ui_themes_get_clear_color(ui_get_current_theme());
         context.main_window_data.ClearValue.color.float32[0] =
-            clear_color.x * clear_color.w;
+            theme_clear_color.x * theme_clear_color.w;
         context.main_window_data.ClearValue.color.float32[1] =
-            clear_color.y * clear_color.w;
+            theme_clear_color.y * theme_clear_color.w;
         context.main_window_data.ClearValue.color.float32[2] =
-            clear_color.z * clear_color.w;
+            theme_clear_color.z * theme_clear_color.w;
         context.main_window_data.ClearValue.color.float32[3] =
-            clear_color.w;
+            theme_clear_color.w;
 
         renderer_frame_render(draw_data);
         renderer_frame_present();

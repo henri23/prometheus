@@ -1,29 +1,38 @@
 #pragma once
 
+#include "client_types.hpp"
 #include "core/application.hpp"
+#include "core/logger.hpp"
 #include "defines.hpp"
 
-// Forward declaration for client UI config
-typedef struct Client_UI_Config Client_UI_Config;
-
-extern Client_UI_Config* create_client();
+// Client must implement this function to initialize their state
+extern b8 create_client(Client_State* client_state);
 
 int main() {
-    Client_UI_Config* client_config = create_client();
-    if (!client_config) {
+    // Stack-allocate client state (following koala_engine pattern)
+    Client_State client_state = {};
+
+    // Let client initialize its state and configuration
+    if (!create_client(&client_state)) {
+        CORE_FATAL("Failed to initialize client");
         return -1;
     }
 
-    App_Config config = application_get_default_config();
-    if (!application_init(&config)) {
+    // Validate required client configuration
+    if (!client_state.config.name) {
+        CORE_FATAL("Client must provide application name");
         return -1;
     }
 
-    // Set client UI configuration for the application
-    if (!application_set_client_ui_config(client_config)) {
+    // Initialize application with client state
+    if (!application_init(&client_state)) {
+        CORE_FATAL("Failed to initialize application");
         return -1;
     }
 
+    CORE_INFO("Client application initialized successfully");
+
+    // Run the application
     application_run();
 
     return 0;

@@ -313,60 +313,112 @@ b8 ui_fonts_register_defaults() {
 
     b8 success = true;
 
-    // Load embedded Roboto fonts directly using simplified interface
-    ImFont* roboto_regular = assets_load_font(
-        "roboto_regular",
-        UI_FONT_SIZE_NORMAL);
+    // Get font data from assets and register with ImGui directly
+    ImGuiIO& io = ImGui::GetIO();
 
-    if (roboto_regular) {
-        // Register the loaded font in our registry for name-based lookup
-        UI_Font_Info font_info = {};
-        font_info.name = "roboto_regular";
-        font_info.family = "Roboto";
-        font_info.weight = UI_Font_Weight::REGULAR;
-        font_info.style = UI_Font_Style::NORMAL;
-        font_info.size = UI_FONT_SIZE_NORMAL;
-        font_info.imgui_font = roboto_regular;
-        font_info.is_loaded = true;
-        font_info.is_default = false;
+    // Load Roboto Regular
+    u64 roboto_regular_size;
+    const u8* roboto_regular_data = assets_get_font_data("roboto_regular", &roboto_regular_size);
+    if (roboto_regular_data) {
+        ImFontConfig config = {};
+        config.FontDataOwnedByAtlas = false;
+        strncpy(config.Name, "roboto_regular", sizeof(config.Name) - 1);
 
-        font_registry.fonts.push_back(font_info);
+        ImFont* roboto_regular = io.Fonts->AddFontFromMemoryTTF(
+            (void*)roboto_regular_data,
+            roboto_regular_size,
+            UI_FONT_SIZE_NORMAL,
+            &config);
+
+        if (roboto_regular) {
+            UI_Font_Info font_info = {};
+            font_info.name = "roboto_regular";
+            font_info.family = "Roboto";
+            font_info.weight = UI_Font_Weight::REGULAR;
+            font_info.style = UI_Font_Style::NORMAL;
+            font_info.size = UI_FONT_SIZE_NORMAL;
+            font_info.data = roboto_regular_data;
+            font_info.data_size = roboto_regular_size;
+            font_info.imgui_font = roboto_regular;
+            font_info.is_loaded = true;
+            font_info.is_default = false;
+
+            font_registry.fonts.push_back(font_info);
+        } else {
+            success = false;
+        }
+    } else {
+        success = false;
     }
 
-    ImFont* roboto_bold = assets_load_font(
-        "roboto_bold",
-        UI_FONT_SIZE_NORMAL);
+    // Load Roboto Bold
+    u64 roboto_bold_size;
+    const u8* roboto_bold_data = assets_get_font_data("roboto_bold", &roboto_bold_size);
+    if (roboto_bold_data) {
+        ImFontConfig config = {};
+        config.FontDataOwnedByAtlas = false;
+        strncpy(config.Name, "roboto_bold", sizeof(config.Name) - 1);
 
-    if (roboto_bold) {
-        UI_Font_Info font_info = {};
-        font_info.name = "roboto_bold";
-        font_info.family = "Roboto";
-        font_info.weight = UI_Font_Weight::BOLD;
-        font_info.style = UI_Font_Style::NORMAL;
-        font_info.size = UI_FONT_SIZE_NORMAL;
-        font_info.imgui_font = roboto_bold;
-        font_info.is_loaded = true;
-        font_info.is_default = false;
+        ImFont* roboto_bold = io.Fonts->AddFontFromMemoryTTF(
+            (void*)roboto_bold_data,
+            roboto_bold_size,
+            UI_FONT_SIZE_NORMAL,
+            &config);
 
-        font_registry.fonts.push_back(font_info);
+        if (roboto_bold) {
+            UI_Font_Info font_info = {};
+            font_info.name = "roboto_bold";
+            font_info.family = "Roboto";
+            font_info.weight = UI_Font_Weight::BOLD;
+            font_info.style = UI_Font_Style::NORMAL;
+            font_info.size = UI_FONT_SIZE_NORMAL;
+            font_info.data = roboto_bold_data;
+            font_info.data_size = roboto_bold_size;
+            font_info.imgui_font = roboto_bold;
+            font_info.is_loaded = true;
+            font_info.is_default = false;
+
+            font_registry.fonts.push_back(font_info);
+        } else {
+            success = false;
+        }
+    } else {
+        success = false;
     }
 
-    ImFont* roboto_italic = assets_load_font(
-		"roboto_italic", 
-		UI_FONT_SIZE_NORMAL);
+    // Load Roboto Italic
+    u64 roboto_italic_size;
+    const u8* roboto_italic_data = assets_get_font_data("roboto_italic", &roboto_italic_size);
+    if (roboto_italic_data) {
+        ImFontConfig config = {};
+        config.FontDataOwnedByAtlas = false;
+        strncpy(config.Name, "roboto_italic", sizeof(config.Name) - 1);
 
-    if (roboto_italic) {
-        UI_Font_Info font_info = {};
-        font_info.name = "roboto_italic";
-        font_info.family = "Roboto";
-        font_info.weight = UI_Font_Weight::REGULAR;
-        font_info.style = UI_Font_Style::ITALIC;
-        font_info.size = UI_FONT_SIZE_NORMAL;
-        font_info.imgui_font = roboto_italic;
-        font_info.is_loaded = true;
-        font_info.is_default = false;
+        ImFont* roboto_italic = io.Fonts->AddFontFromMemoryTTF(
+            (void*)roboto_italic_data,
+            roboto_italic_size,
+            UI_FONT_SIZE_NORMAL,
+            &config);
 
-        font_registry.fonts.push_back(font_info);
+        if (roboto_italic) {
+            UI_Font_Info font_info = {};
+            font_info.name = "roboto_italic";
+            font_info.family = "Roboto";
+            font_info.weight = UI_Font_Weight::REGULAR;
+            font_info.style = UI_Font_Style::ITALIC;
+            font_info.size = UI_FONT_SIZE_NORMAL;
+            font_info.data = roboto_italic_data;
+            font_info.data_size = roboto_italic_size;
+            font_info.imgui_font = roboto_italic;
+            font_info.is_loaded = true;
+            font_info.is_default = false;
+
+            font_registry.fonts.push_back(font_info);
+        } else {
+            success = false;
+        }
+    } else {
+        success = false;
     }
 
     if (success) {

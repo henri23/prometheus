@@ -1,5 +1,7 @@
 #include "client_ui.hpp"
 
+// Core UI system
+#include "ui/ui.hpp"
 // Direct ImGui access (now available as public dependency from core)
 #include "imgui.h"
 #include "core/logger.hpp"
@@ -20,33 +22,8 @@ struct Client_UI_State {
     b8 show_demo_window;
 };
 
-internal_variable Client_UI_State client_state = {
-    .is_initialized = false,
-    .slider_value = 0.0f,
-    .counter = 0,
-    .clear_color = {0.45f, 0.55f, 0.60f, 1.00f},
-    .show_prometheus_window = true,
-    .show_demo_window = false
-};
-
-// Component definitions
-internal_variable Client_UI_Component client_components[] = {
-    {
-        .name = "prometheus_window",
-        .on_render = client_ui_render_prometheus_window,
-        .on_attach = nullptr,
-        .on_detach = nullptr,
-        .user_data = &client_state,
-        .is_active = true
-    }
-};
-
-internal_variable Client_UI_Config client_config = {
-    .components = client_components,
-    .component_count = sizeof(client_components) / sizeof(Client_UI_Component),
-    .menu_callback = client_ui_render_menus,
-    .menu_user_data = &client_state
-};
+// Zero memory initialization
+internal_variable Client_UI_State client_state = {};
 
 b8 client_ui_initialize() {
     CORE_DEBUG("Initializing client UI system...");
@@ -56,7 +33,32 @@ b8 client_ui_initialize() {
         return true;
     }
 
+    // Zero out state and set defaults
+    memory_zero(&client_state, sizeof(Client_UI_State));
+    client_state.slider_value = 0.0f;
+    client_state.counter = 0;
+    client_state.clear_color = {0.45f, 0.55f, 0.60f, 1.00f};
+    client_state.show_prometheus_window = true;
+    client_state.show_demo_window = false;
     client_state.is_initialized = true;
+
+    // Register components directly with core
+    UI_Component prometheus_window = {
+        .name = "prometheus_window",
+        .on_render = client_ui_render_prometheus_window,
+        .on_attach = nullptr,
+        .on_detach = nullptr,
+        .user_data = &client_state,
+        .is_active = true
+    };
+
+    if (!ui_register_component(&prometheus_window)) {
+        CORE_ERROR("Failed to register prometheus window component");
+        return false;
+    }
+
+    // Register menu callback directly
+    ui_register_menu_callback(client_ui_render_menus, &client_state);
 
     CORE_INFO("Client UI system initialized successfully");
     return true;
@@ -70,17 +72,11 @@ void client_ui_shutdown() {
         return;
     }
 
+    // Unregister components
+    ui_unregister_component("prometheus_window");
+
     client_state.is_initialized = false;
     CORE_DEBUG("Client UI system shut down successfully");
-}
-
-Client_UI_Config* client_ui_get_config() {
-    if (!client_state.is_initialized) {
-        CORE_ERROR("Client UI not initialized");
-        return nullptr;
-    }
-
-    return &client_config;
 }
 
 // Component implementations (migrated from core/src/ui/ui_components.cpp)
@@ -135,8 +131,6 @@ void client_ui_render_prometheus_window(void* user_data) {
     ImGui::End();
 }
 
-
-
 // Menu system implementation (migrated from core/src/ui/ui_components.cpp)
 void client_ui_render_menus(void* user_data) {
     Client_UI_State* state = (Client_UI_State*)user_data;
@@ -169,6 +163,7 @@ void client_ui_render_menus(void* user_data) {
             CORE_DEBUG("View -> Reset Layout selected");
             ui_dockspace_reset_layout();
         }
+
         ImGui::EndMenu();
     }
 

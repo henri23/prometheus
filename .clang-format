@@ -1,8 +1,17 @@
 BasedOnStyle: LLVM
 IndentWidth: 4
-ColumnLimit: 0
+ColumnLimit: 80
 NamespaceIndentation: All
 BreakBeforeBraces: Attach
 PointerAlignment: Left
-# IndentPPDirectives: AfterHash
+IndentPPDirectives: AfterHash
 
+# Function argument breaking
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: false
+BinPackArguments: false
+BinPackParameters: false
+AlignAfterOpenBracket: DontAlign
+AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakBeforeMultilineStrings: true

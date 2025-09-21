@@ -7,6 +7,7 @@
 #include "core/logger.hpp"
 #include "core/asserts.hpp"
 
+
 // Internal dockspace state
 struct Dockspace_State {
     b8 is_initialized;
@@ -39,7 +40,7 @@ internal_variable UI_Dockspace_Config default_config = {
 // Internal functions
 INTERNAL_FUNC void setup_dockspace_window_flags();
 INTERNAL_FUNC void setup_dockspace_flags();
-INTERNAL_FUNC void render_main_menubar();
+INTERNAL_FUNC void render_main_menubar(const UI_State* ui_state);
 INTERNAL_FUNC void configure_initial_layout();
 
 b8 ui_dockspace_initialize(const UI_Dockspace_Config* config) {
@@ -181,7 +182,7 @@ void ui_dockspace_begin(void* user_data) {
 
     // Render main menubar if enabled
     if (dockspace_state.config.show_menubar) {
-        render_main_menubar();
+        render_main_menubar(ui_state);
     }
 }
 
@@ -252,10 +253,9 @@ INTERNAL_FUNC void setup_dockspace_flags() {
     dockspace_state.config.dockspace_flags = dockspace_flags;
 }
 
-INTERNAL_FUNC void render_main_menubar() {
+INTERNAL_FUNC void render_main_menubar(const UI_State* ui_state) {
     if (ImGui::BeginMenuBar()) {
         // Call client-defined menu callback
-        const UI_State* ui_state = ui_get_state();
         if (ui_state && ui_state->menu_callback) {
             ui_state->menu_callback(ui_state->menu_user_data);
         }

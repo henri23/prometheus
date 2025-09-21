@@ -204,8 +204,13 @@ void* platform_set_memory(void* dest, s32 value, u64 size) {
     return memset(dest, value, size);
 }
 
-// f64 platform_get_absolute_time() {
-// }
+f64 platform_get_absolute_time() {
+    return (f64)SDL_GetTicksNS() / 1000000000.0; // Convert nanoseconds to seconds
+}
+
+void platform_sleep(u64 ms) {
+    SDL_Delay((u32)ms);
+}
 
 void platform_set_event_callback(Platform_EventCallback callback) {
     event_callback = callback;

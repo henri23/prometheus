@@ -1,6 +1,7 @@
 #include "ui_titlebar.hpp"
-#include "ui.hpp"
 #include "assets/assets.hpp"
+#include "ui.hpp"
+#include "ui_themes.hpp"
 
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
@@ -32,7 +33,7 @@ internal_variable Titlebar_State titlebar_state = {};
 
 // Default titlebar configuration
 internal_variable UI_Titlebar_Config default_config = {
-    .height = 30.0f,
+    .height = 50.0f,
     .show_minimize_button = true,
     .show_maximize_button = true,
     .show_close_button = true,
@@ -44,16 +45,19 @@ internal_variable UI_Titlebar_Config default_config = {
 };
 
 // Internal functions
+INTERNAL_FUNC UI_Titlebar_Config get_theme_based_titlebar_config();
+
 INTERNAL_FUNC void render_titlebar_background();
+INTERNAL_FUNC void render_titlebar_gradient();
 INTERNAL_FUNC void render_titlebar_logo();
 INTERNAL_FUNC void render_titlebar_text();
 INTERNAL_FUNC void render_titlebar_buttons();
-INTERNAL_FUNC b8 render_titlebar_button(
-    const char* icon,
+
+INTERNAL_FUNC b8 render_titlebar_button(const char* icon,
     ImVec2 pos,
     ImVec2 size);
-INTERNAL_FUNC b8 render_titlebar_image_button(
-    const Vulkan_Image* image,
+
+INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
     const char* fallback_text,
     ImVec2 pos,
     ImVec2 size);
@@ -66,11 +70,11 @@ b8 ui_titlebar_initialize(const UI_Titlebar_Config* config) {
         return true;
     }
 
-    // Use provided config or default
+    // Use provided config or theme-based default
     if (config) {
         titlebar_state.config = *config;
     } else {
-        titlebar_state.config = default_config;
+        titlebar_state.config = get_theme_based_titlebar_config();
     }
 
     titlebar_state.current_height = titlebar_state.config.height;
@@ -80,11 +84,16 @@ b8 ui_titlebar_initialize(const UI_Titlebar_Config* config) {
 
     // Load icons directly
     b8 icons_success = true;
-    icons_success &= assets_load_image(&titlebar_state.app_icon, "prometheus_icon");
-    icons_success &= assets_load_image(&titlebar_state.minimize_icon, "window_minimize");
-    icons_success &= assets_load_image(&titlebar_state.maximize_icon, "window_maximize");
-    icons_success &= assets_load_image(&titlebar_state.restore_icon, "window_restore");
-    icons_success &= assets_load_image(&titlebar_state.close_icon, "window_close");
+    icons_success &=
+        assets_load_image(&titlebar_state.app_icon, "prometheus_icon");
+    icons_success &=
+        assets_load_image(&titlebar_state.minimize_icon, "window_minimize");
+    icons_success &=
+        assets_load_image(&titlebar_state.maximize_icon, "window_maximize");
+    icons_success &=
+        assets_load_image(&titlebar_state.restore_icon, "window_restore");
+    icons_success &=
+        assets_load_image(&titlebar_state.close_icon, "window_close");
 
     titlebar_state.icons_loaded = icons_success;
 
@@ -94,8 +103,7 @@ b8 ui_titlebar_initialize(const UI_Titlebar_Config* config) {
         CORE_WARN("Some titlebar icons failed to load, using fallback text");
     }
 
-    CORE_INFO(
-        "Custom titlebar initialized with height %.1f",
+    CORE_INFO("Custom titlebar initialized with height %.1f",
         titlebar_state.current_height);
     return true;
 }
@@ -137,9 +145,18 @@ void ui_titlebar_render(void* user_data) {
             "titlebar_enabled=%s",
             (void*)ui_state,
             ui_state ? (ui_state->is_initialized ? "true" : "false") : "null",
-            ui_state ? (ui_state->custom_titlebar_enabled ? "true" : "false") : "null");
+            ui_state ? (ui_state->custom_titlebar_enabled ? "true" : "false")
+                     : "null");
         return;
     }
+
+    // Update titlebar colors from current theme each frame
+    UI_Titlebar_Config theme_config = get_theme_based_titlebar_config();
+    titlebar_state.config.background_color = theme_config.background_color;
+    titlebar_state.config.text_color = theme_config.text_color;
+    titlebar_state.config.button_hover_color = theme_config.button_hover_color;
+    titlebar_state.config.button_active_color =
+        theme_config.button_active_color;
 
     static b8 render_debug_logged = false;
     if (!render_debug_logged) {
@@ -153,8 +170,7 @@ void ui_titlebar_render(void* user_data) {
 
     // Set titlebar bounds
     titlebar_state.titlebar_min = window_pos;
-    titlebar_state.titlebar_max = ImVec2(
-        window_pos.x + window_size.x,
+    titlebar_state.titlebar_max = ImVec2(window_pos.x + window_size.x,
         window_pos.y + titlebar_state.current_height);
 
     // Create invisible window for titlebar
@@ -170,6 +186,7 @@ void ui_titlebar_render(void* user_data) {
 
     if (ImGui::Begin("##CustomTitlebar", nullptr, flags)) {
         render_titlebar_background();
+        render_titlebar_gradient();
         render_titlebar_logo();
         render_titlebar_text();
         render_titlebar_buttons();
@@ -202,16 +219,32 @@ void ui_titlebar_set_title(const char* title) {
 }
 
 // Internal function implementations
+INTERNAL_FUNC UI_Titlebar_Config get_theme_based_titlebar_config() {
+    extern UI_Theme ui_get_current_theme(); // Internal function from ui.cpp
+    UI_Theme current_theme = ui_get_current_theme();
+    const UI_Theme_Palette& palette = ui_themes_get_palette(current_theme);
+
+    UI_Titlebar_Config config = default_config;
+
+    // Update colors from current theme
+    config.background_color = palette.titlebar;
+    config.text_color = palette.text;
+    config.button_hover_color = palette.button_hovered;
+    config.button_active_color = palette.highlight;
+
+    return config;
+}
+
 INTERNAL_FUNC void render_titlebar_background() {
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    draw_list->AddRectFilled(
-        titlebar_state.titlebar_min,
+    draw_list->AddRectFilled(titlebar_state.titlebar_min,
         titlebar_state.titlebar_max,
         titlebar_state.config.background_color);
 }
 
 INTERNAL_FUNC void render_titlebar_logo() {
-    const Vulkan_Image* app_icon = titlebar_state.icons_loaded ? &titlebar_state.app_icon : nullptr;
+    const Vulkan_Image* app_icon =
+        titlebar_state.icons_loaded ? &titlebar_state.app_icon : nullptr;
     b8 icons_loaded = titlebar_state.icons_loaded;
 
     // Debug output to see what's happening
@@ -226,40 +259,36 @@ INTERNAL_FUNC void render_titlebar_logo() {
         debug_logged = true;
     }
 
-    // Logo size and position (left side of titlebar)
-    // 4px padding top/bottom
-    f32 logo_size = titlebar_state.current_height - 8.0f;
+    // Fixed logo size (decoupled from titlebar height)
+    f32 logo_size = 32.0f; // Fixed size for larger Prometheus icon
     f32 logo_margin = 8.0f;
+    f32 logo_top_padding = 9.0f; // Fixed distance from top edge
 
-    ImVec2 logo_pos = ImVec2(
-        titlebar_state.titlebar_min.x + logo_margin,
-        titlebar_state.titlebar_min.y +
-            (titlebar_state.current_height - logo_size) * 0.5f);
+    // Position: fixed distance from top edge (not centered)
+    ImVec2 logo_pos = ImVec2(titlebar_state.titlebar_min.x + logo_margin,
+        titlebar_state.titlebar_min.y + logo_top_padding);
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
     if (app_icon && icons_loaded &&
         app_icon->descriptor_set != VK_NULL_HANDLE) {
-        // Render the actual logo image
-        draw_list->AddImage(
-            (ImTextureID)(intptr_t)app_icon->descriptor_set,
+        // Render the scalable logo image
+        draw_list->AddImage((ImTextureID)(intptr_t)app_icon->descriptor_set,
             logo_pos,
             ImVec2(logo_pos.x + logo_size, logo_pos.y + logo_size),
             ImVec2(0, 0),
             ImVec2(1, 1),
             IM_COL32_WHITE);
     } else {
-        // Fallback: draw a placeholder rectangle with "P" text
-        draw_list->AddRect(
-            logo_pos,
+        // Fallback: draw a scalable placeholder
+        draw_list->AddRect(logo_pos,
             ImVec2(logo_pos.x + logo_size, logo_pos.y + logo_size),
             titlebar_state.config.text_color,
             2.0f);
 
         // Add "P" text as placeholder
         ImVec2 text_size = ImGui::CalcTextSize("P");
-        ImVec2 text_pos = ImVec2(
-            logo_pos.x + (logo_size - text_size.x) * 0.5f,
+        ImVec2 text_pos = ImVec2(logo_pos.x + (logo_size - text_size.x) * 0.5f,
             logo_pos.y + (logo_size - text_size.y) * 0.5f);
         draw_list->AddText(text_pos, titlebar_state.config.text_color, "P");
     }
@@ -270,44 +299,50 @@ INTERNAL_FUNC void render_titlebar_text() {
         return;
     }
 
-    // Position title text after the logo
-    // logo + margins
-    f32 logo_width = titlebar_state.current_height - 8.0f + 16.0f;
-
+    // Calculate text size for centering
     ImVec2 text_size = ImGui::CalcTextSize(titlebar_state.config.title_text);
-    ImVec2 text_pos = ImVec2(
-        titlebar_state.titlebar_min.x + logo_width, // After logo
-        titlebar_state.titlebar_min.y +
-            (titlebar_state.current_height - text_size.y) * 0.5f);
+
+    // Calculate titlebar dimensions
+    f32 titlebar_width = titlebar_state.titlebar_max.x - titlebar_state.titlebar_min.x;
+
+    // Center the text horizontally in the titlebar
+    f32 text_x = titlebar_state.titlebar_min.x + (titlebar_width - text_size.x) * 0.5f;
+
+    // Fixed distance from top edge
+    f32 text_top_padding = 6.0f;
+    f32 text_y = titlebar_state.titlebar_min.y + text_top_padding;
+
+    ImVec2 text_pos = ImVec2(text_x, text_y);
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    draw_list->AddText(
-        text_pos,
+    draw_list->AddText(text_pos,
         titlebar_state.config.text_color,
         titlebar_state.config.title_text);
 }
 
 INTERNAL_FUNC void render_titlebar_buttons() {
-    // 2px padding top/bottom
-    f32 button_size = titlebar_state.current_height - 4.0f;
+    // Fixed button size (not scaling with titlebar height)
+    f32 button_size = 26.0f; // Fixed size for consistent window controls
     f32 button_spacing = 2.0f;
     f32 right_margin = 4.0f;
+    f32 top_padding = 2.0f; // Fixed distance from top edge
 
     f32 current_x = titlebar_state.titlebar_max.x - right_margin;
 
     // Close button (rightmost)
     if (titlebar_state.config.show_close_button) {
         current_x -= button_size;
-        ImVec2 close_pos = ImVec2(
-            current_x,
-            titlebar_state.titlebar_min.y + 2.0f);
+        ImVec2 close_pos =
+            ImVec2(current_x, titlebar_state.titlebar_min.y + top_padding); // Top-aligned
         ImVec2 close_size = ImVec2(button_size, button_size);
 
-        const Vulkan_Image* close_icon = titlebar_state.icons_loaded ? &titlebar_state.close_icon : nullptr;
-        if (render_titlebar_image_button(
-                close_icon, "×", close_pos, close_size)) {
-            CORE_DEBUG(
-                "Close button clicked - requesting application exit");
+        const Vulkan_Image* close_icon =
+            titlebar_state.icons_loaded ? &titlebar_state.close_icon : nullptr;
+        if (render_titlebar_image_button(close_icon,
+                "×",
+                close_pos,
+                close_size)) {
+            CORE_DEBUG("Close button clicked - requesting application exit");
             platform_close_window();
         }
         current_x -= button_spacing;
@@ -316,17 +351,24 @@ INTERNAL_FUNC void render_titlebar_buttons() {
     // Maximize button
     if (titlebar_state.config.show_maximize_button) {
         current_x -= button_size;
-        ImVec2 max_pos = ImVec2(current_x, titlebar_state.titlebar_min.y + 2.0f);
+        ImVec2 max_pos =
+            ImVec2(current_x, titlebar_state.titlebar_min.y + top_padding); // Top-aligned
         ImVec2 max_size = ImVec2(button_size, button_size);
 
         // Check if window is maximized and use appropriate icon
         b8 is_maximized = platform_is_window_maximized();
         const Vulkan_Image* max_icon =
-            is_maximized ? (titlebar_state.icons_loaded ? &titlebar_state.restore_icon : nullptr)
-                         : (titlebar_state.icons_loaded ? &titlebar_state.maximize_icon : nullptr);
+            is_maximized
+                ? (titlebar_state.icons_loaded ? &titlebar_state.restore_icon
+                                               : nullptr)
+                : (titlebar_state.icons_loaded ? &titlebar_state.maximize_icon
+                                               : nullptr);
         const char* fallback_text = is_maximized ? "🗗" : "□";
 
-        if (render_titlebar_image_button(max_icon, fallback_text, max_pos, max_size)) {
+        if (render_titlebar_image_button(max_icon,
+                fallback_text,
+                max_pos,
+                max_size)) {
             if (is_maximized) {
                 CORE_DEBUG("Restore button clicked - restoring window");
                 platform_restore_window();
@@ -341,20 +383,16 @@ INTERNAL_FUNC void render_titlebar_buttons() {
     // Minimize button
     if (titlebar_state.config.show_minimize_button) {
         current_x -= button_size;
-        ImVec2 min_pos = ImVec2(
-            current_x,
-            titlebar_state.titlebar_min.y + 2.0f);
+        ImVec2 min_pos =
+            ImVec2(current_x, titlebar_state.titlebar_min.y + top_padding); // Top-aligned
 
         ImVec2 min_size = ImVec2(button_size, button_size);
 
-        const Vulkan_Image* min_icon =
-            titlebar_state.icons_loaded ? &titlebar_state.minimize_icon : nullptr;
+        const Vulkan_Image* min_icon = titlebar_state.icons_loaded
+                                           ? &titlebar_state.minimize_icon
+                                           : nullptr;
 
-        if (render_titlebar_image_button(
-                min_icon,
-                "−",
-                min_pos,
-                min_size)) {
+        if (render_titlebar_image_button(min_icon, "−", min_pos, min_size)) {
 
             CORE_DEBUG("Minimize button clicked - minimizing window");
             platform_minimize_window();
@@ -362,8 +400,7 @@ INTERNAL_FUNC void render_titlebar_buttons() {
     }
 }
 
-INTERNAL_FUNC b8 render_titlebar_button(
-    const char* icon,
+INTERNAL_FUNC b8 render_titlebar_button(const char* icon,
     ImVec2 pos,
     ImVec2 size) {
 
@@ -371,13 +408,10 @@ INTERNAL_FUNC b8 render_titlebar_button(
 
     // Create invisible button for interaction
     ImGui::PushID(icon);
-    b8 clicked = ImGui::InvisibleButton(
-        "##titlebar_btn",
-        size);
+    b8 clicked = ImGui::InvisibleButton("##titlebar_btn", size);
 
     // Get button state for coloring
-    u32 button_color =
-        titlebar_state.config.background_color;
+    u32 button_color = titlebar_state.config.background_color;
 
     if (ImGui::IsItemActive()) {
         button_color = titlebar_state.config.button_active_color;
@@ -387,12 +421,13 @@ INTERNAL_FUNC b8 render_titlebar_button(
 
     // Draw button background
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    draw_list->AddRectFilled(pos, ImVec2(pos.x + size.x, pos.y + size.y), button_color);
+    draw_list->AddRectFilled(pos,
+        ImVec2(pos.x + size.x, pos.y + size.y),
+        button_color);
 
     // Draw icon text centered
     ImVec2 text_size = ImGui::CalcTextSize(icon);
-    ImVec2 text_pos = ImVec2(
-        pos.x + (size.x - text_size.x) * 0.5f,
+    ImVec2 text_pos = ImVec2(pos.x + (size.x - text_size.x) * 0.5f,
         pos.y + (size.y - text_size.y) * 0.5f);
     draw_list->AddText(text_pos, titlebar_state.config.text_color, icon);
 
@@ -400,7 +435,10 @@ INTERNAL_FUNC b8 render_titlebar_button(
     return clicked;
 }
 
-INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image, const char* fallback_text, ImVec2 pos, ImVec2 size) {
+INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
+    const char* fallback_text,
+    ImVec2 pos,
+    ImVec2 size) {
     ImGui::SetCursorScreenPos(pos);
 
     // Create invisible button for interaction
@@ -417,25 +455,56 @@ INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image, const c
 
     // Draw button background
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    draw_list->AddRectFilled(pos, ImVec2(pos.x + size.x, pos.y + size.y), button_color);
+    draw_list->AddRectFilled(pos,
+        ImVec2(pos.x + size.x, pos.y + size.y),
+        button_color);
 
-    if (image && titlebar_state.icons_loaded && image->descriptor_set != VK_NULL_HANDLE) {
-        // Draw the icon image centered in the button with proper scaling
-        ImVec2 image_size = ImVec2(size.x * 0.6f, size.y * 0.6f); // Scale down for padding
-        ImVec2 image_pos = ImVec2(
-            pos.x + (size.x - image_size.x) * 0.5f,
-            pos.y + (size.y - image_size.y) * 0.5f);
+    if (image && titlebar_state.icons_loaded &&
+        image->descriptor_set != VK_NULL_HANDLE) {
+        // Draw the icon image centered in the button with aspect ratio
+        // preservation Get original icon dimensions
+        f32 original_width = (f32)image->width;
+        f32 original_height = (f32)image->height;
+        f32 original_aspect = original_width / original_height;
+
+        // Calculate available space for icon (with padding)
+        f32 available_width = size.x * 0.7f;  // 70% of button width for icon
+        f32 available_height = size.y * 0.7f; // 70% of button height for icon
+
+        // Use icons at their natural size (no scaling unless they're too large)
+        f32 scale = 1.0f; // Start with natural size
+
+        // Only scale down if the icon is larger than available space
+        if (original_width > available_width) {
+            scale = available_width / original_width;
+        }
+        if (original_height > available_height) {
+            f32 height_scale = available_height / original_height;
+            if (height_scale < scale) {
+                scale = height_scale;
+            }
+        }
+
+        // Calculate final dimensions (natural size or scaled down if needed)
+        f32 scaled_width = original_width * scale;
+        f32 scaled_height = original_height * scale;
+
+        ImVec2 image_size = ImVec2(scaled_width, scaled_height);
+        ImVec2 image_pos = ImVec2(pos.x + (size.x - image_size.x) *
+                                              0.5f, // Center horizontally
+            pos.y + size.y - image_size.y -
+                (size.y * 0.15f)); // Anchor to bottom with padding
 
         // Render the icon with proper color tinting based on button state
         u32 icon_color = titlebar_state.config.text_color;
         if (ImGui::IsItemActive()) {
-            icon_color = titlebar_state.config.text_color; // Keep same color when active
+            icon_color =
+                titlebar_state.config.text_color; // Keep same color when active
         } else if (ImGui::IsItemHovered()) {
             icon_color = IM_COL32_WHITE; // Brighter when hovered
         }
 
-        draw_list->AddImage(
-            (ImTextureID)(intptr_t)image->descriptor_set,
+        draw_list->AddImage((ImTextureID)(intptr_t)image->descriptor_set,
             image_pos,
             ImVec2(image_pos.x + image_size.x, image_pos.y + image_size.y),
             ImVec2(0, 0),
@@ -446,20 +515,62 @@ INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image, const c
         // Debug: Log why we're falling back
         static b8 button_debug_logged = false;
         if (!button_debug_logged) {
-            CORE_DEBUG("Button fallback: image=%p, icons_loaded=%s, descriptor_set=%p",
-                       (void*)image,
-                       titlebar_state.icons_loaded ? "true" : "false",
-                       image ? (void*)image->descriptor_set : nullptr);
+            CORE_DEBUG(
+                "Button fallback: image=%p, icons_loaded=%s, descriptor_set=%p",
+                (void*)image,
+                titlebar_state.icons_loaded ? "true" : "false",
+                image ? (void*)image->descriptor_set : nullptr);
             button_debug_logged = true;
         }
 
         ImVec2 text_size = ImGui::CalcTextSize(fallback_text);
-        ImVec2 text_pos = ImVec2(
-            pos.x + (size.x - text_size.x) * 0.5f,
+        ImVec2 text_pos = ImVec2(pos.x + (size.x - text_size.x) * 0.5f,
             pos.y + (size.y - text_size.y) * 0.5f);
-        draw_list->AddText(text_pos, titlebar_state.config.text_color, fallback_text);
+        draw_list->AddText(text_pos,
+            titlebar_state.config.text_color,
+            fallback_text);
     }
 
     ImGui::PopID();
     return clicked;
+}
+
+INTERNAL_FUNC void render_titlebar_gradient() {
+    // Get current theme palette for gradient colors
+    extern UI_Theme ui_get_current_theme(); // Internal function from ui.cpp
+    UI_Theme current_theme = ui_get_current_theme();
+    const UI_Theme_Palette& palette = ui_themes_get_palette(current_theme);
+
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+    // Calculate gradient area (left 1/4 of titlebar)
+    f32 titlebar_width = titlebar_state.titlebar_max.x - titlebar_state.titlebar_min.x;
+    f32 gradient_width = titlebar_width * 0.25f; // 1/4 of width
+
+    ImVec2 gradient_min = titlebar_state.titlebar_min;
+    ImVec2 gradient_max = ImVec2(titlebar_state.titlebar_min.x + gradient_width,
+                                titlebar_state.titlebar_max.y);
+
+    // Choose gradient colors based on current theme
+    u32 gradient_start_color, gradient_end_color;
+
+    if (current_theme == UI_Theme::DARK) {
+        // Orange to transparent gradient for dark theme (complements Prometheus branding)
+        gradient_start_color = IM_COL32(236, 158, 36, 80); // Orange accent with transparency
+        gradient_end_color = IM_COL32(236, 158, 36, 0);    // Fully transparent
+    } else {
+        // Purple to transparent gradient for Catppuccin theme
+        gradient_start_color = IM_COL32(203, 166, 247, 60); // Mauve with transparency
+        gradient_end_color = IM_COL32(203, 166, 247, 0);    // Fully transparent
+    }
+
+    // Render horizontal gradient
+    draw_list->AddRectFilledMultiColor(
+        gradient_min,
+        gradient_max,
+        gradient_start_color, // Top-left
+        gradient_end_color,   // Top-right
+        gradient_end_color,   // Bottom-right
+        gradient_start_color  // Bottom-left
+    );
 }

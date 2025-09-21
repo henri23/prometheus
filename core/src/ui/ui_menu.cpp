@@ -6,10 +6,11 @@
 #include "core/asserts.hpp"
 #include "memory/memory.hpp"
 #include "containers/auto_array.hpp"
+#include <cstdint> // For UINT32_MAX
 
 // Menu registry (internal only)
 struct UI_Menu_Registry {
-    Auto_Array<UI_Menu_Item> root_items;
+    Auto_Array<UI_Menu_Item> items;
     b8 is_initialized;
 };
 
@@ -17,11 +18,8 @@ struct UI_Menu_Registry {
 internal_variable UI_Menu_Registry menu_registry = {};
 
 // Internal functions
-INTERNAL_FUNC UI_Menu_Item* allocate_menu_item();
-INTERNAL_FUNC void deallocate_menu_item(UI_Menu_Item* item);
 INTERNAL_FUNC void render_menu_item(UI_Menu_Item* item);
 INTERNAL_FUNC void render_menu_children(UI_Menu_Item* parent);
-INTERNAL_FUNC b8 expand_menu_item_children(UI_Menu_Item* parent);
 INTERNAL_FUNC UI_Menu_Item* find_item_recursive(UI_Menu_Item* item, const char* label);
 
 b8 ui_menu_initialize() {
@@ -33,7 +31,7 @@ b8 ui_menu_initialize() {
     }
 
     // Initialize menu registry (Auto_Array handles its own memory)
-    menu_registry.root_items.clear();
+    menu_registry.items.clear();
     menu_registry.is_initialized = true;
 
     CORE_INFO("Menu system initialized successfully");
@@ -48,12 +46,8 @@ void ui_menu_shutdown() {
         return;
     }
 
-    // Deallocate all menu items and their children
-    for (u32 i = 0; i < menu_registry.root_items.size(); ++i) {
-        deallocate_menu_item(&menu_registry.root_items[i]);
-    }
-
     // Auto_Array destructor handles memory cleanup automatically
+    menu_registry.items.clear();
 
     // Reset registry
     menu_registry = {};
@@ -61,22 +55,16 @@ void ui_menu_shutdown() {
     CORE_DEBUG("Menu system shut down successfully");
 }
 
-UI_Menu_Item* ui_menu_create_item(const char* label, const char* shortcut, UI_Menu_Item_Type type) {
+u32 ui_menu_create_root_item(const char* label, const char* shortcut, UI_Menu_Item_Type type) {
     RUNTIME_ASSERT_MSG(label, "Menu item label cannot be null");
 
     if (!menu_registry.is_initialized) {
         CORE_ERROR("Menu system not initialized");
-        return nullptr;
+        return UINT32_MAX; // Invalid index
     }
 
-    UI_Menu_Item* item = allocate_menu_item();
-    if (!item) {
-        CORE_ERROR("Failed to allocate menu item");
-        return nullptr;
-    }
-
-    // Initialize menu item
-    *item = {
+    // Create menu item and add directly to root registry
+    UI_Menu_Item item = {
         .label = label,
         .shortcut = shortcut,
         .type = type,
@@ -85,70 +73,123 @@ UI_Menu_Item* ui_menu_create_item(const char* label, const char* shortcut, UI_Me
         .is_checked = nullptr,
         .user_data = nullptr,
         .enabled = true,
-        .checked = false,
-        .children = nullptr,
-        .child_count = 0,
-        .child_capacity = 0
+        .checked = false
+        // Auto_Array children initializes itself automatically
     };
 
-    CORE_DEBUG("Created menu item: %s", label);
-    return item;
+    menu_registry.items.push_back(item);
+    u32 index = menu_registry.items.size() - 1;
+
+    CORE_DEBUG("Created root menu item: %s at index %u", label, index);
+    return index;
 }
 
-b8 ui_menu_add_child(UI_Menu_Item* parent, UI_Menu_Item* child) {
-    RUNTIME_ASSERT_MSG(parent, "Parent menu item cannot be null");
-    RUNTIME_ASSERT_MSG(child, "Child menu item cannot be null");
+u32 ui_menu_add_child(u32 parent_index, const char* label, const char* shortcut, UI_Menu_Item_Type type) {
+    RUNTIME_ASSERT_MSG(label, "Child menu item label cannot be null");
 
-    // Expand children array if needed
-    if (parent->child_count >= parent->child_capacity) {
-        if (!expand_menu_item_children(parent)) {
-            return false;
-        }
+    if (!menu_registry.is_initialized) {
+        CORE_ERROR("Menu system not initialized");
+        return UINT32_MAX;
     }
 
-    // Add child to parent
-    parent->children[parent->child_count] = *child;
-    parent->child_count++;
+    if (parent_index >= menu_registry.items.size()) {
+        CORE_ERROR("Invalid parent index: %u", parent_index);
+        return UINT32_MAX;
+    }
 
-    CORE_DEBUG("Added child '%s' to parent '%s'", child->label, parent->label);
-    return true;
+    // Create child item
+    UI_Menu_Item child = {
+        .label = label,
+        .shortcut = shortcut,
+        .type = type,
+        .on_click = nullptr,
+        .is_enabled = nullptr,
+        .is_checked = nullptr,
+        .user_data = nullptr,
+        .enabled = true,
+        .checked = false
+    };
+
+    // Add child to parent using Auto_Array
+    UI_Menu_Item* parent = &menu_registry.items[parent_index];
+    parent->children.push_back(child);
+    u32 child_index = parent->children.size() - 1;
+
+    CORE_DEBUG("Added child '%s' to parent '%s' at index %u", label, parent->label, child_index);
+    return child_index;
 }
 
-void ui_menu_set_callback(UI_Menu_Item* item, UI_MenuItem_Callback callback, void* user_data) {
-    RUNTIME_ASSERT_MSG(item, "Menu item cannot be null");
+void ui_menu_set_root_callback(u32 root_index, UI_MenuItem_Callback callback, void* user_data) {
+    if (!menu_registry.is_initialized) {
+        CORE_ERROR("Menu system not initialized");
+        return;
+    }
 
+    if (root_index >= menu_registry.items.size()) {
+        CORE_ERROR("Invalid root index: %u", root_index);
+        return;
+    }
+
+    UI_Menu_Item* item = &menu_registry.items[root_index];
     item->on_click = callback;
     item->user_data = user_data;
 }
 
-void ui_menu_set_enabled_callback(UI_Menu_Item* item, UI_MenuItem_IsEnabled_Callback callback, void* user_data) {
-    RUNTIME_ASSERT_MSG(item, "Menu item cannot be null");
+void ui_menu_set_child_callback(u32 root_index, u32 child_index, UI_MenuItem_Callback callback, void* user_data) {
+    if (!menu_registry.is_initialized) {
+        CORE_ERROR("Menu system not initialized");
+        return;
+    }
 
+    if (root_index >= menu_registry.items.size()) {
+        CORE_ERROR("Invalid root index: %u", root_index);
+        return;
+    }
+
+    UI_Menu_Item* parent = &menu_registry.items[root_index];
+    if (child_index >= parent->children.size()) {
+        CORE_ERROR("Invalid child index: %u", child_index);
+        return;
+    }
+
+    UI_Menu_Item* child = &parent->children[child_index];
+    child->on_click = callback;
+    child->user_data = user_data;
+}
+
+void ui_menu_set_root_enabled_callback(u32 root_index, UI_MenuItem_IsEnabled_Callback callback, void* user_data) {
+    if (!menu_registry.is_initialized) {
+        CORE_ERROR("Menu system not initialized");
+        return;
+    }
+
+    if (root_index >= menu_registry.items.size()) {
+        CORE_ERROR("Invalid root index: %u", root_index);
+        return;
+    }
+
+    UI_Menu_Item* item = &menu_registry.items[root_index];
     item->is_enabled = callback;
     item->user_data = user_data;
 }
 
-void ui_menu_set_checked_callback(UI_Menu_Item* item, UI_MenuItem_IsChecked_Callback callback, void* user_data) {
-    RUNTIME_ASSERT_MSG(item, "Menu item cannot be null");
+void ui_menu_set_root_checked_callback(u32 root_index, UI_MenuItem_IsChecked_Callback callback, void* user_data) {
+    if (!menu_registry.is_initialized) {
+        CORE_ERROR("Menu system not initialized");
+        return;
+    }
 
+    if (root_index >= menu_registry.items.size()) {
+        CORE_ERROR("Invalid root index: %u", root_index);
+        return;
+    }
+
+    UI_Menu_Item* item = &menu_registry.items[root_index];
     item->is_checked = callback;
     item->user_data = user_data;
 }
 
-b8 ui_menu_register_root_item(UI_Menu_Item* item) {
-    RUNTIME_ASSERT_MSG(item, "Menu item cannot be null");
-
-    if (!menu_registry.is_initialized) {
-        CORE_ERROR("Menu system not initialized");
-        return false;
-    }
-
-    // Add item to root registry (Auto_Array handles growth automatically)
-    menu_registry.root_items.push_back(*item);
-
-    CORE_DEBUG("Registered root menu item: %s", item->label);
-    return true;
-}
+// ui_menu_register_root_item is no longer needed - use ui_menu_create_root_item instead
 
 void ui_menu_render_all() {
     if (!menu_registry.is_initialized) {
@@ -156,85 +197,80 @@ void ui_menu_render_all() {
     }
 
     // Render all root menu items
-    for (u32 i = 0; i < menu_registry.root_items.size(); ++i) {
-        render_menu_item(&menu_registry.root_items[i]);
+    for (u32 i = 0; i < menu_registry.items.size(); ++i) {
+        render_menu_item(&menu_registry.items[i]);
     }
 }
 
-UI_Menu_Item* ui_menu_find_item(const char* path) {
-    RUNTIME_ASSERT_MSG(path, "Path cannot be null");
+u32 ui_menu_find_root_item(const char* label) {
+    RUNTIME_ASSERT_MSG(label, "Label cannot be null");
 
     if (!menu_registry.is_initialized) {
-        return nullptr;
+        return UINT32_MAX;
     }
 
-    // Simple implementation: find by label in root items
-    // TODO: Implement full path parsing (e.g., "File/Open")
-    for (u32 i = 0; i < menu_registry.root_items.size(); ++i) {
-        UI_Menu_Item* found = find_item_recursive(&menu_registry.root_items[i], path);
-        if (found) {
-            return found;
+    // Find by label in root items
+    for (u32 i = 0; i < menu_registry.items.size(); ++i) {
+        if (strcmp(menu_registry.items[i].label, label) == 0) {
+            return i;
         }
     }
 
-    return nullptr;
+    return UINT32_MAX; // Not found
 }
 
-void ui_menu_set_enabled(UI_Menu_Item* item, b8 enabled) {
-    RUNTIME_ASSERT_MSG(item, "Menu item cannot be null");
-    item->enabled = enabled;
+void ui_menu_set_root_enabled(u32 root_index, b8 enabled) {
+    if (!menu_registry.is_initialized) {
+        CORE_ERROR("Menu system not initialized");
+        return;
+    }
+
+    if (root_index >= menu_registry.items.size()) {
+        CORE_ERROR("Invalid root index: %u", root_index);
+        return;
+    }
+
+    menu_registry.items[root_index].enabled = enabled;
 }
 
-void ui_menu_set_checked(UI_Menu_Item* item, b8 checked) {
-    RUNTIME_ASSERT_MSG(item, "Menu item cannot be null");
-    item->checked = checked;
+void ui_menu_set_root_checked(u32 root_index, b8 checked) {
+    if (!menu_registry.is_initialized) {
+        CORE_ERROR("Menu system not initialized");
+        return;
+    }
+
+    if (root_index >= menu_registry.items.size()) {
+        CORE_ERROR("Invalid root index: %u", root_index);
+        return;
+    }
+
+    menu_registry.items[root_index].checked = checked;
 }
 
 
 // Built-in menu item creators
-UI_Menu_Item* ui_menu_create_separator() {
-    return ui_menu_create_item("", nullptr, UI_Menu_Item_Type::SEPARATOR);
+u32 ui_menu_create_root_separator() {
+    return ui_menu_create_root_item("", nullptr, UI_Menu_Item_Type::SEPARATOR);
 }
 
-UI_Menu_Item* ui_menu_create_simple_item(const char* label, const char* shortcut, UI_MenuItem_Callback callback, void* user_data) {
-    UI_Menu_Item* item = ui_menu_create_item(label, shortcut, UI_Menu_Item_Type::ITEM);
-    if (item) {
-        ui_menu_set_callback(item, callback, user_data);
+u32 ui_menu_create_simple_root_item(const char* label, const char* shortcut, UI_MenuItem_Callback callback, void* user_data) {
+    u32 index = ui_menu_create_root_item(label, shortcut, UI_Menu_Item_Type::ITEM);
+    if (index != UINT32_MAX) {
+        ui_menu_set_root_callback(index, callback, user_data);
     }
-    return item;
+    return index;
 }
 
-UI_Menu_Item* ui_menu_create_checkbox_item(const char* label, const char* shortcut, UI_MenuItem_Callback callback, UI_MenuItem_IsChecked_Callback is_checked_callback, void* user_data) {
-    UI_Menu_Item* item = ui_menu_create_item(label, shortcut, UI_Menu_Item_Type::CHECKBOX);
-    if (item) {
-        ui_menu_set_callback(item, callback, user_data);
-        ui_menu_set_checked_callback(item, is_checked_callback, user_data);
+u32 ui_menu_create_checkbox_root_item(const char* label, const char* shortcut, UI_MenuItem_Callback callback, UI_MenuItem_IsChecked_Callback is_checked_callback, void* user_data) {
+    u32 index = ui_menu_create_root_item(label, shortcut, UI_Menu_Item_Type::CHECKBOX);
+    if (index != UINT32_MAX) {
+        ui_menu_set_root_callback(index, callback, user_data);
+        ui_menu_set_root_checked_callback(index, is_checked_callback, user_data);
     }
-    return item;
+    return index;
 }
 
 // Internal function implementations
-INTERNAL_FUNC UI_Menu_Item* allocate_menu_item() {
-    return (UI_Menu_Item*)memory_allocate(sizeof(UI_Menu_Item), Memory_Tag::UI);
-}
-
-INTERNAL_FUNC void deallocate_menu_item(UI_Menu_Item* item) {
-    if (!item) return;
-
-    // Recursively deallocate children
-    for (u32 i = 0; i < item->child_count; ++i) {
-        deallocate_menu_item(&item->children[i]);
-    }
-
-    // Deallocate children array
-    if (item->children) {
-        memory_deallocate(item->children,
-                         sizeof(UI_Menu_Item) * item->child_capacity,
-                         Memory_Tag::UI);
-    }
-
-    // Note: Don't deallocate the item itself if it's part of an array
-}
 
 INTERNAL_FUNC void render_menu_item(UI_Menu_Item* item) {
     if (!item) return;
@@ -287,44 +323,24 @@ INTERNAL_FUNC void render_menu_item(UI_Menu_Item* item) {
             ImGui::Separator();
             break;
         }
+
+        case UI_Menu_Item_Type::RADIO: {
+            // TODO: Implement radio button menu items
+            CORE_WARN("Radio button menu items not yet implemented");
+            break;
+        }
     }
 }
 
 INTERNAL_FUNC void render_menu_children(UI_Menu_Item* parent) {
-    if (!parent || !parent->children) return;
+    if (!parent || parent->children.empty()) return;
 
-    for (u32 i = 0; i < parent->child_count; ++i) {
+    for (u32 i = 0; i < parent->children.size(); ++i) {
         render_menu_item(&parent->children[i]);
     }
 }
 
-INTERNAL_FUNC b8 expand_menu_item_children(UI_Menu_Item* parent) {
-    u32 new_capacity = parent->child_capacity == 0 ? 4 : parent->child_capacity * 2;
-    UI_Menu_Item* new_children = (UI_Menu_Item*)memory_allocate(
-        sizeof(UI_Menu_Item) * new_capacity,
-        Memory_Tag::UI);
-
-    if (!new_children) {
-        CORE_ERROR("Failed to expand menu item children");
-        return false;
-    }
-
-    // Copy existing children
-    for (u32 i = 0; i < parent->child_count; ++i) {
-        new_children[i] = parent->children[i];
-    }
-
-    // Free old memory and update pointers
-    if (parent->children) {
-        memory_deallocate(parent->children,
-                         sizeof(UI_Menu_Item) * parent->child_capacity,
-                         Memory_Tag::UI);
-    }
-    parent->children = new_children;
-    parent->child_capacity = new_capacity;
-
-    return true;
-}
+// No longer needed - Auto_Array handles expansion automatically - no need for manual expansion function
 
 
 INTERNAL_FUNC UI_Menu_Item* find_item_recursive(UI_Menu_Item* item, const char* label) {
@@ -336,7 +352,7 @@ INTERNAL_FUNC UI_Menu_Item* find_item_recursive(UI_Menu_Item* item, const char* 
     }
 
     // Search children recursively
-    for (u32 i = 0; i < item->child_count; ++i) {
+    for (u32 i = 0; i < item->children.size(); ++i) {
         UI_Menu_Item* found = find_item_recursive(&item->children[i], label);
         if (found) {
             return found;

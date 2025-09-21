@@ -1,7 +1,6 @@
 #include "assets.hpp"
 
 #include "core/logger.hpp"
-#include "imgui.h"
 #include "renderer/vulkan_image.hpp"
 #include "stb_image.h"
 
@@ -20,7 +19,7 @@ struct Embedded_Asset {
 };
 
 // All embedded assets in one table
-internal_variable Embedded_Asset embedded_assets[] = {
+internal_variable const Embedded_Asset embedded_assets[] = {
     {"roboto_regular",
      roboto_regular,
      sizeof(roboto_regular)},
@@ -68,41 +67,19 @@ void assets_shutdown() {
     CORE_DEBUG("Assets system shut down");
 }
 
-ImFont* assets_load_font(const char* font_name, f32 size) {
+const u8* assets_get_font_data(const char* font_name, u64* out_size) {
+    RUNTIME_ASSERT_MSG(out_size, "Output size pointer cannot be null");
+
     const Embedded_Asset* asset = find_embedded_asset(font_name);
     if (!asset) {
         CORE_ERROR("Font asset '%s' not found", font_name);
+        *out_size = 0;
         return nullptr;
     }
 
-    ImGuiIO& io = ImGui::GetIO();
-
-    // Create proper font config to prevent double-free
-    ImFontConfig config;
-    config.FontDataOwnedByAtlas = false; // We manage embedded font data
-    config.MergeMode = false;
-    config.PixelSnapH = true;
-    config.GlyphMaxAdvanceX = FLT_MAX;
-    config.RasterizerMultiply = 1.0f;
-    config.EllipsisChar = (ImWchar)-1;
-
-    // Set font name for debugging
-    strncpy(config.Name, font_name, sizeof(config.Name) - 1);
-    config.Name[sizeof(config.Name) - 1] = '\0';
-
-    ImFont* font = io.Fonts->AddFontFromMemoryTTF(
-        (void*)asset->data,
-        (s32)asset->size,
-        size,
-        &config);
-
-    if (!font) {
-        CORE_ERROR("Failed to load font '%s'", font_name);
-        return nullptr;
-    }
-
-    CORE_DEBUG("Loaded font: %s (%.1fpx)", font_name, size);
-    return font;
+    *out_size = asset->size;
+    CORE_DEBUG("Retrieved font data: %s (%llu bytes)", font_name, asset->size);
+    return asset->data;
 }
 
 

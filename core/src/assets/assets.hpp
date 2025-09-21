@@ -3,13 +3,10 @@
 #include "defines.hpp"
 #include "renderer/vulkan_image.hpp"
 
-// Forward declarations
-struct ImFont;
-
 /**
- * Simplified Asset System
- * Consolidates embedded asset loading into a single, simple interface
- * No complex registries or callback systems - just load what you need
+ * Framework-Agnostic Asset System
+ * Provides raw embedded asset data without framework-specific dependencies
+ * UI systems handle their own framework-specific registration (ImGui, etc.)
  */
 
 // Initialize asset system
@@ -18,8 +15,8 @@ b8 assets_initialize();
 // Shutdown asset system
 void assets_shutdown();
 
-// Font loading
-ImFont* assets_load_font(const char* font_name, f32 size);
+// Raw font data access (framework-agnostic)
+const u8* assets_get_font_data(const char* font_name, u64* out_size);
 
-// Image loading
+// Image loading (still needs Vulkan context)
 b8 assets_load_image(Vulkan_Image* out_image, const char* asset_name);
