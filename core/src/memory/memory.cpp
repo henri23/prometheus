@@ -32,11 +32,12 @@ internal_variable const char*
     "LINEAR_ALLOC	:",
     "EVENTS   	:",
     "STRING   	:",
-    "GAME     	:",
+    "CLIENT     	:",
     "INPUT 		:",
     "RENDERER 	:",
     "APPLICATION	:",
-    "UI		:"};
+    "UI		:",
+	"LAYERS		:"};
 
 void memory_init() {
 }

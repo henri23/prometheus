@@ -1,13 +1,12 @@
 #include "ui_titlebar.hpp"
 #include "assets/assets.hpp"
 #include "ui.hpp"
-#include "ui_dockspace.hpp"
 #include "ui_themes.hpp"
 
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
 #include "imgui.h"
-#include "memory/memory.hpp"
+#include "imgui_internal.h"
 #include "platform/platform.hpp"
 #include "renderer/vulkan_image.hpp"
 
@@ -15,12 +14,6 @@
 struct Titlebar_State {
     b8 is_initialized;
     const char* title_text;
-    f32 current_height;
-    ImVec2 titlebar_min;
-    ImVec2 titlebar_max;
-    b8 is_dragging;
-    ImVec2 drag_offset;
-    b8 show_menus;
 
     // Icons loaded directly
     Vulkan_Image app_icon;
@@ -28,20 +21,29 @@ struct Titlebar_State {
     Vulkan_Image maximize_icon;
     Vulkan_Image restore_icon;
     Vulkan_Image close_icon;
+
+    ImVec2 titlebar_min;
+    ImVec2 titlebar_max;
+
     b8 icons_loaded;
+
+    PFN_menu_callback callback;
 };
 
-internal_variable Titlebar_State titlebar_state = {};
+internal_variable Titlebar_State state = {};
 
 // Titlebar constants
-static const f32 TITLEBAR_HEIGHT = 50.0f;
-static const char* DEFAULT_TITLE = "Prometheus Engine";
+
+// Walnut-style menu helpers
+INTERNAL_FUNC ImRect rect_offset(const ImRect& rect, float x, float y);
+INTERNAL_FUNC bool begin_menubar(const ImRect& barRectangle);
+INTERNAL_FUNC void end_menubar();
 
 // Internal functions
 INTERNAL_FUNC void render_titlebar_background();
 INTERNAL_FUNC void render_titlebar_gradient();
 INTERNAL_FUNC void render_titlebar_logo();
-INTERNAL_FUNC void render_titlebar_menus(UI_State* ui_state);
+INTERNAL_FUNC void render_titlebar_menus(PFN_menu_callback callback);
 INTERNAL_FUNC void render_titlebar_text();
 INTERNAL_FUNC void render_titlebar_buttons();
 
@@ -54,40 +56,29 @@ INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
     ImVec2 pos,
     ImVec2 size);
 
-b8 ui_titlebar_initialize() {
+b8 ui_titlebar_initialize(PFN_menu_callback callback, const char* app_name) {
     CORE_DEBUG("Initializing custom titlebar...");
 
-    if (titlebar_state.is_initialized) {
+    if (state.is_initialized) {
         CORE_WARN("Titlebar already initialized");
         return true;
     }
 
     // Initialize with defaults
-    titlebar_state.title_text = DEFAULT_TITLE;
-    titlebar_state.current_height = TITLEBAR_HEIGHT;
-    titlebar_state.is_dragging = false;
-    titlebar_state.drag_offset = ImVec2(0, 0);
-    titlebar_state.show_menus = true;
-    titlebar_state.is_initialized = true;
+    state.title_text = app_name;
+    state.is_initialized = true;
+    state.callback = callback;
 
-    // Disable dockspace menubar since we're using titlebar menus by default
-    extern void ui_dockspace_set_show_menubar(b8 show_menubar);
-    ui_dockspace_set_show_menubar(false);
+    // Dockspace menubar is disabled by default, so titlebar menus take
+    // precedence
 
     // Load icons directly
     b8 icons_success = true;
-    icons_success &=
-        assets_load_image(&titlebar_state.app_icon, "prometheus_icon");
-    icons_success &=
-        assets_load_image(&titlebar_state.minimize_icon, "window_minimize");
-    icons_success &=
-        assets_load_image(&titlebar_state.maximize_icon, "window_maximize");
-    icons_success &=
-        assets_load_image(&titlebar_state.restore_icon, "window_restore");
-    icons_success &=
-        assets_load_image(&titlebar_state.close_icon, "window_close");
-
-    titlebar_state.icons_loaded = icons_success;
+    icons_success &= assets_load_image(&state.app_icon, "prometheus_icon");
+    icons_success &= assets_load_image(&state.minimize_icon, "window_minimize");
+    icons_success &= assets_load_image(&state.maximize_icon, "window_maximize");
+    icons_success &= assets_load_image(&state.restore_icon, "window_restore");
+    icons_success &= assets_load_image(&state.close_icon, "window_close");
 
     if (icons_success) {
         CORE_INFO("All titlebar icons loaded successfully");
@@ -95,50 +86,48 @@ b8 ui_titlebar_initialize() {
         CORE_WARN("Some titlebar icons failed to load, using fallback text");
     }
 
-    CORE_INFO("Custom titlebar initialized with height %.1f",
-        titlebar_state.current_height);
+    state.icons_loaded = true;
+
     return true;
 }
 
 void ui_titlebar_shutdown() {
     CORE_DEBUG("Shutting down custom titlebar...");
 
-    if (!titlebar_state.is_initialized) {
+    if (!state.is_initialized) {
         CORE_WARN("Titlebar not initialized");
         return;
     }
 
-    // Cleanup icons if loaded
-    if (titlebar_state.icons_loaded) {
-        vulkan_image_destroy(&titlebar_state.app_icon);
-        vulkan_image_destroy(&titlebar_state.minimize_icon);
-        vulkan_image_destroy(&titlebar_state.maximize_icon);
-        vulkan_image_destroy(&titlebar_state.restore_icon);
-        vulkan_image_destroy(&titlebar_state.close_icon);
+    // Cleanup icons if loaded - check each one individually
+    if (state.icons_loaded) {
+        if (state.app_icon.descriptor_set != VK_NULL_HANDLE) {
+            vulkan_image_destroy(&state.app_icon);
+        }
+        if (state.minimize_icon.descriptor_set != VK_NULL_HANDLE) {
+            vulkan_image_destroy(&state.minimize_icon);
+        }
+        if (state.maximize_icon.descriptor_set != VK_NULL_HANDLE) {
+            vulkan_image_destroy(&state.maximize_icon);
+        }
+        if (state.restore_icon.descriptor_set != VK_NULL_HANDLE) {
+            vulkan_image_destroy(&state.restore_icon);
+        }
+        if (state.close_icon.descriptor_set != VK_NULL_HANDLE) {
+            vulkan_image_destroy(&state.close_icon);
+        }
     }
 
     // Reset state
-    titlebar_state = {};
+    state.is_initialized = false;
+    state.icons_loaded = false;
 
     CORE_DEBUG("Custom titlebar shut down successfully");
 }
 
-void ui_titlebar_render(void* user_data) {
-    if (!titlebar_state.is_initialized) {
+void ui_titlebar_render() {
+    if (!state.is_initialized) {
         CORE_DEBUG("Titlebar not initialized, skipping render");
-        return;
-    }
-
-    UI_State* ui_state = (UI_State*)user_data;
-    if (!ui_state || !ui_state->is_initialized ||
-        !ui_state->custom_titlebar_enabled) {
-        CORE_DEBUG(
-            "UI state check failed: ui_state=%p, ui_initialized=%s, "
-            "titlebar_enabled=%s",
-            (void*)ui_state,
-            ui_state ? (ui_state->is_initialized ? "true" : "false") : "null",
-            ui_state ? (ui_state->custom_titlebar_enabled ? "true" : "false")
-                     : "null");
         return;
     }
 
@@ -154,15 +143,13 @@ void ui_titlebar_render(void* user_data) {
     ImVec2 window_pos = viewport->Pos;
     ImVec2 window_size = viewport->Size;
 
-    // Set titlebar bounds
-    titlebar_state.titlebar_min = window_pos;
-    titlebar_state.titlebar_max = ImVec2(window_pos.x + window_size.x,
-        window_pos.y + titlebar_state.current_height);
+    state.titlebar_min = window_pos;
+    state.titlebar_max =
+        ImVec2(window_pos.x + window_size.x, window_pos.y + TITLEBAR_HEIGHT);
 
     // Create invisible window for titlebar
-    ImGui::SetNextWindowPos(titlebar_state.titlebar_min);
-    ImGui::SetNextWindowSize(
-        ImVec2(window_size.x, titlebar_state.current_height));
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(ImVec2(window_size.x, TITLEBAR_HEIGHT));
 
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -174,49 +161,11 @@ void ui_titlebar_render(void* user_data) {
         render_titlebar_background();
         render_titlebar_gradient();
         render_titlebar_logo();
-        if (titlebar_state.show_menus) {
-            render_titlebar_menus(ui_state);
-        }
+        render_titlebar_menus(state.callback);
         render_titlebar_text();
         render_titlebar_buttons();
     }
     ImGui::End();
-}
-
-b8 ui_titlebar_is_clicked(ImVec2 mouse_pos) {
-    if (!titlebar_state.is_initialized) {
-        return false;
-    }
-
-    return (mouse_pos.x >= titlebar_state.titlebar_min.x &&
-            mouse_pos.x <= titlebar_state.titlebar_max.x &&
-            mouse_pos.y >= titlebar_state.titlebar_min.y &&
-            mouse_pos.y <= titlebar_state.titlebar_max.y);
-}
-
-f32 ui_titlebar_get_height() {
-    return titlebar_state.is_initialized ? titlebar_state.current_height : 0.0f;
-}
-
-void ui_titlebar_set_title(const char* title) {
-    RUNTIME_ASSERT_MSG(title, "Title cannot be null");
-
-    if (titlebar_state.is_initialized) {
-        titlebar_state.title_text = title;
-        CORE_DEBUG("Titlebar title set to: %s", title);
-    }
-}
-
-void ui_titlebar_set_show_menus(b8 show_menus) {
-    if (titlebar_state.is_initialized) {
-        titlebar_state.show_menus = show_menus;
-        CORE_DEBUG("Titlebar menus %s", show_menus ? "enabled" : "disabled");
-
-        // Automatically disable dockspace menubar when titlebar menus are enabled
-        // to avoid having both menubar types active simultaneously
-        extern void ui_dockspace_set_show_menubar(b8 show_menubar);
-        ui_dockspace_set_show_menubar(!show_menus);
-    }
 }
 
 // Internal function implementations
@@ -229,15 +178,15 @@ INTERNAL_FUNC const UI_Theme_Palette& get_current_palette() {
 INTERNAL_FUNC void render_titlebar_background() {
     const UI_Theme_Palette& palette = get_current_palette();
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    draw_list->AddRectFilled(titlebar_state.titlebar_min,
-        titlebar_state.titlebar_max,
+    draw_list->AddRectFilled(state.titlebar_min,
+        state.titlebar_max,
         palette.titlebar);
 }
 
 INTERNAL_FUNC void render_titlebar_logo() {
     const Vulkan_Image* app_icon =
-        titlebar_state.icons_loaded ? &titlebar_state.app_icon : nullptr;
-    b8 icons_loaded = titlebar_state.icons_loaded;
+        state.icons_loaded ? &state.app_icon : nullptr;
+    b8 icons_loaded = state.icons_loaded;
 
     // Debug output to see what's happening
     static b8 debug_logged = false;
@@ -252,13 +201,14 @@ INTERNAL_FUNC void render_titlebar_logo() {
     }
 
     // Fixed logo size (decoupled from titlebar height)
-    f32 logo_size = 32.0f; // Fixed size for larger Prometheus icon
-    f32 logo_margin = 8.0f;
-    f32 logo_top_padding = 2.0f; // Same top padding as menu entries and window buttons
+    f32 logo_size = 50.0f; // Fixed size for larger Prometheus icon
+    f32 logo_margin = 4.0f;
+    f32 logo_top_padding =
+        2.0f; // Same top padding as menu entries and window buttons
 
     // Position: fixed distance from top edge (not centered)
-    ImVec2 logo_pos = ImVec2(titlebar_state.titlebar_min.x + logo_margin,
-        titlebar_state.titlebar_min.y + logo_top_padding);
+    ImVec2 logo_pos = ImVec2(state.titlebar_min.x + logo_margin,
+        state.titlebar_min.y + logo_top_padding);
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
@@ -287,206 +237,78 @@ INTERNAL_FUNC void render_titlebar_logo() {
     }
 }
 
-INTERNAL_FUNC void render_titlebar_menus(UI_State* ui_state) {
-    if (!ui_state || !ui_state->menu_callback) {
-        return; // No menu callback registered
+INTERNAL_FUNC void render_titlebar_menus(PFN_menu_callback callback) {
+    if (!callback) {
+        return;
     }
 
-    const UI_Theme_Palette& palette = get_current_palette();
+    // Use Walnut's exact approach
+    ImGui::SetItemAllowOverlap();
+    const float logoHorizontalOffset =
+        4.0f + 50.0f + 4.0f;          // logo_margin + logo_size + spacing
+    const float menuTopPadding = 2.0f; // Same as logo and buttons
+    ImGui::SetCursorPos(ImVec2(logoHorizontalOffset, menuTopPadding));
 
-    // Calculate menu position (after logo)
-    f32 logo_size = 32.0f;
-    f32 logo_margin = 8.0f;
-    f32 menu_start_x = titlebar_state.titlebar_min.x + logo_margin + logo_size + 12.0f;
+    // Create menu rectangle like Walnut
+    const ImRect menuBarRect = {ImGui::GetCursorPos(),
+        {ImGui::GetContentRegionAvail().x + ImGui::GetCursorScreenPos().x,
+            ImGui::GetFrameHeightWithSpacing()}};
 
-    // Top-align menus like window buttons - same padding as window buttons
-    f32 menu_top_padding = 2.0f; // Same as window buttons top_padding
-    f32 menu_y_top_aligned = titlebar_state.titlebar_min.y + menu_top_padding;
-
-    // Push menu styling - no outline, just color changes, same height as window buttons
-    f32 button_size = 26.0f; // Same as window buttons
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0)); // Transparent
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 30)); // Subtle white hover
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, palette.highlight); // Theme highlight when clicked
-    ImGui::PushStyleColor(ImGuiCol_Text, palette.text); // Theme text color
-    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.5f, 0.5f));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 2)); // Minimal vertical padding to match window buttons
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f); // No rounded corners
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f); // No border/outline
-
-    f32 current_x = menu_start_x;
-
-    // File menu
-    ImGui::SetCursorScreenPos(ImVec2(current_x, menu_y_top_aligned));
-    if (ImGui::Button("File")) {
-        ImGui::OpenPopup("FileMenu");
-    }
-    if (ImGui::BeginPopup("FileMenu")) {
-        // Style the popup to match theme with proper padding
-        ImGui::PushStyleColor(ImGuiCol_PopupBg, palette.background_popup);
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, palette.button_hovered);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 8)); // Popup window padding
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 4));
-
-        if (ImGui::MenuItem("New", "Ctrl+N")) {
-            // TODO: Handle File->New
-        }
-        if (ImGui::MenuItem("Open", "Ctrl+O")) {
-            // TODO: Handle File->Open
-        }
-        if (ImGui::MenuItem("Save", "Ctrl+S")) {
-            // TODO: Handle File->Save
-        }
-        ImGui::Separator();
-        if (ImGui::MenuItem("Exit", "Alt+F4")) {
-            // TODO: Handle File->Exit
-        }
-
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(2);
-        ImGui::EndPopup();
-    }
-    current_x += ImGui::CalcTextSize("File").x + 16; // text width + padding, no extra spacing
-
-    // View menu - get client state through callback data
-    ImGui::SetCursorScreenPos(ImVec2(current_x, menu_y_top_aligned));
-    if (ImGui::Button("View")) {
-        ImGui::OpenPopup("ViewMenu");
-    }
-    if (ImGui::BeginPopup("ViewMenu")) {
-        // Style the popup to match theme with proper padding
-        ImGui::PushStyleColor(ImGuiCol_PopupBg, palette.background_popup);
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, palette.button_hovered);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 8)); // Popup window padding
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 4));
-
-        // Access client state through the menu callback user data
-        // We need to cast it to the client state structure (matching client_ui.cpp)
-        typedef struct {
-            b8 is_initialized;
-            f32 slider_value;
-            s32 counter;
-            void* clear_color;
-            b8 show_prometheus_window;
-            b8 show_demo_window;
-        } Client_UI_State;
-
-        if (ui_state->menu_user_data) {
-            Client_UI_State* client_state = (Client_UI_State*)ui_state->menu_user_data;
-
-            ImGui::MenuItem("Prometheus Window", nullptr, &client_state->show_prometheus_window);
-            ImGui::MenuItem("Demo Window", nullptr, &client_state->show_demo_window);
-        } else {
-            // Fallback static variables
-            static bool show_prometheus_window = true;
-            static bool show_demo_window = false;
-            ImGui::MenuItem("Prometheus Window", nullptr, &show_prometheus_window);
-            ImGui::MenuItem("Demo Window", nullptr, &show_demo_window);
-        }
-
-        ImGui::Separator();
-        if (ImGui::MenuItem("Reset Layout")) {
-            ui_dockspace_reset_layout();
-        }
-
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(2);
-        ImGui::EndPopup();
-    }
-    current_x += ImGui::CalcTextSize("View").x + 16; // text width + padding, no extra spacing
-
-    // Help menu
-    ImGui::SetCursorScreenPos(ImVec2(current_x, menu_y_top_aligned));
-    if (ImGui::Button("Help")) {
-        ImGui::OpenPopup("HelpMenu");
-    }
-    if (ImGui::BeginPopup("HelpMenu")) {
-        // Style the popup to match theme with proper padding
-        ImGui::PushStyleColor(ImGuiCol_PopupBg, palette.background_popup);
-        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, palette.button_hovered);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 8)); // Popup window padding
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 4));
-
-        if (ImGui::MenuItem("About")) {
-            // TODO: Handle Help->About
-        }
-
-        ImGui::PopStyleVar(2);
-        ImGui::PopStyleColor(2);
-        ImGui::EndPopup();
+    ImGui::BeginGroup();
+    if (begin_menubar(menuBarRect)) {
+        callback(nullptr);
     }
 
-    // Ensure the demo window is shown if enabled by calling client logic
-    if (ui_state->menu_user_data) {
-        typedef struct {
-            b8 is_initialized;
-            f32 slider_value;
-            s32 counter;
-            void* clear_color;
-            b8 show_prometheus_window;
-            b8 show_demo_window;
-        } Client_UI_State;
-
-        Client_UI_State* client_state = (Client_UI_State*)ui_state->menu_user_data;
-
-        // Show demo window if enabled
-        if (client_state->show_demo_window) {
-            ImGui::ShowDemoWindow(&client_state->show_demo_window);
-        }
-    }
-
-    ImGui::PopStyleVar(4);
-    ImGui::PopStyleColor(4);
+    end_menubar();
+    ImGui::EndGroup();
 }
 
 INTERNAL_FUNC void render_titlebar_text() {
-    if (!titlebar_state.title_text) {
+    if (!state.title_text) {
         return;
     }
 
     const UI_Theme_Palette& palette = get_current_palette();
 
     // Calculate text size for centering
-    ImVec2 text_size = ImGui::CalcTextSize(titlebar_state.title_text);
-    f32 titlebar_width = titlebar_state.titlebar_max.x - titlebar_state.titlebar_min.x;
+    ImVec2 text_size = ImGui::CalcTextSize(state.title_text);
+    f32 titlebar_width = state.titlebar_max.x - state.titlebar_min.x;
 
     // Absolute center positioning (ignoring other elements)
-    f32 text_x = titlebar_state.titlebar_min.x + (titlebar_width - text_size.x) * 0.5f;
+    f32 text_x = state.titlebar_min.x + (titlebar_width - text_size.x) * 0.5f;
 
     // Check for overlap with menu entries (if shown)
-    if (titlebar_state.show_menus) {
-        // Calculate menu area bounds
-        f32 logo_size = 32.0f;
-        f32 logo_margin = 8.0f;
-        f32 menu_start_x = titlebar_state.titlebar_min.x + logo_margin + logo_size + 12.0f;
+    // Calculate menu area bounds
+    f32 logo_size = 50.0f;
+    f32 logo_margin = 4.0f;
+    f32 menu_start_x = state.titlebar_min.x + logo_margin + logo_size + 4.0f;
 
-        // Estimate total menu width (File, View, Help with padding)
-        f32 file_width = ImGui::CalcTextSize("File").x + 16; // text + padding
-        f32 view_width = ImGui::CalcTextSize("View").x + 16; // text + padding
-        f32 help_width = ImGui::CalcTextSize("Help").x + 16; // text + padding
-        f32 menu_end_x = menu_start_x + file_width + view_width + help_width;
+    // Estimate total menu width (File, View, Help with padding)
+    f32 file_width = ImGui::CalcTextSize("File").x + 16; // text + padding
+    f32 view_width = ImGui::CalcTextSize("View").x + 16; // text + padding
+    f32 help_width = ImGui::CalcTextSize("Help").x + 16; // text + padding
+    f32 menu_end_x = menu_start_x + file_width + view_width + help_width;
 
-        // Calculate title bounds
-        f32 title_start_x = text_x;
-        f32 title_end_x = text_x + text_size.x;
+    // Calculate title bounds
+    f32 title_start_x = text_x;
+    f32 title_end_x = text_x + text_size.x;
 
-        // Check if title overlaps with menu area
-        b8 overlaps = (title_start_x < menu_end_x) && (title_end_x > menu_start_x);
+    // Check if title overlaps with menu area
+    b8 overlaps = (title_start_x < menu_end_x) && (title_end_x > menu_start_x);
 
-        if (overlaps) {
-            // Hide title when it would overlap with menus
-            return;
-        }
+    if (overlaps) {
+        // Hide title when it would overlap with menus
+        return;
     }
 
     // Fixed distance from top edge
     f32 text_top_padding = 6.0f;
-    f32 text_y = titlebar_state.titlebar_min.y + text_top_padding;
+    f32 text_y = state.titlebar_min.y + text_top_padding;
 
     ImVec2 text_pos = ImVec2(text_x, text_y);
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    draw_list->AddText(text_pos, palette.text, titlebar_state.title_text);
+    draw_list->AddText(text_pos, palette.text, state.title_text);
 }
 
 INTERNAL_FUNC void render_titlebar_buttons() {
@@ -496,17 +318,17 @@ INTERNAL_FUNC void render_titlebar_buttons() {
     f32 right_margin = 4.0f;
     f32 top_padding = 2.0f; // Fixed distance from top edge
 
-    f32 current_x = titlebar_state.titlebar_max.x - right_margin;
+    f32 current_x = state.titlebar_max.x - right_margin;
 
     // Close button (rightmost) - always show
     {
         current_x -= button_size;
-        ImVec2 close_pos =
-            ImVec2(current_x, titlebar_state.titlebar_min.y + top_padding); // Top-aligned
+        ImVec2 close_pos = ImVec2(current_x,
+            state.titlebar_min.y + top_padding); // Top-aligned
         ImVec2 close_size = ImVec2(button_size, button_size);
 
         const Vulkan_Image* close_icon =
-            titlebar_state.icons_loaded ? &titlebar_state.close_icon : nullptr;
+            state.icons_loaded ? &state.close_icon : nullptr;
         if (render_titlebar_image_button(close_icon,
                 "×",
                 close_pos,
@@ -520,18 +342,16 @@ INTERNAL_FUNC void render_titlebar_buttons() {
     // Maximize button - always show
     {
         current_x -= button_size;
-        ImVec2 max_pos =
-            ImVec2(current_x, titlebar_state.titlebar_min.y + top_padding); // Top-aligned
+        ImVec2 max_pos = ImVec2(current_x,
+            state.titlebar_min.y + top_padding); // Top-aligned
         ImVec2 max_size = ImVec2(button_size, button_size);
 
         // Check if window is maximized and use appropriate icon
         b8 is_maximized = platform_is_window_maximized();
         const Vulkan_Image* max_icon =
             is_maximized
-                ? (titlebar_state.icons_loaded ? &titlebar_state.restore_icon
-                                               : nullptr)
-                : (titlebar_state.icons_loaded ? &titlebar_state.maximize_icon
-                                               : nullptr);
+                ? (state.icons_loaded ? &state.restore_icon : nullptr)
+                : (state.icons_loaded ? &state.maximize_icon : nullptr);
         const char* fallback_text = is_maximized ? "🗗" : "□";
 
         if (render_titlebar_image_button(max_icon,
@@ -552,14 +372,13 @@ INTERNAL_FUNC void render_titlebar_buttons() {
     // Minimize button - always show
     {
         current_x -= button_size;
-        ImVec2 min_pos =
-            ImVec2(current_x, titlebar_state.titlebar_min.y + top_padding); // Top-aligned
+        ImVec2 min_pos = ImVec2(current_x,
+            state.titlebar_min.y + top_padding); // Top-aligned
 
         ImVec2 min_size = ImVec2(button_size, button_size);
 
-        const Vulkan_Image* min_icon = titlebar_state.icons_loaded
-                                           ? &titlebar_state.minimize_icon
-                                           : nullptr;
+        const Vulkan_Image* min_icon =
+            state.icons_loaded ? &state.minimize_icon : nullptr;
 
         if (render_titlebar_image_button(min_icon, "−", min_pos, min_size)) {
 
@@ -630,7 +449,7 @@ INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
         ImVec2(pos.x + size.x, pos.y + size.y),
         button_color);
 
-    if (image && titlebar_state.icons_loaded &&
+    if (image && state.icons_loaded &&
         image->descriptor_set != VK_NULL_HANDLE) {
         // Draw the icon image centered in the button with aspect ratio
         // preservation Get original icon dimensions
@@ -688,7 +507,7 @@ INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
             CORE_DEBUG(
                 "Button fallback: image=%p, icons_loaded=%s, descriptor_set=%p",
                 (void*)image,
-                titlebar_state.icons_loaded ? "true" : "false",
+                state.icons_loaded ? "true" : "false",
                 image ? (void*)image->descriptor_set : nullptr);
             button_debug_logged = true;
         }
@@ -712,33 +531,126 @@ INTERNAL_FUNC void render_titlebar_gradient() {
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
     // Calculate gradient area (left 1/4 of titlebar)
-    f32 titlebar_width = titlebar_state.titlebar_max.x - titlebar_state.titlebar_min.x;
+    f32 titlebar_width = state.titlebar_max.x - state.titlebar_min.x;
     f32 gradient_width = titlebar_width * 0.25f; // 1/4 of width
 
-    ImVec2 gradient_min = titlebar_state.titlebar_min;
-    ImVec2 gradient_max = ImVec2(titlebar_state.titlebar_min.x + gradient_width,
-                                titlebar_state.titlebar_max.y);
+    ImVec2 gradient_min = state.titlebar_min;
+    ImVec2 gradient_max =
+        ImVec2(state.titlebar_min.x + gradient_width, state.titlebar_max.y);
 
     // Choose gradient colors based on current theme
     u32 gradient_start_color, gradient_end_color;
 
     if (current_theme == UI_Theme::DARK) {
-        // Orange to transparent gradient for dark theme (complements Prometheus branding)
-        gradient_start_color = IM_COL32(236, 158, 36, 80); // Orange accent with transparency
-        gradient_end_color = IM_COL32(236, 158, 36, 0);    // Fully transparent
+        // Orange to transparent gradient for dark theme (complements Prometheus
+        // branding)
+        gradient_start_color =
+            IM_COL32(236, 158, 36, 80); // Orange accent with transparency
+        gradient_end_color = IM_COL32(236, 158, 36, 0); // Fully transparent
     } else {
         // Purple to transparent gradient for Catppuccin theme
-        gradient_start_color = IM_COL32(203, 166, 247, 60); // Mauve with transparency
-        gradient_end_color = IM_COL32(203, 166, 247, 0);    // Fully transparent
+        gradient_start_color =
+            IM_COL32(203, 166, 247, 60); // Mauve with transparency
+        gradient_end_color = IM_COL32(203, 166, 247, 0); // Fully transparent
     }
 
     // Render horizontal gradient
-    draw_list->AddRectFilledMultiColor(
-        gradient_min,
+    draw_list->AddRectFilledMultiColor(gradient_min,
         gradient_max,
         gradient_start_color, // Top-left
         gradient_end_color,   // Top-right
         gradient_end_color,   // Bottom-right
         gradient_start_color  // Bottom-left
     );
+}
+
+// Walnut-style menu helper implementations
+INTERNAL_FUNC ImRect rect_offset(const ImRect& rect, float x, float y) {
+    ImRect result = rect;
+    result.Min.x += x;
+    result.Min.y += y;
+    result.Max.x += x;
+    result.Max.y += y;
+    return result;
+}
+
+INTERNAL_FUNC bool begin_menubar(const ImRect& barRectangle) {
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems)
+        return false;
+
+    IM_ASSERT(!window->DC.MenuBarAppending);
+    ImGui::BeginGroup();
+    ImGui::PushID("##menubar");
+
+    const ImVec2 padding = window->WindowPadding;
+
+    ImRect bar_rect = barRectangle; // Don't add padding offset
+    ImRect clip_rect(
+        IM_ROUND(ImMax(window->Pos.x,
+            bar_rect.Min.x + window->WindowBorderSize + window->Pos.x - 10.0f)),
+        IM_ROUND(bar_rect.Min.y + window->WindowBorderSize + window->Pos.y),
+        IM_ROUND(ImMax(bar_rect.Min.x + window->Pos.x,
+            bar_rect.Max.x -
+                ImMax(window->WindowRounding, window->WindowBorderSize))),
+        IM_ROUND(bar_rect.Max.y + window->Pos.y));
+
+    clip_rect.ClipWith(window->OuterRectClipped);
+    ImGui::PushClipRect(clip_rect.Min, clip_rect.Max, false);
+
+    window->DC.CursorPos = window->DC.CursorMaxPos =
+        ImVec2(bar_rect.Min.x + window->Pos.x, bar_rect.Min.y + window->Pos.y);
+
+    window->DC.LayoutType = ImGuiLayoutType_Horizontal;
+    window->DC.NavLayerCurrent = ImGuiNavLayer_Menu;
+    window->DC.MenuBarAppending = true;
+    ImGui::AlignTextToFramePadding();
+    return true;
+}
+
+INTERNAL_FUNC void end_menubar() {
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems)
+        return;
+    ImGuiContext& g = *GImGui;
+
+    // Nav: When a move request within one of our child menu failed, capture the
+    // request to navigate among our siblings.
+    if (ImGui::NavMoveRequestButNoResultYet() &&
+        (g.NavMoveDir == ImGuiDir_Left || g.NavMoveDir == ImGuiDir_Right) &&
+        (g.NavWindow->Flags & ImGuiWindowFlags_ChildMenu)) {
+        ImGuiWindow* nav_earliest_child = g.NavWindow;
+        while (nav_earliest_child->ParentWindow &&
+               (nav_earliest_child->ParentWindow->Flags &
+                   ImGuiWindowFlags_ChildMenu))
+            nav_earliest_child = nav_earliest_child->ParentWindow;
+        if (nav_earliest_child->ParentWindow == window &&
+            nav_earliest_child->DC.ParentLayoutType ==
+                ImGuiLayoutType_Horizontal &&
+            (g.NavMoveFlags & ImGuiNavMoveFlags_Forwarded) == 0) {
+            const ImGuiNavLayer layer = ImGuiNavLayer_Menu;
+            IM_ASSERT(window->DC.NavLayersActiveMaskNext & (1 << layer));
+            ImGui::FocusWindow(window);
+            ImGui::SetNavID(window->NavLastIds[layer],
+                layer,
+                0,
+                window->NavRectRel[layer]);
+            g.NavCursorVisible = false;
+            g.NavHighlightItemUnderNav = g.NavMousePosDirty = true;
+            ImGui::NavMoveRequestForward(g.NavMoveDir,
+                g.NavMoveClipDir,
+                g.NavMoveFlags,
+                g.NavMoveScrollFlags);
+        }
+    }
+
+    IM_ASSERT(window->DC.MenuBarAppending);
+    ImGui::PopClipRect();
+    ImGui::PopID();
+    window->DC.MenuBarOffset.x = window->DC.CursorPos.x - window->Pos.x;
+    g.GroupStack.back().EmitItem = false;
+    ImGui::EndGroup();
+    window->DC.LayoutType = ImGuiLayoutType_Vertical;
+    window->DC.NavLayerCurrent = ImGuiNavLayer_Main;
+    window->DC.MenuBarAppending = false;
 }

@@ -10,7 +10,8 @@
 #include "ui/ui_themes.hpp"
 
 // Renderer configuration
-// #define UNLIMITED_FRAME_RATE  // Uncomment for software frame limiting (may cause tearing)
+// #define UNLIMITED_FRAME_RATE  // Uncomment for software frame limiting (may
+// cause tearing)
 
 internal_variable Vulkan_Context context;
 
@@ -39,8 +40,7 @@ INTERNAL_FUNC bool is_extension_available(
     return false;
 }
 
-INTERNAL_FUNC void setup_vulkan_window(
-    ImGui_ImplVulkanH_Window* wd,
+INTERNAL_FUNC void setup_vulkan_window(ImGui_ImplVulkanH_Window* wd,
     VkSurfaceKHR surface,
     u32 width,
     u32 height) {
@@ -50,21 +50,18 @@ INTERNAL_FUNC void setup_vulkan_window(
     // Check for WSI support
     VkBool32 res;
 
-    vkGetPhysicalDeviceSurfaceSupportKHR(
-        context.physical_device,
+    vkGetPhysicalDeviceSurfaceSupportKHR(context.physical_device,
         context.queue_family,
         wd->Surface,
         &res);
 
     if (res != VK_TRUE) {
-        RUNTIME_ASSERT_MSG(
-            false,
-            "Error no WSI support on physical device 0");
+        RUNTIME_ASSERT_MSG(false, "Error no WSI support on physical device 0");
     }
 
     // Select Surface Format
     const VkFormat requestSurfaceImageFormat[] = {
-        VK_FORMAT_R8G8B8A8_UNORM,  // Prefer RGBA over BGRA to avoid red tint
+        VK_FORMAT_R8G8B8A8_UNORM, // Prefer RGBA over BGRA to avoid red tint
         VK_FORMAT_B8G8R8A8_UNORM,
         VK_FORMAT_R8G8B8_UNORM,
         VK_FORMAT_B8G8R8_UNORM};
@@ -72,20 +69,21 @@ INTERNAL_FUNC void setup_vulkan_window(
     const VkColorSpaceKHR requestSurfaceColorSpace =
         VK_COLORSPACE_SRGB_NONLINEAR_KHR;
 
-    wd->SurfaceFormat = ImGui_ImplVulkanH_SelectSurfaceFormat(
-        context.physical_device,
-        wd->Surface,
-        requestSurfaceImageFormat,
-        (size_t)IM_ARRAYSIZE(requestSurfaceImageFormat),
-        requestSurfaceColorSpace);
+    wd->SurfaceFormat =
+        ImGui_ImplVulkanH_SelectSurfaceFormat(context.physical_device,
+            wd->Surface,
+            requestSurfaceImageFormat,
+            (size_t)IM_ARRAYSIZE(requestSurfaceImageFormat),
+            requestSurfaceColorSpace);
 
     // Select Present Mode based on configuration
 #ifdef UNLIMITED_FRAME_RATE
     // Prioritize unlimited frame rate modes (software frame limiting)
     VkPresentModeKHR present_modes[] = {
-        VK_PRESENT_MODE_IMMEDIATE_KHR,  // No VSync - allows software frame limiting
-        VK_PRESENT_MODE_MAILBOX_KHR,    // VSync with triple buffering (fallback)
-        VK_PRESENT_MODE_FIFO_KHR};      // VSync (fallback)
+        VK_PRESENT_MODE_IMMEDIATE_KHR, // No VSync - allows software frame
+                                       // limiting
+        VK_PRESENT_MODE_MAILBOX_KHR,   // VSync with triple buffering (fallback)
+        VK_PRESENT_MODE_FIFO_KHR};     // VSync (fallback)
 #else
     // Prioritize VSync modes for tear-free rendering (default)
     VkPresentModeKHR present_modes[] = {
@@ -94,35 +92,38 @@ INTERNAL_FUNC void setup_vulkan_window(
         VK_PRESENT_MODE_IMMEDIATE_KHR}; // No VSync (fallback only)
 #endif
 
-    wd->PresentMode = ImGui_ImplVulkanH_SelectPresentMode(
-        context.physical_device,
-        wd->Surface,
-        &present_modes[0],
-        IM_ARRAYSIZE(present_modes));
+    wd->PresentMode =
+        ImGui_ImplVulkanH_SelectPresentMode(context.physical_device,
+            wd->Surface,
+            &present_modes[0],
+            IM_ARRAYSIZE(present_modes));
 
     // Log which present mode was selected
     const char* present_mode_name = "Unknown";
     switch (wd->PresentMode) {
-        case VK_PRESENT_MODE_IMMEDIATE_KHR:
-            present_mode_name = "IMMEDIATE (No VSync)";
-            break;
-        case VK_PRESENT_MODE_MAILBOX_KHR:
-            present_mode_name = "MAILBOX (VSync + Triple Buffer)";
-            break;
-        case VK_PRESENT_MODE_FIFO_KHR:
-            present_mode_name = "FIFO (VSync)";
-            break;
-        case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
-            present_mode_name = "FIFO_RELAXED (Adaptive VSync)";
-            break;
+    case VK_PRESENT_MODE_IMMEDIATE_KHR:
+        present_mode_name = "IMMEDIATE (No VSync)";
+        break;
+    case VK_PRESENT_MODE_MAILBOX_KHR:
+        present_mode_name = "MAILBOX (VSync + Triple Buffer)";
+        break;
+    case VK_PRESENT_MODE_FIFO_KHR:
+        present_mode_name = "FIFO (VSync)";
+        break;
+    case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+        present_mode_name = "FIFO_RELAXED (Adaptive VSync)";
+        break;
+	default:
+        present_mode_name = "*invalid presentation mode*";
+		break;
     }
+
     CORE_INFO("Selected Vulkan present mode: %s", present_mode_name);
     CORE_INFO("Swapchain image count: %u", wd->ImageCount);
 
     // Create SwapChain, RenderPass, Framebuffer, etc.
     RUNTIME_ASSERT(g_MinImageCount >= 2);
-    ImGui_ImplVulkanH_CreateOrResizeWindow(
-        context.instance,
+    ImGui_ImplVulkanH_CreateOrResizeWindow(context.instance,
         context.physical_device,
         context.logical_device,
         wd,
@@ -169,34 +170,29 @@ b8 renderer_initialize() {
         uint32_t properties_count;
         Auto_Array<VkExtensionProperties> properties;
 
-        vkEnumerateInstanceExtensionProperties(
-            nullptr,
+        vkEnumerateInstanceExtensionProperties(nullptr,
             &properties_count,
             nullptr);
 
         properties.resize(properties_count);
 
-        VK_CHECK(
-            vkEnumerateInstanceExtensionProperties(
-                nullptr,
-                &properties_count,
-                properties.data));
+        VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr,
+            &properties_count,
+            properties.data));
 
         // Enable required extensions
         Auto_Array<const char*> instance_extensions;
 
         platform_get_vulkan_extensions(&instance_extensions);
 
-        if (is_extension_available(
-                properties,
+        if (is_extension_available(properties,
                 VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME))
 
             instance_extensions.push_back(
                 VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
 #ifdef VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
-        if (is_extension_available(
-                properties,
+        if (is_extension_available(properties,
                 VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
 
             instance_extensions.push_back(
@@ -214,9 +210,7 @@ b8 renderer_initialize() {
         vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
         Auto_Array<VkLayerProperties> available_layers;
         available_layers.resize(layer_count);
-        vkEnumerateInstanceLayerProperties(
-            &layer_count,
-            available_layers.data);
+        vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data);
 
         bool validation_layer_found = false;
         for (const auto& layer : available_layers) {
@@ -230,8 +224,7 @@ b8 renderer_initialize() {
             const char* layers[] = {"VK_LAYER_KHRONOS_validation"};
             create_info.enabledLayerCount = 1;
             create_info.ppEnabledLayerNames = layers;
-            instance_extensions.push_back(
-                VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            instance_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             CORE_DEBUG("Vulkan validation layers enabled");
         } else {
             CORE_WARN("Vulkan validation layers not available");
@@ -239,21 +232,18 @@ b8 renderer_initialize() {
 #endif
 
         // Create Vulkan Instance
-        create_info.enabledExtensionCount =
-            (u32)instance_extensions.length;
+        create_info.enabledExtensionCount = (u32)instance_extensions.length;
         create_info.ppEnabledExtensionNames = instance_extensions.data;
 
-        VK_CHECK(
-            vkCreateInstance(
-                &create_info,
-                context.allocator,
-                &context.instance));
+        VK_CHECK(vkCreateInstance(&create_info,
+            context.allocator,
+            &context.instance));
 
         // Setup the debug report callback
 #ifdef DEBUG_BUILD
         if (validation_layer_found) {
-            VkDebugUtilsMessengerCreateInfoEXT debug_create_info =
-                {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
+            VkDebugUtilsMessengerCreateInfoEXT debug_create_info = {
+                VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
 
             // Specify the level of events that we want to capture
             debug_create_info.messageSeverity =
@@ -272,8 +262,8 @@ b8 renderer_initialize() {
             debug_create_info.pfnUserCallback = vk_debug_callback;
 
             // Optional pointer that can be passed to the logger. Essentially we
-            // can pass whatever data we want and use it in the callback function.
-            // Not used
+            // can pass whatever data we want and use it in the callback
+            // function. Not used
             debug_create_info.pUserData = nullptr;
 
             // Enable additional validation features
@@ -294,17 +284,15 @@ b8 renderer_initialize() {
             debug_create_info.pNext = &validation_features_ext;
 
             // The vkCreateDebugUtilsMessengerEXT is an extension function so it
-            // is not loaded automatically. Its address must be looked up manually
-            VK_INSTANCE_LEVEL_FUNCTION(
-                context.instance,
+            // is not loaded automatically. Its address must be looked up
+            // manually
+            VK_INSTANCE_LEVEL_FUNCTION(context.instance,
                 vkCreateDebugUtilsMessengerEXT);
 
-            VK_CHECK(
-                vkCreateDebugUtilsMessengerEXT(
-                    context.instance,
-                    &debug_create_info,
-                    context.allocator,
-                    &context.debug_messenger));
+            VK_CHECK(vkCreateDebugUtilsMessengerEXT(context.instance,
+                &debug_create_info,
+                context.allocator,
+                &context.debug_messenger));
 
             CORE_DEBUG("Vulkan debugger created");
         }
@@ -316,22 +304,16 @@ b8 renderer_initialize() {
     {
         u32 gpu_count;
         VK_CHECK(
-            vkEnumeratePhysicalDevices(
-                context.instance,
-                &gpu_count,
-                nullptr));
+            vkEnumeratePhysicalDevices(context.instance, &gpu_count, nullptr));
 
         RUNTIME_ASSERT(gpu_count > 0);
 
-        VkPhysicalDevice* gpus = (VkPhysicalDevice*)
-            memory_allocate(sizeof(VkPhysicalDevice) * gpu_count,
-                            Memory_Tag::RENDERER);
+        VkPhysicalDevice* gpus = (VkPhysicalDevice*)memory_allocate(
+            sizeof(VkPhysicalDevice) * gpu_count,
+            Memory_Tag::RENDERER);
 
         VK_CHECK(
-            vkEnumeratePhysicalDevices(
-                context.instance,
-                &gpu_count,
-                gpus));
+            vkEnumeratePhysicalDevices(context.instance, &gpu_count, gpus));
 
         // If a number >1 of GPUs got reported, find discrete GPU if present,
         // or use first one available. This covers most common cases
@@ -343,8 +325,7 @@ b8 renderer_initialize() {
             VkPhysicalDeviceProperties properties;
             vkGetPhysicalDeviceProperties(gpus[i], &properties);
 
-            if (properties.deviceType ==
-                VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+            if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
 
                 use_gpu = i;
                 break;
@@ -352,8 +333,7 @@ b8 renderer_initialize() {
         }
 
         context.physical_device = gpus[use_gpu];
-        memory_deallocate(
-            gpus,
+        memory_deallocate(gpus,
             sizeof(VkPhysicalDevice) * gpu_count,
             Memory_Tag::RENDERER);
     }
@@ -375,16 +355,14 @@ b8 renderer_initialize() {
         uint32_t properties_count;
         Auto_Array<VkExtensionProperties> properties;
 
-        vkEnumerateDeviceExtensionProperties(
-            context.physical_device,
+        vkEnumerateDeviceExtensionProperties(context.physical_device,
             nullptr,
             &properties_count,
             nullptr);
 
         properties.resize(properties_count);
 
-        vkEnumerateDeviceExtensionProperties(
-            context.physical_device,
+        vkEnumerateDeviceExtensionProperties(context.physical_device,
             nullptr,
             &properties_count,
             properties.data);
@@ -405,17 +383,14 @@ b8 renderer_initialize() {
         create_info.enabledExtensionCount = (u32)device_extensions.length;
         create_info.ppEnabledExtensionNames = device_extensions.data;
 
-        VK_CHECK(
-            vkCreateDevice(
-                context.physical_device,
-                &create_info,
-                context.allocator,
-                &context.logical_device));
+        VK_CHECK(vkCreateDevice(context.physical_device,
+            &create_info,
+            context.allocator,
+            &context.logical_device));
 
         CORE_DEBUG("Vulkan logical device created.");
 
-        vkGetDeviceQueue(
-            context.logical_device,
+        vkGetDeviceQueue(context.logical_device,
             context.queue_family,
             0,
             &context.queue);
@@ -425,19 +400,17 @@ b8 renderer_initialize() {
     // If you wish to load e.g. additional textures you may need to alter
     // pools sizes and maxSets.
     {
-        VkDescriptorPoolSize pool_sizes[] =
-            {
-                {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-                {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-                {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-                {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-                {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-                {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-                {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-                {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-                {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-                {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-                {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
+        VkDescriptorPoolSize pool_sizes[] = {{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+            {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}};
 
         VkDescriptorPoolCreateInfo pool_info = {};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -446,12 +419,10 @@ b8 renderer_initialize() {
         pool_info.poolSizeCount = (u32)IM_ARRAYSIZE(pool_sizes);
         pool_info.pPoolSizes = pool_sizes;
 
-        VK_CHECK(
-            vkCreateDescriptorPool(
-                context.logical_device,
-                &pool_info,
-                context.allocator,
-                &context.descriptor_pool));
+        VK_CHECK(vkCreateDescriptorPool(context.logical_device,
+            &pool_info,
+            context.allocator,
+            &context.descriptor_pool));
 
         CORE_DEBUG("Descriptor pool created.");
     }
@@ -485,14 +456,12 @@ void renderer_shutdown() {
 
     // Note: ImGui shutdown is handled by UI subsystem
 
-    ImGui_ImplVulkanH_DestroyWindow(
-        context.instance,
+    ImGui_ImplVulkanH_DestroyWindow(context.instance,
         context.logical_device,
         &context.main_window_data,
         context.allocator);
 
-    vkDestroyDescriptorPool(
-        context.logical_device,
+    vkDestroyDescriptorPool(context.logical_device,
         context.descriptor_pool,
         context.allocator);
 
@@ -500,12 +469,10 @@ void renderer_shutdown() {
     CORE_DEBUG("Destroying Vulkan debugger...");
     if (context.debug_messenger) {
 
-        VK_INSTANCE_LEVEL_FUNCTION(
-            context.instance,
+        VK_INSTANCE_LEVEL_FUNCTION(context.instance,
             vkDestroyDebugUtilsMessengerEXT);
 
-        vkDestroyDebugUtilsMessengerEXT(
-            context.instance,
+        vkDestroyDebugUtilsMessengerEXT(context.instance,
             context.debug_messenger,
             context.allocator);
     }
@@ -549,25 +516,18 @@ void* renderer_get_sdl_window() {
     return platform_state->window;
 }
 
-VkDevice renderer_get_device() {
-    return context.logical_device;
-}
+VkDevice renderer_get_device() { return context.logical_device; }
 
 VkPhysicalDevice renderer_get_physical_device() {
     return context.physical_device;
 }
 
-VkQueue renderer_get_queue() {
-    return context.queue;
-}
+VkQueue renderer_get_queue() { return context.queue; }
 
-VkAllocationCallbacks* renderer_get_allocator() {
-    return context.allocator;
-}
+VkAllocationCallbacks* renderer_get_allocator() { return context.allocator; }
 
 VkCommandPool renderer_get_command_pool() {
-    return context.main_window_data
-        .Frames[context.main_window_data.FrameIndex]
+    return context.main_window_data.Frames[context.main_window_data.FrameIndex]
         .CommandPool;
 }
 
@@ -578,21 +538,16 @@ b8 renderer_draw_frame(ImDrawData* draw_data) {
     u32 fb_width, fb_height;
     f32 not_important;
 
-    platform_get_window_details(
-        &fb_width,
-        &fb_height,
-        &not_important);
+    platform_get_window_details(&fb_width, &fb_height, &not_important);
 
-    if (fb_width > 0 &&
-        fb_height > 0 &&
+    if (fb_width > 0 && fb_height > 0 &&
         (context.swapchain_rebuild ||
-         context.main_window_data.Width != fb_width ||
-         context.main_window_data.Height != fb_height)) {
+            context.main_window_data.Width != fb_width ||
+            context.main_window_data.Height != fb_height)) {
 
         ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
         RUNTIME_ASSERT(g_MinImageCount >= 2);
-        ImGui_ImplVulkanH_CreateOrResizeWindow(
-            context.instance,
+        ImGui_ImplVulkanH_CreateOrResizeWindow(context.instance,
             context.physical_device,
             context.logical_device,
             &context.main_window_data,
@@ -607,13 +562,12 @@ b8 renderer_draw_frame(ImDrawData* draw_data) {
     }
 
     // Only render if we have valid draw data (not minimized)
-    if (draw_data &&
-        draw_data->DisplaySize.x > 0.0f &&
+    if (draw_data && draw_data->DisplaySize.x > 0.0f &&
         draw_data->DisplaySize.y > 0.0f) {
 
         // Set clear color based on current UI theme
-        extern UI_Theme ui_get_current_theme(); // Internal function from ui.cpp
-        ImVec4 theme_clear_color = ui_themes_get_clear_color(ui_get_current_theme());
+        ImVec4 theme_clear_color =
+            ui_themes_get_clear_color(ui_get_current_theme());
         context.main_window_data.ClearValue.color.float32[0] =
             theme_clear_color.x * theme_clear_color.w;
         context.main_window_data.ClearValue.color.float32[1] =
@@ -639,8 +593,7 @@ b8 renderer_frame_render(ImDrawData* draw_data) {
     VkSemaphore render_complete_semaphore =
         wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
 
-    VkResult err = vkAcquireNextImageKHR(
-        context.logical_device,
+    VkResult err = vkAcquireNextImageKHR(context.logical_device,
         wd->Swapchain,
         UINT64_MAX,
         image_acquired_semaphore,
@@ -659,35 +612,23 @@ b8 renderer_frame_render(ImDrawData* draw_data) {
     ImGui_ImplVulkanH_Frame* fd = &wd->Frames[wd->FrameIndex];
     {
         // wait indefinitely instead of periodically checking
-        VK_CHECK(
-            vkWaitForFences(
-                context.logical_device,
-                1,
-                &fd->Fence,
-                VK_TRUE,
-                UINT64_MAX));
+        VK_CHECK(vkWaitForFences(context.logical_device,
+            1,
+            &fd->Fence,
+            VK_TRUE,
+            UINT64_MAX));
 
-        VK_CHECK(
-            vkResetFences(
-                context.logical_device,
-                1,
-                &fd->Fence));
+        VK_CHECK(vkResetFences(context.logical_device, 1, &fd->Fence));
     }
     {
         VK_CHECK(
-            vkResetCommandPool(
-                context.logical_device,
-                fd->CommandPool,
-                0));
+            vkResetCommandPool(context.logical_device, fd->CommandPool, 0));
 
         VkCommandBufferBeginInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-        VK_CHECK(
-            vkBeginCommandBuffer(
-                fd->CommandBuffer,
-                &info));
+        VK_CHECK(vkBeginCommandBuffer(fd->CommandBuffer, &info));
     }
     {
         VkRenderPassBeginInfo info = {};
@@ -698,8 +639,7 @@ b8 renderer_frame_render(ImDrawData* draw_data) {
         info.renderArea.extent.height = wd->Height;
         info.clearValueCount = 1;
         info.pClearValues = &wd->ClearValue;
-        vkCmdBeginRenderPass(
-            fd->CommandBuffer,
+        vkCmdBeginRenderPass(fd->CommandBuffer,
             &info,
             VK_SUBPASS_CONTENTS_INLINE);
     }
@@ -723,15 +663,9 @@ b8 renderer_frame_render(ImDrawData* draw_data) {
         info.signalSemaphoreCount = 1;
         info.pSignalSemaphores = &render_complete_semaphore;
 
-        VK_CHECK(
-            vkEndCommandBuffer(fd->CommandBuffer));
+        VK_CHECK(vkEndCommandBuffer(fd->CommandBuffer));
 
-        VK_CHECK(
-            vkQueueSubmit(
-                context.queue,
-                1,
-                &info,
-                fd->Fence));
+        VK_CHECK(vkQueueSubmit(context.queue, 1, &info, fd->Fence));
     }
     return true;
 }
@@ -765,8 +699,7 @@ b8 renderer_frame_present() {
     }
 
     // Now we can use the next set of semaphores
-    wd->SemaphoreIndex =
-        (wd->SemaphoreIndex + 1) % wd->SemaphoreCount;
+    wd->SemaphoreIndex = (wd->SemaphoreIndex + 1) % wd->SemaphoreCount;
 
     return true;
 }

@@ -13,6 +13,7 @@ enum class Memory_Tag {
     RENDERER,
     APPLICATION,
     UI,
+	LAYERS,
     MAX_ENTRIES
 };
 
