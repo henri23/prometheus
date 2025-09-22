@@ -4,6 +4,8 @@
 #include "client_types.hpp"
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
+#include "events/events.hpp"
+#include "input/input.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
 #include "renderer/renderer_backend.hpp"
@@ -22,6 +24,14 @@ struct Internal_App_State {
 
 // Internal pointer to application state for easy access
 internal_variable Internal_App_State* internal_state = nullptr;
+
+INTERNAL_FUNC b8 app_escape_key_callback(const Event* event) {
+    if (event->key.key_code == Key_Code::ESCAPE && !event->key.repeat) {
+        CORE_INFO("ESC key pressed - closing application");
+        internal_state->is_running = false;
+    }
+    return false; // Don't consume, let other callbacks process
+}
 
 b8 application_init(Client* client_state) {
     RUNTIME_ASSERT_MSG(client_state, "Client state cannot be null");
@@ -54,6 +64,10 @@ b8 application_init(Client* client_state) {
         return false;
     }
 
+    // Initialize event and input systems
+    events_initialize();
+    input_initialize();
+
     if (!renderer_initialize()) {
         CORE_FATAL("Failed to initialize renderer");
         return false;
@@ -64,22 +78,18 @@ b8 application_init(Client* client_state) {
         return false;
     }
 
-	// UI_Theme theme, 
-	// Auto_Array<UI_Layer>* layers,
-	// PFN_menu_callback menu_callback,
-	// const char* app_name) {
     // Initialize UI with configuration from client
-    if (!ui_initialize(
-            UI_Theme::CATPPUCCIN_MOCHA,
-			&client_state->layers,
-			client_state->menu_callback,
-            client_state->config.name)) {
+    if (!ui_initialize(UI_Theme::CATPPUCCIN_MOCHA,
+            &client_state->layers,
+            client_state->menu_callback,
+            client_state->config.name,
+            internal_state->plat_state.window)) {
         CORE_FATAL("Failed to initialize UI subsystem");
         return false;
     }
 
-    // Register UI event callback with platform
-    platform_set_event_callback(ui_process_event);
+    // Register application ESC key handler with HIGH priority to always work
+    events_register_callback(Event_Type::KEY_PRESSED, app_escape_key_callback, Event_Priority::HIGH);
 
     internal_state->is_running = false;
     internal_state->is_suspended = false;
@@ -103,8 +113,7 @@ void application_run() {
 
     // Call client initialize if provided
     if (internal_state->client->initialize) {
-        if (!internal_state->client->initialize(
-                internal_state->client)) {
+        if (!internal_state->client->initialize(internal_state->client)) {
             CORE_ERROR("Client initialization failed");
             return;
         }
@@ -125,8 +134,7 @@ void application_run() {
 
         // Call client update if provided
         if (internal_state->client->update) {
-            if (!internal_state->client->update(
-                    internal_state->client,
+            if (!internal_state->client->update(internal_state->client,
                     delta_time)) {
                 internal_state->is_running = false;
             }
@@ -139,8 +147,7 @@ void application_run() {
 
             // Call client render if provided
             if (internal_state->client->render) {
-                internal_state->client->render(
-                    internal_state->client,
+                internal_state->client->render(internal_state->client,
                     delta_time);
             }
 
@@ -149,6 +156,9 @@ void application_run() {
                 internal_state->is_running = false;
             }
         }
+
+        // Update input state each frame
+        input_update();
 
         // Frame rate limiting
         f64 frame_end_time = platform_get_absolute_time();
@@ -177,8 +187,7 @@ void application_shutdown() {
     if (internal_state->client->shutdown) {
         CORE_DEBUG("Shutting down client...");
 
-        internal_state->client->shutdown(
-            internal_state->client);
+        internal_state->client->shutdown(internal_state->client);
 
         CORE_DEBUG("Client shutdown complete.");
     }
@@ -194,6 +203,11 @@ void application_shutdown() {
     CORE_DEBUG("Shutting down renderer subsystem...");
     renderer_shutdown();
     CORE_DEBUG("Renderer shutdown complete.");
+
+    CORE_DEBUG("Shutting down input and event subsystems...");
+    input_shutdown();
+    events_shutdown();
+    CORE_DEBUG("Input and event subsystems shutdown complete.");
 
     CORE_DEBUG("Shutting down platform subsystem...");
     platform_shutdown();

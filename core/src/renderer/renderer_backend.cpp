@@ -502,19 +502,6 @@ void renderer_trigger_swapchain_recreation() {
     context.swapchain_rebuild = true;
 }
 
-void* renderer_get_sdl_window() {
-    // Get platform state to access SDL window
-    extern Platform_State* get_platform_state();
-    Platform_State* platform_state = get_platform_state();
-
-    if (!platform_state || !platform_state->window) {
-        CORE_ERROR(
-            "Platform state not available for renderer SDL window access");
-        return nullptr;
-    }
-
-    return platform_state->window;
-}
 
 VkDevice renderer_get_device() { return context.logical_device; }
 

@@ -3,6 +3,8 @@
 // Interfaces from core library
 #include <core/logger.hpp>
 #include <entry.hpp>
+#include <events/events.hpp>
+#include <input/input_codes.hpp>
 #include <memory/memory.hpp>
 
 // Client-specific state structure
@@ -11,8 +13,20 @@ struct Frontend_State {
     b8 initialized;
 };
 
+// Memory debug callback function
+b8 client_memory_debug_callback(const Event* event) {
+    if (event->key.key_code == Key_Code::M && !event->key.repeat) {
+        u64 allocation_count = memory_get_allocations_count();
+        CLIENT_INFO("Current memory allocations: %llu", allocation_count);
+    }
+    return false; // Don't consume, let other callbacks process
+}
+
 // Client lifecycle callback implementations
 b8 client_initialize(Client* client_state) {
+
+    // Register memory debug event listener - press 'M' to show allocation count
+    events_register_callback(Event_Type::KEY_PRESSED, client_memory_debug_callback, Event_Priority::LOW);
 
     CLIENT_INFO("Client initialized.");
 

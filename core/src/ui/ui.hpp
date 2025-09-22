@@ -1,38 +1,34 @@
 #pragma once
 
 #include "containers/auto_array.hpp"
+#include "events/events.hpp"
 #include "ui_themes.hpp"
 #include "ui_types.hpp"
 
 // Forward declarations
 struct ImDrawData;
-union SDL_Event;
 
 /**
  * Initialize the UI subsystem
  * @param theme - UI theme to use
- * @param enable_dockspace - true to enable docking system
- * @param enable_titlebar - true to enable custom titlebar
+ * @param layers - UI layer array from client
+ * @param menu_callback - callback for rendering menus
  * @param app_name - application name for titlebar
+ * @param window - SDL window for ImGui initialization
  * @return true if successful, false otherwise
  */
 PROMETHEUS_API b8 ui_initialize(
     UI_Theme theme,
 	Auto_Array<UI_Layer>* layers,
 	PFN_menu_callback menu_callback,
-    const char* app_name);
+    const char* app_name,
+    void* window);
 
 /**
  * Shutdown the UI subsystem
  */
 PROMETHEUS_API void ui_shutdown();
 
-/**
- * Process UI events from platform layer
- * @param event - SDL event to process
- * @return true if event was consumed by UI, false to pass through
- */
-PROMETHEUS_API b8 ui_process_event(const SDL_Event* event);
 
 /**
  * Begin a new UI frame
@@ -58,3 +54,9 @@ PROMETHEUS_API b8 ui_register_component(const UI_Layer* component);
  * @return current UI theme
  */
 UI_Theme ui_get_current_theme();
+
+/**
+ * Get the UI event callback for registration by application
+ * @return PFN_event_callback for UI event handling
+ */
+PROMETHEUS_API PFN_event_callback ui_get_event_callback();
