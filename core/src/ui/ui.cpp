@@ -12,8 +12,6 @@
 #include "input/input_codes.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "renderer/renderer_backend.hpp"
-#include "renderer/renderer_platform.hpp"
 
 #include <SDL3/SDL.h>
 
@@ -21,7 +19,7 @@
 struct UI_State {
     Auto_Array<UI_Layer>* layers;
     UI_Theme current_theme;
-	PFN_menu_callback menu_callback;
+    PFN_menu_callback menu_callback;
     b8 is_initialized;
 };
 
@@ -33,11 +31,10 @@ INTERNAL_FUNC b8 ui_event_handler(const Event* event);
 INTERNAL_FUNC ImGuiKey engine_key_to_imgui_key(Key_Code key);
 INTERNAL_FUNC int engine_mouse_to_imgui_button(Mouse_Button button);
 
-b8 ui_initialize(
-	UI_Theme theme,
-	Auto_Array<UI_Layer>* layers,
-	PFN_menu_callback menu_callback,
-	const char* app_name,
+b8 ui_initialize(UI_Theme theme,
+    Auto_Array<UI_Layer>* layers,
+    PFN_menu_callback menu_callback,
+    const char* app_name,
     void* window) {
 
     CORE_DEBUG("Initializing UI subsystem...");
@@ -87,12 +84,24 @@ b8 ui_initialize(
     ui_titlebar_initialize(menu_callback, app_name); // No config needed
 
     // Register UI event callbacks with LOWEST priority so canvas can override
-    events_register_callback(Event_Type::KEY_PRESSED, ui_get_event_callback(), Event_Priority::LOWEST);
-    events_register_callback(Event_Type::KEY_RELEASED, ui_get_event_callback(), Event_Priority::LOWEST);
-    events_register_callback(Event_Type::MOUSE_BUTTON_PRESSED, ui_get_event_callback(), Event_Priority::LOWEST);
-    events_register_callback(Event_Type::MOUSE_BUTTON_RELEASED, ui_get_event_callback(), Event_Priority::LOWEST);
-    events_register_callback(Event_Type::MOUSE_MOVED, ui_get_event_callback(), Event_Priority::LOWEST);
-    events_register_callback(Event_Type::MOUSE_WHEEL_SCROLLED, ui_get_event_callback(), Event_Priority::LOWEST);
+    events_register_callback(Event_Type::KEY_PRESSED,
+        ui_get_event_callback(),
+        Event_Priority::LOWEST);
+    events_register_callback(Event_Type::KEY_RELEASED,
+        ui_get_event_callback(),
+        Event_Priority::LOWEST);
+    events_register_callback(Event_Type::MOUSE_BUTTON_PRESSED,
+        ui_get_event_callback(),
+        Event_Priority::LOWEST);
+    events_register_callback(Event_Type::MOUSE_BUTTON_RELEASED,
+        ui_get_event_callback(),
+        Event_Priority::LOWEST);
+    events_register_callback(Event_Type::MOUSE_MOVED,
+        ui_get_event_callback(),
+        Event_Priority::LOWEST);
+    events_register_callback(Event_Type::MOUSE_WHEEL_SCROLLED,
+        ui_get_event_callback(),
+        Event_Priority::LOWEST);
 
     CORE_INFO("UI subsystem initialized successfully");
     return true;
@@ -106,19 +115,19 @@ void ui_shutdown() {
         return;
     }
 
-    // Wait for renderer to finish all operations before shutting down ImGui
-    // This prevents Vulkan validation errors when destroying resources in use
-    if (!renderer_wait_idle()) {
-        CORE_WARN("Failed to wait for renderer idle during UI shutdown");
-    }
-
     // Unregister UI event callbacks
-    events_unregister_callback(Event_Type::KEY_PRESSED, ui_get_event_callback());
-    events_unregister_callback(Event_Type::KEY_RELEASED, ui_get_event_callback());
-    events_unregister_callback(Event_Type::MOUSE_BUTTON_PRESSED, ui_get_event_callback());
-    events_unregister_callback(Event_Type::MOUSE_BUTTON_RELEASED, ui_get_event_callback());
-    events_unregister_callback(Event_Type::MOUSE_MOVED, ui_get_event_callback());
-    events_unregister_callback(Event_Type::MOUSE_WHEEL_SCROLLED, ui_get_event_callback());
+    events_unregister_callback(Event_Type::KEY_PRESSED,
+        ui_get_event_callback());
+    events_unregister_callback(Event_Type::KEY_RELEASED,
+        ui_get_event_callback());
+    events_unregister_callback(Event_Type::MOUSE_BUTTON_PRESSED,
+        ui_get_event_callback());
+    events_unregister_callback(Event_Type::MOUSE_BUTTON_RELEASED,
+        ui_get_event_callback());
+    events_unregister_callback(Event_Type::MOUSE_MOVED,
+        ui_get_event_callback());
+    events_unregister_callback(Event_Type::MOUSE_WHEEL_SCROLLED,
+        ui_get_event_callback());
 
     // Shutdown infrastructure components
     ui_titlebar_shutdown();
@@ -129,13 +138,6 @@ void ui_shutdown() {
 
     ui_fonts_shutdown();
     CORE_DEBUG("UI fonts shutdown complete.");
-
-    // Shutdown ImGui
-    ImGui_ImplVulkan_Shutdown();
-    CORE_DEBUG("ImGui Vulkan shutdown complete.");
-
-    ImGui_ImplSDL3_Shutdown();
-    CORE_DEBUG("ImGui SDL3 shutdown complete.");
 
     ImGui::DestroyContext();
     CORE_DEBUG("ImGui context destroyed.");
@@ -165,16 +167,15 @@ void ui_shutdown() {
     CORE_DEBUG("UI subsystem shut down successfully");
 }
 
-
 // Internal UI event handler for engine events - translate to ImGui native API
 INTERNAL_FUNC b8 ui_event_handler(const Event* event) {
     if (!ui_state.is_initialized) {
         return false;
     }
 
-
     // Don't consume ESC key - let platform handle it for quit functionality
-    if (event->type == Event_Type::KEY_PRESSED && event->key.key_code == Key_Code::ESCAPE) {
+    if (event->type == Event_Type::KEY_PRESSED &&
+        event->key.key_code == Key_Code::ESCAPE) {
         return false;
     }
 
@@ -194,19 +195,23 @@ INTERNAL_FUNC b8 ui_event_handler(const Event* event) {
 
     case Event_Type::MOUSE_BUTTON_PRESSED:
     case Event_Type::MOUSE_BUTTON_RELEASED: {
-        int imgui_button = engine_mouse_to_imgui_button(event->mouse_button.button);
+        int imgui_button =
+            engine_mouse_to_imgui_button(event->mouse_button.button);
         if (imgui_button >= 0) {
-            io.AddMouseButtonEvent(imgui_button, event->type == Event_Type::MOUSE_BUTTON_PRESSED);
+            io.AddMouseButtonEvent(imgui_button,
+                event->type == Event_Type::MOUSE_BUTTON_PRESSED);
         }
         return io.WantCaptureMouse; // Consume if ImGui wants mouse input
     }
 
     case Event_Type::MOUSE_MOVED:
-        io.AddMousePosEvent((float)event->mouse_move.x, (float)event->mouse_move.y);
+        io.AddMousePosEvent((float)event->mouse_move.x,
+            (float)event->mouse_move.y);
         return io.WantCaptureMouse; // Consume if ImGui wants mouse input
 
     case Event_Type::MOUSE_WHEEL_SCROLLED:
-        io.AddMouseWheelEvent(event->mouse_wheel.delta_x, event->mouse_wheel.delta_y);
+        io.AddMouseWheelEvent(event->mouse_wheel.delta_x,
+            event->mouse_wheel.delta_y);
         return io.WantCaptureMouse; // Consume if ImGui wants mouse input
 
     default:
@@ -318,14 +323,6 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window) {
         return false;
     }
 
-    ImGui_ImplSDL3_InitForVulkan((SDL_Window*)window);
-
-    // Initialize Vulkan backend for ImGui through renderer
-    if (!renderer_init_imgui_vulkan()) {
-        CORE_ERROR("Failed to initialize ImGui Vulkan backend");
-        return false;
-    }
-
     CORE_DEBUG("ImGui context setup completed");
     return true;
 }
@@ -335,121 +332,230 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window) {
 // Convert engine key codes to ImGui key codes
 INTERNAL_FUNC ImGuiKey engine_key_to_imgui_key(Key_Code key) {
     switch (key) {
-    case Key_Code::SPACE: return ImGuiKey_Space;
-    case Key_Code::APOSTROPHE: return ImGuiKey_Apostrophe;
-    case Key_Code::COMMA: return ImGuiKey_Comma;
-    case Key_Code::MINUS: return ImGuiKey_Minus;
-    case Key_Code::PERIOD: return ImGuiKey_Period;
-    case Key_Code::SLASH: return ImGuiKey_Slash;
-    case Key_Code::KEY_0: return ImGuiKey_0;
-    case Key_Code::KEY_1: return ImGuiKey_1;
-    case Key_Code::KEY_2: return ImGuiKey_2;
-    case Key_Code::KEY_3: return ImGuiKey_3;
-    case Key_Code::KEY_4: return ImGuiKey_4;
-    case Key_Code::KEY_5: return ImGuiKey_5;
-    case Key_Code::KEY_6: return ImGuiKey_6;
-    case Key_Code::KEY_7: return ImGuiKey_7;
-    case Key_Code::KEY_8: return ImGuiKey_8;
-    case Key_Code::KEY_9: return ImGuiKey_9;
-    case Key_Code::SEMICOLON: return ImGuiKey_Semicolon;
-    case Key_Code::EQUALS: return ImGuiKey_Equal;
-    case Key_Code::A: return ImGuiKey_A;
-    case Key_Code::B: return ImGuiKey_B;
-    case Key_Code::C: return ImGuiKey_C;
-    case Key_Code::D: return ImGuiKey_D;
-    case Key_Code::E: return ImGuiKey_E;
-    case Key_Code::F: return ImGuiKey_F;
-    case Key_Code::G: return ImGuiKey_G;
-    case Key_Code::H: return ImGuiKey_H;
-    case Key_Code::I: return ImGuiKey_I;
-    case Key_Code::J: return ImGuiKey_J;
-    case Key_Code::K: return ImGuiKey_K;
-    case Key_Code::L: return ImGuiKey_L;
-    case Key_Code::M: return ImGuiKey_M;
-    case Key_Code::N: return ImGuiKey_N;
-    case Key_Code::O: return ImGuiKey_O;
-    case Key_Code::P: return ImGuiKey_P;
-    case Key_Code::Q: return ImGuiKey_Q;
-    case Key_Code::R: return ImGuiKey_R;
-    case Key_Code::S: return ImGuiKey_S;
-    case Key_Code::T: return ImGuiKey_T;
-    case Key_Code::U: return ImGuiKey_U;
-    case Key_Code::V: return ImGuiKey_V;
-    case Key_Code::W: return ImGuiKey_W;
-    case Key_Code::X: return ImGuiKey_X;
-    case Key_Code::Y: return ImGuiKey_Y;
-    case Key_Code::Z: return ImGuiKey_Z;
-    case Key_Code::LEFTBRACKET: return ImGuiKey_LeftBracket;
-    case Key_Code::BACKSLASH: return ImGuiKey_Backslash;
-    case Key_Code::RIGHTBRACKET: return ImGuiKey_RightBracket;
-    case Key_Code::GRAVE: return ImGuiKey_GraveAccent;
-    case Key_Code::ESCAPE: return ImGuiKey_Escape;
-    case Key_Code::RETURN: return ImGuiKey_Enter;
-    case Key_Code::TAB: return ImGuiKey_Tab;
-    case Key_Code::BACKSPACE: return ImGuiKey_Backspace;
-    case Key_Code::INSERT: return ImGuiKey_Insert;
-    case Key_Code::DELETE: return ImGuiKey_Delete;
-    case Key_Code::RIGHT: return ImGuiKey_RightArrow;
-    case Key_Code::LEFT: return ImGuiKey_LeftArrow;
-    case Key_Code::DOWN: return ImGuiKey_DownArrow;
-    case Key_Code::UP: return ImGuiKey_UpArrow;
-    case Key_Code::PAGEUP: return ImGuiKey_PageUp;
-    case Key_Code::PAGEDOWN: return ImGuiKey_PageDown;
-    case Key_Code::HOME: return ImGuiKey_Home;
-    case Key_Code::END: return ImGuiKey_End;
-    case Key_Code::CAPSLOCK: return ImGuiKey_CapsLock;
-    case Key_Code::SCROLLLOCK: return ImGuiKey_ScrollLock;
-    case Key_Code::PRINTSCREEN: return ImGuiKey_PrintScreen;
-    case Key_Code::PAUSE: return ImGuiKey_Pause;
-    case Key_Code::F1: return ImGuiKey_F1;
-    case Key_Code::F2: return ImGuiKey_F2;
-    case Key_Code::F3: return ImGuiKey_F3;
-    case Key_Code::F4: return ImGuiKey_F4;
-    case Key_Code::F5: return ImGuiKey_F5;
-    case Key_Code::F6: return ImGuiKey_F6;
-    case Key_Code::F7: return ImGuiKey_F7;
-    case Key_Code::F8: return ImGuiKey_F8;
-    case Key_Code::F9: return ImGuiKey_F9;
-    case Key_Code::F10: return ImGuiKey_F10;
-    case Key_Code::F11: return ImGuiKey_F11;
-    case Key_Code::F12: return ImGuiKey_F12;
-    case Key_Code::KP_0: return ImGuiKey_Keypad0;
-    case Key_Code::KP_1: return ImGuiKey_Keypad1;
-    case Key_Code::KP_2: return ImGuiKey_Keypad2;
-    case Key_Code::KP_3: return ImGuiKey_Keypad3;
-    case Key_Code::KP_4: return ImGuiKey_Keypad4;
-    case Key_Code::KP_5: return ImGuiKey_Keypad5;
-    case Key_Code::KP_6: return ImGuiKey_Keypad6;
-    case Key_Code::KP_7: return ImGuiKey_Keypad7;
-    case Key_Code::KP_8: return ImGuiKey_Keypad8;
-    case Key_Code::KP_9: return ImGuiKey_Keypad9;
-    case Key_Code::KP_PERIOD: return ImGuiKey_KeypadDecimal;
-    case Key_Code::KP_DIVIDE: return ImGuiKey_KeypadDivide;
-    case Key_Code::KP_MULTIPLY: return ImGuiKey_KeypadMultiply;
-    case Key_Code::KP_MINUS: return ImGuiKey_KeypadSubtract;
-    case Key_Code::KP_PLUS: return ImGuiKey_KeypadAdd;
-    case Key_Code::KP_ENTER: return ImGuiKey_KeypadEnter;
-    case Key_Code::LSHIFT: return ImGuiKey_LeftShift;
-    case Key_Code::LCTRL: return ImGuiKey_LeftCtrl;
-    case Key_Code::LALT: return ImGuiKey_LeftAlt;
-    case Key_Code::LGUI: return ImGuiKey_LeftSuper;
-    case Key_Code::RSHIFT: return ImGuiKey_RightShift;
-    case Key_Code::RCTRL: return ImGuiKey_RightCtrl;
-    case Key_Code::RALT: return ImGuiKey_RightAlt;
-    case Key_Code::RGUI: return ImGuiKey_RightSuper;
-    default: return ImGuiKey_None;
+    case Key_Code::SPACE:
+        return ImGuiKey_Space;
+    case Key_Code::APOSTROPHE:
+        return ImGuiKey_Apostrophe;
+    case Key_Code::COMMA:
+        return ImGuiKey_Comma;
+    case Key_Code::MINUS:
+        return ImGuiKey_Minus;
+    case Key_Code::PERIOD:
+        return ImGuiKey_Period;
+    case Key_Code::SLASH:
+        return ImGuiKey_Slash;
+    case Key_Code::KEY_0:
+        return ImGuiKey_0;
+    case Key_Code::KEY_1:
+        return ImGuiKey_1;
+    case Key_Code::KEY_2:
+        return ImGuiKey_2;
+    case Key_Code::KEY_3:
+        return ImGuiKey_3;
+    case Key_Code::KEY_4:
+        return ImGuiKey_4;
+    case Key_Code::KEY_5:
+        return ImGuiKey_5;
+    case Key_Code::KEY_6:
+        return ImGuiKey_6;
+    case Key_Code::KEY_7:
+        return ImGuiKey_7;
+    case Key_Code::KEY_8:
+        return ImGuiKey_8;
+    case Key_Code::KEY_9:
+        return ImGuiKey_9;
+    case Key_Code::SEMICOLON:
+        return ImGuiKey_Semicolon;
+    case Key_Code::EQUALS:
+        return ImGuiKey_Equal;
+    case Key_Code::A:
+        return ImGuiKey_A;
+    case Key_Code::B:
+        return ImGuiKey_B;
+    case Key_Code::C:
+        return ImGuiKey_C;
+    case Key_Code::D:
+        return ImGuiKey_D;
+    case Key_Code::E:
+        return ImGuiKey_E;
+    case Key_Code::F:
+        return ImGuiKey_F;
+    case Key_Code::G:
+        return ImGuiKey_G;
+    case Key_Code::H:
+        return ImGuiKey_H;
+    case Key_Code::I:
+        return ImGuiKey_I;
+    case Key_Code::J:
+        return ImGuiKey_J;
+    case Key_Code::K:
+        return ImGuiKey_K;
+    case Key_Code::L:
+        return ImGuiKey_L;
+    case Key_Code::M:
+        return ImGuiKey_M;
+    case Key_Code::N:
+        return ImGuiKey_N;
+    case Key_Code::O:
+        return ImGuiKey_O;
+    case Key_Code::P:
+        return ImGuiKey_P;
+    case Key_Code::Q:
+        return ImGuiKey_Q;
+    case Key_Code::R:
+        return ImGuiKey_R;
+    case Key_Code::S:
+        return ImGuiKey_S;
+    case Key_Code::T:
+        return ImGuiKey_T;
+    case Key_Code::U:
+        return ImGuiKey_U;
+    case Key_Code::V:
+        return ImGuiKey_V;
+    case Key_Code::W:
+        return ImGuiKey_W;
+    case Key_Code::X:
+        return ImGuiKey_X;
+    case Key_Code::Y:
+        return ImGuiKey_Y;
+    case Key_Code::Z:
+        return ImGuiKey_Z;
+    case Key_Code::LEFTBRACKET:
+        return ImGuiKey_LeftBracket;
+    case Key_Code::BACKSLASH:
+        return ImGuiKey_Backslash;
+    case Key_Code::RIGHTBRACKET:
+        return ImGuiKey_RightBracket;
+    case Key_Code::GRAVE:
+        return ImGuiKey_GraveAccent;
+    case Key_Code::ESCAPE:
+        return ImGuiKey_Escape;
+    case Key_Code::RETURN:
+        return ImGuiKey_Enter;
+    case Key_Code::TAB:
+        return ImGuiKey_Tab;
+    case Key_Code::BACKSPACE:
+        return ImGuiKey_Backspace;
+    case Key_Code::INSERT:
+        return ImGuiKey_Insert;
+    case Key_Code::DELETE:
+        return ImGuiKey_Delete;
+    case Key_Code::RIGHT:
+        return ImGuiKey_RightArrow;
+    case Key_Code::LEFT:
+        return ImGuiKey_LeftArrow;
+    case Key_Code::DOWN:
+        return ImGuiKey_DownArrow;
+    case Key_Code::UP:
+        return ImGuiKey_UpArrow;
+    case Key_Code::PAGEUP:
+        return ImGuiKey_PageUp;
+    case Key_Code::PAGEDOWN:
+        return ImGuiKey_PageDown;
+    case Key_Code::HOME:
+        return ImGuiKey_Home;
+    case Key_Code::END:
+        return ImGuiKey_End;
+    case Key_Code::CAPSLOCK:
+        return ImGuiKey_CapsLock;
+    case Key_Code::SCROLLLOCK:
+        return ImGuiKey_ScrollLock;
+    case Key_Code::PRINTSCREEN:
+        return ImGuiKey_PrintScreen;
+    case Key_Code::PAUSE:
+        return ImGuiKey_Pause;
+    case Key_Code::F1:
+        return ImGuiKey_F1;
+    case Key_Code::F2:
+        return ImGuiKey_F2;
+    case Key_Code::F3:
+        return ImGuiKey_F3;
+    case Key_Code::F4:
+        return ImGuiKey_F4;
+    case Key_Code::F5:
+        return ImGuiKey_F5;
+    case Key_Code::F6:
+        return ImGuiKey_F6;
+    case Key_Code::F7:
+        return ImGuiKey_F7;
+    case Key_Code::F8:
+        return ImGuiKey_F8;
+    case Key_Code::F9:
+        return ImGuiKey_F9;
+    case Key_Code::F10:
+        return ImGuiKey_F10;
+    case Key_Code::F11:
+        return ImGuiKey_F11;
+    case Key_Code::F12:
+        return ImGuiKey_F12;
+    case Key_Code::KP_0:
+        return ImGuiKey_Keypad0;
+    case Key_Code::KP_1:
+        return ImGuiKey_Keypad1;
+    case Key_Code::KP_2:
+        return ImGuiKey_Keypad2;
+    case Key_Code::KP_3:
+        return ImGuiKey_Keypad3;
+    case Key_Code::KP_4:
+        return ImGuiKey_Keypad4;
+    case Key_Code::KP_5:
+        return ImGuiKey_Keypad5;
+    case Key_Code::KP_6:
+        return ImGuiKey_Keypad6;
+    case Key_Code::KP_7:
+        return ImGuiKey_Keypad7;
+    case Key_Code::KP_8:
+        return ImGuiKey_Keypad8;
+    case Key_Code::KP_9:
+        return ImGuiKey_Keypad9;
+    case Key_Code::KP_PERIOD:
+        return ImGuiKey_KeypadDecimal;
+    case Key_Code::KP_DIVIDE:
+        return ImGuiKey_KeypadDivide;
+    case Key_Code::KP_MULTIPLY:
+        return ImGuiKey_KeypadMultiply;
+    case Key_Code::KP_MINUS:
+        return ImGuiKey_KeypadSubtract;
+    case Key_Code::KP_PLUS:
+        return ImGuiKey_KeypadAdd;
+    case Key_Code::KP_ENTER:
+        return ImGuiKey_KeypadEnter;
+    case Key_Code::LSHIFT:
+        return ImGuiKey_LeftShift;
+    case Key_Code::LCTRL:
+        return ImGuiKey_LeftCtrl;
+    case Key_Code::LALT:
+        return ImGuiKey_LeftAlt;
+    case Key_Code::LGUI:
+        return ImGuiKey_LeftSuper;
+    case Key_Code::RSHIFT:
+        return ImGuiKey_RightShift;
+    case Key_Code::RCTRL:
+        return ImGuiKey_RightCtrl;
+    case Key_Code::RALT:
+        return ImGuiKey_RightAlt;
+    case Key_Code::RGUI:
+        return ImGuiKey_RightSuper;
+    default:
+        return ImGuiKey_None;
     }
 }
 
 // Convert engine mouse buttons to ImGui mouse buttons
 INTERNAL_FUNC int engine_mouse_to_imgui_button(Mouse_Button button) {
     switch (button) {
-    case Mouse_Button::LEFT: return 0;
-    case Mouse_Button::RIGHT: return 1;
-    case Mouse_Button::MIDDLE: return 2;
-    case Mouse_Button::X1: return 3;
-    case Mouse_Button::X2: return 4;
-    default: return -1;
+    case Mouse_Button::LEFT:
+        return 0;
+    case Mouse_Button::RIGHT:
+        return 1;
+    case Mouse_Button::MIDDLE:
+        return 2;
+    case Mouse_Button::X1:
+        return 3;
+    case Mouse_Button::X2:
+        return 4;
+    default:
+        return -1;
     }
 }
 

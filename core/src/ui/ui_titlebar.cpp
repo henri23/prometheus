@@ -8,7 +8,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "platform/platform.hpp"
-#include "renderer/vulkan_image.hpp"
+#include "renderer/vulkan/vulkan_image.hpp"
 
 // Internal titlebar state
 struct Titlebar_State {

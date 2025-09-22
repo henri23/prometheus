@@ -19,6 +19,8 @@ struct Internal_App_State {
     Client* client;
     b8 is_running;
     b8 is_suspended;
+    u16 width;
+    u16 height;
     Platform_State plat_state;
 };
 
@@ -31,6 +33,45 @@ INTERNAL_FUNC b8 app_escape_key_callback(const Event* event) {
         internal_state->is_running = false;
     }
     return false; // Don't consume, let other callbacks process
+}
+
+void application_get_framebuffer_size(u32* width, u32* height) {
+    *width = internal_state->width;
+    *width = internal_state->width;
+}
+
+INTERNAL_FUNC b8 app_on_resized_callback(const Event* event) {
+
+    if (event->window_resize.width != internal_state->width ||
+        event->window_resize.height != internal_state->height) {
+
+        internal_state->width = event->window_resize.width;
+        internal_state->height = event->window_resize.height;
+
+        CORE_DEBUG("Windows resize: %i, %i",
+            internal_state->width,
+            internal_state->height);
+
+        // Handle minimization
+        if (internal_state->width == 0 || internal_state->height == 0) {
+            CORE_INFO("Windows minimized, suspending application.");
+            internal_state->is_suspended = true;
+            return true;
+        } else {
+            if (internal_state->is_suspended) {
+                CORE_INFO("Window restored, resuming application");
+                internal_state->is_suspended = false;
+            }
+
+            internal_state->client->on_resize(
+                internal_state->client,
+                internal_state->width,
+                internal_state->height);
+
+            renderer_on_resize(internal_state->width, internal_state->height);
+        }
+    }
+	return false;
 }
 
 b8 application_init(Client* client_state) {
@@ -93,6 +134,10 @@ b8 application_init(Client* client_state) {
         app_escape_key_callback,
         Event_Priority::HIGH);
 
+    events_register_callback(Event_Type::WINDOW_RESIZED,
+        app_on_resized_callback,
+        Event_Priority::HIGH);
+
     internal_state->is_running = false;
     internal_state->is_suspended = false;
 
@@ -140,7 +185,7 @@ void application_run() {
             if (internal_state->client->update) {
                 if (!internal_state->client->update(internal_state->client,
                         delta_time)) {
-					CORE_FATAL("Client update failed. Aborting...");
+                    CORE_FATAL("Client update failed. Aborting...");
                     internal_state->is_running = false;
                 }
             }
@@ -148,19 +193,18 @@ void application_run() {
             if (internal_state->client->render) {
                 if (!internal_state->client->render(internal_state->client,
                         delta_time)) {
-					CORE_FATAL("Client render failed. Aborting...");
+                    CORE_FATAL("Client render failed. Aborting...");
                     internal_state->is_running = false;
                 }
             }
 
-			Render_Packet packet;
-			packet.delta_time = delta_time;
+            Render_Packet packet;
+            packet.delta_time = delta_time;
 
-			if(!renderer_draw_frame(&packet)) {
-				internal_state->is_running = false;
-			}
+            if (!renderer_draw_frame(&packet)) {
+                internal_state->is_running = false;
+            }
 
-			
             // Frame rate limiting
             f64 frame_end_time = platform_get_absolute_time();
             f64 frame_duration = frame_end_time - current_time;
