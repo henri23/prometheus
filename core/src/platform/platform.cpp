@@ -10,8 +10,7 @@
 #include "events/events.hpp"
 #include "input/input.hpp"
 #include "input/input_codes.hpp"
-#include "renderer/vulkan_types.hpp"
-#include "renderer/renderer_backend.hpp"
+#include "renderer/vulkan/vulkan_types.hpp"
 
 internal_variable Platform_State* state_ptr = nullptr;
 
@@ -197,16 +196,14 @@ b8 platform_message_pump() {
             break;
 
 		case SDL_EVENT_WINDOW_RESIZED:
-            // Trigger swapchain recreation when window is resized
-            renderer_trigger_swapchain_recreation();
+            // TODO: Trigger swapchain recreation when window is resized
             CORE_DEBUG("Window resized - triggered swapchain recreation");
             break;
 
 		case SDL_EVENT_WINDOW_MAXIMIZED:
 		case SDL_EVENT_WINDOW_RESTORED:
-            // Trigger swapchain recreation when window is maximized or
+            // TODO: Trigger swapchain recreation when window is maximized or
             // restored
-            renderer_trigger_swapchain_recreation();
             CORE_DEBUG(
                 "Window state changed - triggered swapchain recreation");
             break;

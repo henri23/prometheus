@@ -8,7 +8,7 @@
 #include "input/input.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "renderer/renderer_backend.hpp"
+#include "renderer/renderer_frontend.hpp"
 #include "ui/ui.hpp"
 
 // Application configuration
@@ -68,7 +68,7 @@ b8 application_init(Client* client_state) {
     events_initialize();
     input_initialize();
 
-    if (!renderer_initialize()) {
+    if (!renderer_startup(client_state->config.name)) {
         CORE_FATAL("Failed to initialize renderer");
         return false;
     }
@@ -89,7 +89,9 @@ b8 application_init(Client* client_state) {
     }
 
     // Register application ESC key handler with HIGH priority to always work
-    events_register_callback(Event_Type::KEY_PRESSED, app_escape_key_callback, Event_Priority::HIGH);
+    events_register_callback(Event_Type::KEY_PRESSED,
+        app_escape_key_callback,
+        Event_Priority::HIGH);
 
     internal_state->is_running = false;
     internal_state->is_suspended = false;
@@ -133,43 +135,47 @@ void application_run() {
         }
 
         // Call client update if provided
-        if (internal_state->client->update) {
-            if (!internal_state->client->update(internal_state->client,
-                    delta_time)) {
-                internal_state->is_running = false;
-            }
-        }
-
-        // Render frame if not suspended
         if (!internal_state->is_suspended) {
-            // Start new UI frame
-            ui_begin_frame();
 
-            // Call client render if provided
+            if (internal_state->client->update) {
+                if (!internal_state->client->update(internal_state->client,
+                        delta_time)) {
+					CORE_FATAL("Client update failed. Aborting...");
+                    internal_state->is_running = false;
+                }
+            }
+
             if (internal_state->client->render) {
-                internal_state->client->render(internal_state->client,
-                    delta_time);
+                if (!internal_state->client->render(internal_state->client,
+                        delta_time)) {
+					CORE_FATAL("Client render failed. Aborting...");
+                    internal_state->is_running = false;
+                }
             }
 
-            // Render the frame
-            if (!renderer_draw_frame(ui_render())) {
-                internal_state->is_running = false;
+			Render_Packet packet;
+			packet.delta_time = delta_time;
+
+			if(!renderer_draw_frame(&packet)) {
+				internal_state->is_running = false;
+			}
+
+			
+            // Frame rate limiting
+            f64 frame_end_time = platform_get_absolute_time();
+            f64 frame_duration = frame_end_time - current_time;
+
+            if (frame_duration < TARGET_FRAME_TIME) {
+                u64 sleep_ms =
+                    (u64)((TARGET_FRAME_TIME - frame_duration) * 1000.0);
+
+                if (sleep_ms > 0) {
+                    platform_sleep(sleep_ms);
+                }
             }
-        }
 
-        // Update input state each frame
-        input_update();
-
-        // Frame rate limiting
-        f64 frame_end_time = platform_get_absolute_time();
-        f64 frame_duration = frame_end_time - current_time;
-
-        if (frame_duration < TARGET_FRAME_TIME) {
-            u64 sleep_ms = (u64)((TARGET_FRAME_TIME - frame_duration) * 1000.0);
-
-            if (sleep_ms > 0) {
-                platform_sleep(sleep_ms);
-            }
+            // Update input state each frame
+            input_update();
         }
     }
 
