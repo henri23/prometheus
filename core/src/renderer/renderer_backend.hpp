@@ -28,3 +28,4 @@ VkPhysicalDevice renderer_get_physical_device();
 VkQueue renderer_get_queue();
 VkAllocationCallbacks* renderer_get_allocator();
 VkCommandPool renderer_get_command_pool();
+u32 renderer_get_queue_family_index();

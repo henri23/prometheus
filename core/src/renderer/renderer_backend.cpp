@@ -518,6 +518,10 @@ VkCommandPool renderer_get_command_pool() {
         .CommandPool;
 }
 
+u32 renderer_get_queue_family_index() {
+    return context.queue_family;
+}
+
 // Clear color is now determined by the current UI theme
 
 b8 renderer_draw_frame(ImDrawData* draw_data) {

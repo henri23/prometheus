@@ -3,8 +3,41 @@
 // Direct ImGui access (now available as public dependency from core)
 #include <imgui.h>
 #include <core/logger.hpp>
+#include <renderer/canvas_renderer.hpp>
 
 internal_variable b8 show_demo_window;
+
+void client_ui_render_canvas_viewport(void* user_data) {
+    (void)user_data;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    if (ImGui::Begin("Canvas Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
+        ImVec2 viewport_size = ImGui::GetContentRegionAvail();
+        u32 viewport_width = viewport_size.x > 0.0f ? (u32)viewport_size.x : 0;
+        u32 viewport_height = viewport_size.y > 0.0f ? (u32)viewport_size.y : 0;
+
+        if (viewport_width > 0 && viewport_height > 0) {
+            canvas_renderer_request_resize(viewport_width, viewport_height);
+
+            if (canvas_renderer_has_output()) {
+                ImTextureID texture_id = canvas_renderer_get_texture_id();
+
+                if (texture_id) {
+                    ImGui::Image(texture_id, viewport_size, ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+                }
+            } else {
+                ImVec2 cursor = ImGui::GetCursorPos();
+                ImGui::Dummy(viewport_size);
+                ImGui::SetCursorPos(cursor + ImVec2(12.0f, 12.0f));
+                ImGui::TextUnformatted("Canvas renderer initializing...");
+            }
+        } else {
+            canvas_renderer_request_resize(0, 0);
+        }
+    }
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
 
 // Component implementations (migrated from core/src/ui/ui_components.cpp)
 void client_ui_render_prometheus_window(void* user_data) {

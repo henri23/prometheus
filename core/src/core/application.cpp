@@ -8,6 +8,7 @@
 #include "input/input.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
+#include "renderer/canvas_renderer.hpp"
 #include "renderer/renderer_backend.hpp"
 #include "ui/ui.hpp"
 
@@ -88,6 +89,11 @@ b8 application_init(Client* client_state) {
         return false;
     }
 
+    if (!canvas_renderer_initialize()) {
+        CORE_FATAL("Failed to initialize canvas renderer");
+        return false;
+    }
+
     // Register application ESC key handler with HIGH priority to always work
     events_register_callback(Event_Type::KEY_PRESSED, app_escape_key_callback, Event_Priority::HIGH);
 
@@ -152,7 +158,14 @@ void application_run() {
             }
 
             // Render the frame
-            if (!renderer_draw_frame(ui_render())) {
+            ImDrawData* draw_data = ui_render();
+
+            if (!canvas_renderer_render((f32)delta_time)) {
+                internal_state->is_running = false;
+                continue;
+            }
+
+            if (!renderer_draw_frame(draw_data)) {
                 internal_state->is_running = false;
             }
         }
@@ -191,6 +204,10 @@ void application_shutdown() {
 
         CORE_DEBUG("Client shutdown complete.");
     }
+
+    CORE_DEBUG("Shutting down canvas renderer...");
+    canvas_renderer_shutdown();
+    CORE_DEBUG("Canvas renderer shutdown complete.");
 
     CORE_DEBUG("Shutting down UI subsystem...");
     ui_shutdown();

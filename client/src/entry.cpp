@@ -76,12 +76,18 @@ b8 create_client(Client* client_state) {
         memory_allocate(sizeof(Frontend_State), Memory_Tag::CLIENT);
 
     client_state->layers.push_back({
+        .name = "canvas_viewport",
+        .on_render = client_ui_render_canvas_viewport,
+        .on_attach = nullptr,
+        .on_detach = nullptr,
+        .component_state = nullptr});
+
+    client_state->layers.push_back({
         .name = "prometheus_window",
-            .on_render = client_ui_render_prometheus_window,
-            .on_attach = nullptr,
-            .on_detach = nullptr,
-            .component_state = nullptr
-    });
+        .on_render = client_ui_render_prometheus_window,
+        .on_attach = nullptr,
+        .on_detach = nullptr,
+        .component_state = nullptr});
 
     client_state->menu_callback = client_ui_render_menus;
 
