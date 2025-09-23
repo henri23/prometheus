@@ -52,4 +52,6 @@ void vulkan_object_shader_destroy(
 void vulkan_object_shader_use(
     Vulkan_Context* context,
     Vulkan_Object_Shader* shader) {
+    (void)context;
+    (void)shader;
 }

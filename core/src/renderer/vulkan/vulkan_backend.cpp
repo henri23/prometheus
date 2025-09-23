@@ -18,7 +18,6 @@
 #include "imgui_impl_vulkan.h"
 
 #include "shaders/vulkan_object_shader.hpp"
-#include "vulkan_render_target.hpp"
 #include "vulkan_viewport.hpp"
 #include <cstring>
 

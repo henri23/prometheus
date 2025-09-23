@@ -69,9 +69,10 @@ void events_register_callback(Event_Type event_type,
         event_state.callbacks[(u32)event_type];
 
     // Create new callback entry
-    Event_Callback_Entry new_entry = {.callback = callback,
-        .listener = nullptr,
-        .priority = priority};
+    Event_Callback_Entry new_entry;
+    new_entry.callback = callback;
+    new_entry.listener = nullptr;
+    new_entry.priority = priority;
 
     // Find insertion position to maintain ascending priority order (lower
     // priority number = higher priority)
