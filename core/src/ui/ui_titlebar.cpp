@@ -10,7 +10,7 @@
 #include "imgui_impl_vulkan.h"
 #include "platform/platform.hpp"
 #include "renderer/vulkan/vulkan_backend.hpp"
-#include "renderer/vulkan/vulkan_image.hpp"
+#include "renderer/vulkan/vulkan_ui_image.hpp"
 
 // Internal titlebar state
 struct Titlebar_State {
@@ -18,11 +18,11 @@ struct Titlebar_State {
     const char* title_text;
 
     // Icons loaded directly
-    Vulkan_Image app_icon;
-    Vulkan_Image minimize_icon;
-    Vulkan_Image maximize_icon;
-    Vulkan_Image restore_icon;
-    Vulkan_Image close_icon;
+    Vulkan_UI_Image app_icon;
+    Vulkan_UI_Image minimize_icon;
+    Vulkan_UI_Image maximize_icon;
+    Vulkan_UI_Image restore_icon;
+    Vulkan_UI_Image close_icon;
 
     ImVec2 titlebar_min;
     ImVec2 titlebar_max;
@@ -42,18 +42,18 @@ INTERNAL_FUNC bool begin_menubar(const ImRect& barRectangle);
 INTERNAL_FUNC void end_menubar();
 
 // Internal functions
-INTERNAL_FUNC void render_titlebar_background();
-INTERNAL_FUNC void render_titlebar_gradient();
-INTERNAL_FUNC void render_titlebar_logo();
-INTERNAL_FUNC void render_titlebar_menus(PFN_menu_callback callback);
-INTERNAL_FUNC void render_titlebar_text();
-INTERNAL_FUNC void render_titlebar_buttons();
+INTERNAL_FUNC void draw_titlebar_background();
+INTERNAL_FUNC void draw_titlebar_gradient();
+INTERNAL_FUNC void draw_titlebar_logo();
+INTERNAL_FUNC void draw_titlebar_menus(PFN_menu_callback callback);
+INTERNAL_FUNC void draw_titlebar_text();
+INTERNAL_FUNC void draw_titlebar_buttons();
 
-INTERNAL_FUNC b8 render_titlebar_button(const char* icon,
+INTERNAL_FUNC b8 draw_titlebar_button(const char* icon,
     ImVec2 pos,
     ImVec2 size);
 
-INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
+INTERNAL_FUNC b8 draw_titlebar_image_button(const Vulkan_UI_Image* image,
     const char* fallback_text,
     ImVec2 pos,
     ImVec2 size);
@@ -100,45 +100,25 @@ void ui_titlebar_cleanup_vulkan_resources() {
     if (state.icons_loaded) {
         Vulkan_Context* context = vulkan_get_context();
         if (context) {
-            // Clean up descriptor sets and destroy images
-            if (state.app_icon.descriptor_set != VK_NULL_HANDLE) {
-                ImGui_ImplVulkan_RemoveTexture(state.app_icon.descriptor_set);
-                state.app_icon.descriptor_set = VK_NULL_HANDLE;
-            }
-            if (state.app_icon.handle != VK_NULL_HANDLE) {
-                vulkan_image_destroy(context, &state.app_icon);
+            // Clean up UI images using proper function
+            if (state.app_icon.base_image.handle != VK_NULL_HANDLE) {
+                vulkan_ui_image_destroy(context, &state.app_icon);
             }
 
-            if (state.minimize_icon.descriptor_set != VK_NULL_HANDLE) {
-                ImGui_ImplVulkan_RemoveTexture(state.minimize_icon.descriptor_set);
-                state.minimize_icon.descriptor_set = VK_NULL_HANDLE;
-            }
-            if (state.minimize_icon.handle != VK_NULL_HANDLE) {
-                vulkan_image_destroy(context, &state.minimize_icon);
+            if (state.minimize_icon.base_image.handle != VK_NULL_HANDLE) {
+                vulkan_ui_image_destroy(context, &state.minimize_icon);
             }
 
-            if (state.maximize_icon.descriptor_set != VK_NULL_HANDLE) {
-                ImGui_ImplVulkan_RemoveTexture(state.maximize_icon.descriptor_set);
-                state.maximize_icon.descriptor_set = VK_NULL_HANDLE;
-            }
-            if (state.maximize_icon.handle != VK_NULL_HANDLE) {
-                vulkan_image_destroy(context, &state.maximize_icon);
+            if (state.maximize_icon.base_image.handle != VK_NULL_HANDLE) {
+                vulkan_ui_image_destroy(context, &state.maximize_icon);
             }
 
-            if (state.restore_icon.descriptor_set != VK_NULL_HANDLE) {
-                ImGui_ImplVulkan_RemoveTexture(state.restore_icon.descriptor_set);
-                state.restore_icon.descriptor_set = VK_NULL_HANDLE;
-            }
-            if (state.restore_icon.handle != VK_NULL_HANDLE) {
-                vulkan_image_destroy(context, &state.restore_icon);
+            if (state.restore_icon.base_image.handle != VK_NULL_HANDLE) {
+                vulkan_ui_image_destroy(context, &state.restore_icon);
             }
 
-            if (state.close_icon.descriptor_set != VK_NULL_HANDLE) {
-                ImGui_ImplVulkan_RemoveTexture(state.close_icon.descriptor_set);
-                state.close_icon.descriptor_set = VK_NULL_HANDLE;
-            }
-            if (state.close_icon.handle != VK_NULL_HANDLE) {
-                vulkan_image_destroy(context, &state.close_icon);
+            if (state.close_icon.base_image.handle != VK_NULL_HANDLE) {
+                vulkan_ui_image_destroy(context, &state.close_icon);
             }
 
             // Mark icons as no longer loaded
@@ -170,7 +150,7 @@ void ui_titlebar_shutdown() {
     CORE_DEBUG("Custom titlebar shut down successfully");
 }
 
-void ui_titlebar_render() {
+void ui_titlebar_draw() {
     if (!state.is_initialized) {
         CORE_DEBUG("Titlebar not initialized, skipping render");
         return;
@@ -203,12 +183,12 @@ void ui_titlebar_render() {
         ImGuiWindowFlags_NoBringToFrontOnFocus;
 
     if (ImGui::Begin("##CustomTitlebar", nullptr, flags)) {
-        render_titlebar_background();
-        render_titlebar_gradient();
-        render_titlebar_logo();
-        render_titlebar_menus(state.callback);
-        render_titlebar_text();
-        render_titlebar_buttons();
+        draw_titlebar_background();
+        draw_titlebar_gradient();
+        draw_titlebar_logo();
+        draw_titlebar_menus(state.callback);
+        draw_titlebar_text();
+        draw_titlebar_buttons();
     }
     ImGui::End();
 }
@@ -220,7 +200,7 @@ INTERNAL_FUNC const UI_Theme_Palette& get_current_palette() {
     return ui_themes_get_palette(current_theme);
 }
 
-INTERNAL_FUNC void render_titlebar_background() {
+INTERNAL_FUNC void draw_titlebar_background() {
     const UI_Theme_Palette& palette = get_current_palette();
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
     draw_list->AddRectFilled(state.titlebar_min,
@@ -228,8 +208,8 @@ INTERNAL_FUNC void render_titlebar_background() {
         palette.titlebar);
 }
 
-INTERNAL_FUNC void render_titlebar_logo() {
-    const Vulkan_Image* app_icon =
+INTERNAL_FUNC void draw_titlebar_logo() {
+    const Vulkan_UI_Image* app_icon =
         state.icons_loaded ? &state.app_icon : nullptr;
     b8 icons_loaded = state.icons_loaded;
 
@@ -282,7 +262,7 @@ INTERNAL_FUNC void render_titlebar_logo() {
     }
 }
 
-INTERNAL_FUNC void render_titlebar_menus(PFN_menu_callback callback) {
+INTERNAL_FUNC void draw_titlebar_menus(PFN_menu_callback callback) {
     if (!callback) {
         return;
     }
@@ -308,7 +288,7 @@ INTERNAL_FUNC void render_titlebar_menus(PFN_menu_callback callback) {
     ImGui::EndGroup();
 }
 
-INTERNAL_FUNC void render_titlebar_text() {
+INTERNAL_FUNC void draw_titlebar_text() {
     if (!state.title_text) {
         return;
     }
@@ -356,7 +336,7 @@ INTERNAL_FUNC void render_titlebar_text() {
     draw_list->AddText(text_pos, palette.text, state.title_text);
 }
 
-INTERNAL_FUNC void render_titlebar_buttons() {
+INTERNAL_FUNC void draw_titlebar_buttons() {
     // Fixed button size (not scaling with titlebar height)
     f32 button_size = 26.0f; // Fixed size for consistent window controls
     f32 button_spacing = 2.0f;
@@ -372,9 +352,9 @@ INTERNAL_FUNC void render_titlebar_buttons() {
             state.titlebar_min.y + top_padding); // Top-aligned
         ImVec2 close_size = ImVec2(button_size, button_size);
 
-        const Vulkan_Image* close_icon =
+        const Vulkan_UI_Image* close_icon =
             state.icons_loaded ? &state.close_icon : nullptr;
-        if (render_titlebar_image_button(close_icon,
+        if (draw_titlebar_image_button(close_icon,
                 "×",
                 close_pos,
                 close_size)) {
@@ -393,13 +373,13 @@ INTERNAL_FUNC void render_titlebar_buttons() {
 
         // Check if window is maximized and use appropriate icon
         b8 is_maximized = platform_is_window_maximized();
-        const Vulkan_Image* max_icon =
+        const Vulkan_UI_Image* max_icon =
             is_maximized
                 ? (state.icons_loaded ? &state.restore_icon : nullptr)
                 : (state.icons_loaded ? &state.maximize_icon : nullptr);
         const char* fallback_text = is_maximized ? "🗗" : "□";
 
-        if (render_titlebar_image_button(max_icon,
+        if (draw_titlebar_image_button(max_icon,
                 fallback_text,
                 max_pos,
                 max_size)) {
@@ -422,10 +402,10 @@ INTERNAL_FUNC void render_titlebar_buttons() {
 
         ImVec2 min_size = ImVec2(button_size, button_size);
 
-        const Vulkan_Image* min_icon =
+        const Vulkan_UI_Image* min_icon =
             state.icons_loaded ? &state.minimize_icon : nullptr;
 
-        if (render_titlebar_image_button(min_icon, "−", min_pos, min_size)) {
+        if (draw_titlebar_image_button(min_icon, "−", min_pos, min_size)) {
 
             CORE_DEBUG("Minimize button clicked - minimizing window");
             platform_minimize_window();
@@ -433,7 +413,7 @@ INTERNAL_FUNC void render_titlebar_buttons() {
     }
 }
 
-INTERNAL_FUNC b8 render_titlebar_button(const char* icon,
+INTERNAL_FUNC b8 draw_titlebar_button(const char* icon,
     ImVec2 pos,
     ImVec2 size) {
 
@@ -469,7 +449,7 @@ INTERNAL_FUNC b8 render_titlebar_button(const char* icon,
     return clicked;
 }
 
-INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
+INTERNAL_FUNC b8 draw_titlebar_image_button(const Vulkan_UI_Image* image,
     const char* fallback_text,
     ImVec2 pos,
     ImVec2 size) {
@@ -498,8 +478,8 @@ INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
         image->descriptor_set != VK_NULL_HANDLE) {
         // Draw the icon image centered in the button with aspect ratio
         // preservation Get original icon dimensions
-        f32 original_width = (f32)image->width;
-        f32 original_height = (f32)image->height;
+        f32 original_width = (f32)image->base_image.width;
+        f32 original_height = (f32)image->base_image.height;
         f32 original_aspect = original_width / original_height;
 
         // Calculate available space for icon (with padding)
@@ -567,7 +547,7 @@ INTERNAL_FUNC b8 render_titlebar_image_button(const Vulkan_Image* image,
     return clicked;
 }
 
-INTERNAL_FUNC void render_titlebar_gradient() {
+INTERNAL_FUNC void draw_titlebar_gradient() {
     // Get current theme palette for gradient colors
     extern UI_Theme ui_get_current_theme(); // Internal function from ui.cpp
     UI_Theme current_theme = ui_get_current_theme();

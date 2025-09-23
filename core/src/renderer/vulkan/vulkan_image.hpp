@@ -27,19 +27,6 @@ void vulkan_image_destroy(
     Vulkan_Context* context,
     Vulkan_Image* image);
 
-// Create image specifically for ImGui texture use
-void vulkan_image_create_for_imgui(
-    Vulkan_Context* context,
-    u32 width,
-    u32 height,
-    VkFormat format,
-    const void* pixel_data,
-    u32 pixel_data_size,
-    Vulkan_Image* out_image);
-
-// Destroy ImGui image (handles descriptor set cleanup)
-void vulkan_image_destroy_imgui(Vulkan_Image* image);
-
 // Helper function to transition image layout
 void vulkan_image_transition_layout(
     Vulkan_Context* context,

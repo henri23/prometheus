@@ -35,8 +35,8 @@ b8 ui_viewport_initialize();
 // Shutdown viewport layer
 void ui_viewport_shutdown();
 
-// Render the viewport (called from UI layer)
-void ui_viewport_render(void* component_state);
+// Draw the viewport (called from UI layer)
+void ui_viewport_draw(void* component_state);
 
 // Viewport coordinate transformations
 ImVec2 ui_viewport_world_to_screen(const Viewport_State* viewport, ImVec2 world_pos);
@@ -47,5 +47,5 @@ void ui_viewport_pan(Viewport_State* viewport, ImVec2 delta);
 void ui_viewport_zoom(Viewport_State* viewport, f32 zoom_delta, ImVec2 zoom_center);
 void ui_viewport_reset_view(Viewport_State* viewport);
 
-// Grid rendering
-void ui_viewport_render_grid(const Viewport_State* viewport, ImDrawList* draw_list);
+// Grid drawing
+void ui_viewport_draw_grid(const Viewport_State* viewport, ImDrawList* draw_list);

@@ -50,10 +50,6 @@ struct Vulkan_Image {
     VkDeviceMemory memory; // Handle to the memory allocated by the image
     u32 width;
     u32 height;
-
-    // For sampling in shaders/ImGui
-    VkSampler sampler;
-    VkDescriptorSet descriptor_set;
 };
 
 // Off-screen render target with ImGui display capability

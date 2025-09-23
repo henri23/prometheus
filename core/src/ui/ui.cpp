@@ -246,7 +246,7 @@ ImDrawData* ui_render() {
     ui_dockspace_begin(&ui_state);
 
     // Render custom titlebar if enabled
-    ui_titlebar_render();
+    ui_titlebar_draw();
 
     // Render all registered UI components
     for (u32 i = 0; i < ui_state.layers->length; ++i) {

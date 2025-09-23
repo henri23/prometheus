@@ -39,7 +39,7 @@ void ui_viewport_shutdown() {
     // Nothing to clean up for now
 }
 
-void ui_viewport_render(void* component_state) {
+void ui_viewport_draw(void* component_state) {
     // Create the main viewport window
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar |
                                    ImGuiWindowFlags_NoScrollWithMouse;
@@ -181,7 +181,7 @@ void ui_viewport_reset_view(Viewport_State* viewport) {
     viewport->zoom_level = 1.0f;
 }
 
-void ui_viewport_render_grid(const Viewport_State* viewport, ImDrawList* draw_list) {
+void ui_viewport_draw_grid(const Viewport_State* viewport, ImDrawList* draw_list) {
     if (!viewport->show_grid) return;
 
     f32 grid_step = viewport->grid_size * viewport->zoom_level;

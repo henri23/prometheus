@@ -22,7 +22,7 @@ void app_viewport_layer_shutdown() {
 
 void app_viewport_layer_render(void* component_state) {
     // Render the viewport - this will create the 2D workspace window
-    ui_viewport_render(component_state);
+    ui_viewport_draw(component_state);
 
     // Example: Add some additional CAD-specific UI elements
     if (ImGui::Begin("CAD Tools")) {

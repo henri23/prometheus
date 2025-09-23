@@ -7,7 +7,7 @@
 
 #include "defines.hpp"
 #include "renderer/vulkan/vulkan_backend.hpp"
-#include "renderer/vulkan/vulkan_image.hpp"
+#include "renderer/vulkan/vulkan_ui_image.hpp"
 
 // Include embedded asset data directly
 #include "fonts/roboto_bold.embed"
@@ -88,8 +88,8 @@ const u8* assets_get_font_data(const char* font_name, u64* out_size) {
     return asset->data;
 }
 
-b8 assets_load_image(Vulkan_Image* out_image, const char* image_name) {
-    RUNTIME_ASSERT_MSG(out_image, "Output image pointer cannot be null");
+b8 assets_load_image(Vulkan_UI_Image* out_ui_image, const char* image_name) {
+    RUNTIME_ASSERT_MSG(out_ui_image, "Output UI image pointer cannot be null");
     RUNTIME_ASSERT_MSG(image_name, "Image name cannot be null");
 
     const Embedded_Asset* asset = find_embedded_asset(image_name);
@@ -124,15 +124,15 @@ b8 assets_load_image(Vulkan_Image* out_image, const char* image_name) {
         return false;
     }
 
-    // Create ImGui-compatible Vulkan image
-    vulkan_image_create_for_imgui(
+    // Create ImGui-compatible Vulkan UI image
+    vulkan_ui_image_create(
         context,
         (u32)width,
         (u32)height,
         VK_FORMAT_R8G8B8A8_UNORM,
         pixel_data,
         pixel_data_size,
-        out_image);
+        out_ui_image);
 
     // Clean up decoded pixel data
     stbi_image_free(pixel_data);
