@@ -23,13 +23,19 @@ PROMETHEUS_API b8 ui_titlebar_initialize(
 	const char* app_name);
 
 /**
+ * Clean up Vulkan resources before ImGui backend shutdown
+ * Called by renderer to prevent crashes during shutdown
+ */
+PROMETHEUS_API void ui_titlebar_cleanup_vulkan_resources();
+
+/**
  * Shutdown the custom titlebar system
  */
 PROMETHEUS_API void ui_titlebar_shutdown();
 
 /**
- * Render the custom titlebar
+ * Draw the custom titlebar
  * @param user_data - UI state pointer
  */
-PROMETHEUS_API void ui_titlebar_render();
+PROMETHEUS_API void ui_titlebar_draw();
 

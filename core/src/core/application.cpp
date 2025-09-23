@@ -8,7 +8,7 @@
 #include "input/input.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "renderer/renderer_backend.hpp"
+#include "renderer/renderer_frontend.hpp"
 #include "ui/ui.hpp"
 
 // Application configuration
@@ -19,6 +19,8 @@ struct Internal_App_State {
     Client* client;
     b8 is_running;
     b8 is_suspended;
+    u16 width;
+    u16 height;
     Platform_State plat_state;
 };
 
@@ -31,6 +33,44 @@ INTERNAL_FUNC b8 app_escape_key_callback(const Event* event) {
         internal_state->is_running = false;
     }
     return false; // Don't consume, let other callbacks process
+}
+
+void application_get_framebuffer_size(u32* width, u32* height) {
+    *width = internal_state->width;
+    *width = internal_state->width;
+}
+
+INTERNAL_FUNC b8 app_on_resized_callback(const Event* event) {
+
+    if (event->window_resize.width != internal_state->width ||
+        event->window_resize.height != internal_state->height) {
+
+        internal_state->width = event->window_resize.width;
+        internal_state->height = event->window_resize.height;
+
+        CORE_DEBUG("Windows resize: %i, %i",
+            internal_state->width,
+            internal_state->height);
+
+        // Handle minimization
+        if (internal_state->width == 0 || internal_state->height == 0) {
+            CORE_INFO("Windows minimized, suspending application.");
+            internal_state->is_suspended = true;
+            return true;
+        } else {
+            if (internal_state->is_suspended) {
+                CORE_INFO("Window restored, resuming application");
+                internal_state->is_suspended = false;
+            }
+
+            internal_state->client->on_resize(internal_state->client,
+                internal_state->width,
+                internal_state->height);
+
+            renderer_on_resize(internal_state->width, internal_state->height);
+        }
+    }
+    return false;
 }
 
 b8 application_init(Client* client_state) {
@@ -68,7 +108,7 @@ b8 application_init(Client* client_state) {
     events_initialize();
     input_initialize();
 
-    if (!renderer_initialize()) {
+    if (!renderer_startup(client_state->config.name)) {
         CORE_FATAL("Failed to initialize renderer");
         return false;
     }
@@ -89,7 +129,13 @@ b8 application_init(Client* client_state) {
     }
 
     // Register application ESC key handler with HIGH priority to always work
-    events_register_callback(Event_Type::KEY_PRESSED, app_escape_key_callback, Event_Priority::HIGH);
+    events_register_callback(Event_Type::KEY_PRESSED,
+        app_escape_key_callback,
+        Event_Priority::HIGH);
+
+    events_register_callback(Event_Type::WINDOW_RESIZED,
+        app_on_resized_callback,
+        Event_Priority::HIGH);
 
     internal_state->is_running = false;
     internal_state->is_suspended = false;
@@ -133,43 +179,46 @@ void application_run() {
         }
 
         // Call client update if provided
-        if (internal_state->client->update) {
-            if (!internal_state->client->update(internal_state->client,
-                    delta_time)) {
-                internal_state->is_running = false;
-            }
-        }
-
-        // Render frame if not suspended
         if (!internal_state->is_suspended) {
-            // Start new UI frame
-            ui_begin_frame();
 
-            // Call client render if provided
-            if (internal_state->client->render) {
-                internal_state->client->render(internal_state->client,
-                    delta_time);
+            if (internal_state->client->update) {
+                if (!internal_state->client->update(internal_state->client,
+                        delta_time)) {
+                    CORE_FATAL("Client update failed. Aborting...");
+                    internal_state->is_running = false;
+                }
             }
 
-            // Render the frame
-            if (!renderer_draw_frame(ui_render())) {
+            if (internal_state->client->render) {
+                if (!internal_state->client->render(internal_state->client,
+                        delta_time)) {
+                    CORE_FATAL("Client render failed. Aborting...");
+                    internal_state->is_running = false;
+                }
+            }
+
+            Render_Packet packet;
+            packet.delta_time = delta_time;
+
+            if (!renderer_draw_frame(&packet)) {
                 internal_state->is_running = false;
             }
-        }
 
-        // Update input state each frame
-        input_update();
+            // Frame rate limiting
+            f64 frame_end_time = platform_get_absolute_time();
+            f64 frame_duration = frame_end_time - current_time;
 
-        // Frame rate limiting
-        f64 frame_end_time = platform_get_absolute_time();
-        f64 frame_duration = frame_end_time - current_time;
+            if (frame_duration < TARGET_FRAME_TIME) {
+                u64 sleep_ms =
+                    (u64)((TARGET_FRAME_TIME - frame_duration) * 1000.0);
 
-        if (frame_duration < TARGET_FRAME_TIME) {
-            u64 sleep_ms = (u64)((TARGET_FRAME_TIME - frame_duration) * 1000.0);
-
-            if (sleep_ms > 0) {
-                platform_sleep(sleep_ms);
+                if (sleep_ms > 0) {
+                    platform_sleep(sleep_ms);
+                }
             }
+
+            // Update input state each frame
+            input_update();
         }
     }
 
@@ -192,10 +241,6 @@ void application_shutdown() {
         CORE_DEBUG("Client shutdown complete.");
     }
 
-    CORE_DEBUG("Shutting down UI subsystem...");
-    ui_shutdown();
-    CORE_DEBUG("UI shutdown complete.");
-
     CORE_DEBUG("Shutting down assets subsystem...");
     assets_shutdown();
     CORE_DEBUG("Assets shutdown complete.");
@@ -203,6 +248,10 @@ void application_shutdown() {
     CORE_DEBUG("Shutting down renderer subsystem...");
     renderer_shutdown();
     CORE_DEBUG("Renderer shutdown complete.");
+
+    CORE_DEBUG("Shutting down UI subsystem...");
+    ui_shutdown();
+    CORE_DEBUG("UI shutdown complete.");
 
     CORE_DEBUG("Shutting down input and event subsystems...");
     input_shutdown();

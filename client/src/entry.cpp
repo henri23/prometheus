@@ -1,4 +1,5 @@
 #include "ui/client_ui.hpp"
+#include "app_viewport_layer.hpp"
 
 // Interfaces from core library
 #include <core/logger.hpp>
@@ -28,6 +29,12 @@ b8 client_initialize(Client* client_state) {
     // Register memory debug event listener - press 'M' to show allocation count
     events_register_callback(Event_Type::KEY_PRESSED, client_memory_debug_callback, Event_Priority::LOW);
 
+    // Initialize viewport layer
+    if (!app_viewport_layer_initialize()) {
+        CLIENT_ERROR("Failed to initialize viewport layer");
+        return false;
+    }
+
     CLIENT_INFO("Client initialized.");
 
     return true;
@@ -48,6 +55,9 @@ void client_on_resize(Client* client_state, u32 width, u32 height) {
 }
 
 void client_shutdown(Client* client_state) {
+    // Shutdown viewport layer
+    app_viewport_layer_shutdown();
+
     // Clean up frontend state
     memory_deallocate(client_state->state,
         sizeof(Frontend_State),
@@ -78,6 +88,14 @@ b8 create_client(Client* client_state) {
     client_state->layers.push_back({
         .name = "prometheus_window",
             .on_render = client_ui_render_prometheus_window,
+            .on_attach = nullptr,
+            .on_detach = nullptr,
+            .component_state = nullptr
+    });
+
+    client_state->layers.push_back({
+        .name = "viewport_layer",
+            .on_render = app_viewport_layer_render,
             .on_attach = nullptr,
             .on_detach = nullptr,
             .component_state = nullptr

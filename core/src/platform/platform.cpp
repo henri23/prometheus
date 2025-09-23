@@ -10,8 +10,7 @@
 #include "events/events.hpp"
 #include "input/input.hpp"
 #include "input/input_codes.hpp"
-#include "renderer/vulkan_types.hpp"
-#include "renderer/renderer_backend.hpp"
+#include "renderer/vulkan/vulkan_types.hpp"
 
 internal_variable Platform_State* state_ptr = nullptr;
 
@@ -197,16 +196,14 @@ b8 platform_message_pump() {
             break;
 
 		case SDL_EVENT_WINDOW_RESIZED:
-            // Trigger swapchain recreation when window is resized
-            renderer_trigger_swapchain_recreation();
+            // TODO: Trigger swapchain recreation when window is resized
             CORE_DEBUG("Window resized - triggered swapchain recreation");
             break;
 
 		case SDL_EVENT_WINDOW_MAXIMIZED:
 		case SDL_EVENT_WINDOW_RESTORED:
-            // Trigger swapchain recreation when window is maximized or
+            // TODO: Trigger swapchain recreation when window is maximized or
             // restored
-            renderer_trigger_swapchain_recreation();
             CORE_DEBUG(
                 "Window state changed - triggered swapchain recreation");
             break;
@@ -339,4 +336,23 @@ b8 platform_is_window_maximized() {
         return (flags & SDL_WINDOW_MAXIMIZED) != 0;
     }
     return false;
+}
+
+void platform_get_required_extensions(Auto_Array<const char*>* required_extensions) {
+    // Get the extensions needed by SDL3 for Vulkan
+    Uint32 extension_count = 0;
+    const char* const* extensions = SDL_Vulkan_GetInstanceExtensions(&extension_count);
+
+    if (!extensions) {
+        CORE_ERROR("Failed to get Vulkan instance extensions from SDL3: %s", SDL_GetError());
+        return;
+    }
+
+    // Add all required extensions to the array
+    for (Uint32 i = 0; i < extension_count; ++i) {
+        required_extensions->push_back(extensions[i]);
+        CORE_DEBUG("Required Vulkan extension: %s", extensions[i]);
+    }
+
+    CORE_DEBUG("Added %u Vulkan extensions from SDL3", extension_count);
 }

@@ -1,8 +1,13 @@
 #include "assets.hpp"
-
+#include "core/asserts.hpp"
 #include "core/logger.hpp"
-#include "renderer/vulkan_image.hpp"
+
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#include "defines.hpp"
+#include "renderer/vulkan/vulkan_backend.hpp"
+#include "renderer/vulkan/vulkan_ui_image.hpp"
 
 // Include embedded asset data directly
 #include "fonts/roboto_bold.embed"
@@ -10,6 +15,7 @@
 #include "fonts/roboto_regular.embed"
 #include "icons/prometheus_icon.embed"
 #include "images/window_images.embed"
+#include <cstring>
 
 // Simple embedded asset lookup table
 struct Embedded_Asset {
@@ -82,41 +88,55 @@ const u8* assets_get_font_data(const char* font_name, u64* out_size) {
     return asset->data;
 }
 
+b8 assets_load_image(Vulkan_UI_Image* out_ui_image, const char* image_name) {
+    RUNTIME_ASSERT_MSG(out_ui_image, "Output UI image pointer cannot be null");
+    RUNTIME_ASSERT_MSG(image_name, "Image name cannot be null");
 
-b8 assets_load_image(Vulkan_Image* out_image, const char* asset_name) {
-    RUNTIME_ASSERT_MSG(out_image, "Output image cannot be null");
-    RUNTIME_ASSERT_MSG(asset_name, "Asset name cannot be null");
-
-    const Embedded_Asset* asset = find_embedded_asset(asset_name);
+    const Embedded_Asset* asset = find_embedded_asset(image_name);
     if (!asset) {
-        CORE_ERROR("Image asset '%s' not found", asset_name);
+        CORE_ERROR("Image asset '%s' not found", image_name);
         return false;
     }
 
-    // Decode the image data
-    u32 width, height;
-    void* decoded_data = vulkan_image_decode(asset->data, asset->size, &width, &height);
-    if (!decoded_data) {
-        CORE_ERROR("Failed to decode image asset '%s'", asset_name);
+    // Decode the image data using stb_image
+    s32 width, height, channels;
+    u8* pixel_data = stbi_load_from_memory(
+        asset->data,
+        (s32)asset->size,
+        &width,
+        &height,
+        &channels,
+        STBI_rgb_alpha);
+
+    if (!pixel_data) {
+        CORE_ERROR("Failed to decode image asset '%s': %s", image_name, stbi_failure_reason());
         return false;
     }
 
-    // Create the vulkan image
-    b8 result = vulkan_image_create_from_data(
-        out_image,
-        width,
-        height,
-        Image_Format::RGBA,
-        decoded_data);
+    // Calculate pixel data size
+    u32 pixel_data_size = width * height * 4; // RGBA
 
-    // Free the decoded data (stbi allocates this)
-    stbi_image_free(decoded_data);
-
-    if (!result) {
-        CORE_ERROR("Failed to create vulkan image for asset '%s'", asset_name);
+    // Get Vulkan context
+    Vulkan_Context* context = vulkan_get_context();
+    if (!context) {
+        CORE_ERROR("Failed to get Vulkan context for image loading");
+        stbi_image_free(pixel_data);
         return false;
     }
 
-    CORE_DEBUG("Loaded image asset: %s (%ux%u)", asset_name, width, height);
+    // Create ImGui-compatible Vulkan UI image
+    vulkan_ui_image_create(
+        context,
+        (u32)width,
+        (u32)height,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        pixel_data,
+        pixel_data_size,
+        out_ui_image);
+
+    // Clean up decoded pixel data
+    stbi_image_free(pixel_data);
+
+    CORE_DEBUG("Loaded image asset: %s (%dx%d)", image_name, width, height);
     return true;
 }

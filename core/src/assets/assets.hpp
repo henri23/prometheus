@@ -1,7 +1,6 @@
 #pragma once
 
 #include "defines.hpp"
-#include "renderer/vulkan_image.hpp"
 
 /**
  * Framework-Agnostic Asset System
@@ -18,5 +17,8 @@ void assets_shutdown();
 // Raw font data access (framework-agnostic)
 const u8* assets_get_font_data(const char* font_name, u64* out_size);
 
-// Image loading (still needs Vulkan context)
-b8 assets_load_image(Vulkan_Image* out_image, const char* asset_name);
+// Forward declaration for Vulkan UI image
+struct Vulkan_UI_Image;
+
+// Load image asset into Vulkan UI image for ImGui use
+b8 assets_load_image(Vulkan_UI_Image* out_ui_image, const char* image_name);

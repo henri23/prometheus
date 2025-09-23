@@ -165,26 +165,64 @@ REM -------------------------------
 set "CLIENT_DIR=%BUILD_DIR%\client\"
 
 if exist "%CLIENT_DIR%\prometheus_client.exe" (
+    echo ========================================
     echo Copying runtime DLLs into client folder...
+    echo ========================================
 
     REM Copy prometheus_core.dll (from core build dir)
     if exist "%BUILD_DIR%\core\prometheus_core.dll" (
         copy /Y "%BUILD_DIR%\core\prometheus_core.dll" "%CLIENT_DIR%" >nul
-        echo - Copied prometheus_core.dll
+        echo [OK] Copied prometheus_core.dll
     ) else (
-        echo WARNING: prometheus_core.dll not found
+        echo [ERROR] prometheus_core.dll not found at %BUILD_DIR%\core\
+        echo This DLL is required for the application to run!
     )
 
-    REM Copy SDL3.dll (from SDL3 build dir or root)
+    REM Copy SDL3.dll - Try multiple locations
+    set "SDL_COPIED=false"
     if exist "%BUILD_DIR%\SDL3.dll" (
         copy /Y "%BUILD_DIR%\SDL3.dll" "%CLIENT_DIR%" >nul
-        echo - Copied SDL3.dll
+        echo [OK] Copied SDL3.dll from %BUILD_DIR%
+        set "SDL_COPIED=true"
     ) else if exist "%BUILD_DIR%\external\SDL3\SDL3.dll" (
         copy /Y "%BUILD_DIR%\external\SDL3\SDL3.dll" "%CLIENT_DIR%" >nul
-        echo - Copied SDL3.dll
-    ) else (
-        echo WARNING: SDL3.dll not found
+        echo [OK] Copied SDL3.dll from external\SDL3
+        set "SDL_COPIED=true"
+    ) else if exist "%BUILD_DIR%\external\SDL3\libSDL3.dll" (
+        copy /Y "%BUILD_DIR%\external\SDL3\libSDL3.dll" "%CLIENT_DIR%\SDL3.dll" >nul
+        echo [OK] Copied libSDL3.dll as SDL3.dll
+        set "SDL_COPIED=true"
     )
+
+    if "%SDL_COPIED%"=="false" (
+        echo [WARNING] SDL3.dll not found - application may fail to start
+        echo Checked locations:
+        echo   - %BUILD_DIR%\SDL3.dll
+        echo   - %BUILD_DIR%\external\SDL3\SDL3.dll
+        echo   - %BUILD_DIR%\external\SDL3\libSDL3.dll
+    )
+
+    REM Copy spdlog.dll if it exists (might be static)
+    if exist "%BUILD_DIR%\external\spdlog\spdlog.dll" (
+        copy /Y "%BUILD_DIR%\external\spdlog\spdlog.dll" "%CLIENT_DIR%" >nul
+        echo [OK] Copied spdlog.dll
+    )
+
+    REM Copy any Vulkan validation layer DLLs if present (Debug builds)
+    if /I "%BUILD_TYPE%"=="Debug" (
+        if exist "%VULKAN_SDK%\Bin\VkLayer_khronos_validation.dll" (
+            copy /Y "%VULKAN_SDK%\Bin\VkLayer_khronos_validation.dll" "%CLIENT_DIR%" >nul
+            echo [OK] Copied Vulkan validation layer for debugging
+        )
+    )
+
+    echo DLL copying completed.
+    echo.
+    echo Executable location: %CLIENT_DIR%prometheus_client.exe
+    echo You can now run the application directly from this folder.
+) else (
+    echo [ERROR] prometheus_client.exe not found in %CLIENT_DIR%
+    echo Cannot copy DLLs - build may have failed.
 )
 
 REM -------------------------------
