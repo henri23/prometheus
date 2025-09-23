@@ -16,3 +16,9 @@ void assets_shutdown();
 
 // Raw font data access (framework-agnostic)
 const u8* assets_get_font_data(const char* font_name, u64* out_size);
+
+// Forward declaration for Vulkan image
+struct Vulkan_Image;
+
+// Load image asset into Vulkan image for ImGui use
+b8 assets_load_image(Vulkan_Image* out_image, const char* image_name);

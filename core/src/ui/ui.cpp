@@ -12,6 +12,8 @@
 #include "input/input_codes.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
+#include "renderer/vulkan/vulkan_backend.hpp"
+#include "renderer/vulkan/vulkan_types.hpp"
 
 #include <SDL3/SDL.h>
 
@@ -138,6 +140,10 @@ void ui_shutdown() {
 
     ui_fonts_shutdown();
     CORE_DEBUG("UI fonts shutdown complete.");
+
+    // Shutdown ImGui SDL3 backend (Vulkan backend is shut down by renderer)
+    ImGui_ImplSDL3_Shutdown();
+    CORE_DEBUG("ImGui backends shutdown complete.");
 
     ImGui::DestroyContext();
     CORE_DEBUG("ImGui context destroyed.");
@@ -320,6 +326,39 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window) {
     // Initialize platform backend for ImGui
     if (!window) {
         CORE_ERROR("SDL window not available for UI initialization");
+        return false;
+    }
+
+    // Initialize SDL3 backend for ImGui
+    if (!ImGui_ImplSDL3_InitForVulkan((SDL_Window*)window)) {
+        CORE_ERROR("Failed to initialize ImGui SDL3 backend");
+        return false;
+    }
+
+    // Initialize Vulkan backend for ImGui
+    Vulkan_Context* vulkan_context = vulkan_get_context();
+    if (!vulkan_context) {
+        CORE_ERROR("Failed to get Vulkan context for ImGui initialization");
+        return false;
+    }
+
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = vulkan_context->instance;
+    init_info.PhysicalDevice = vulkan_context->device.physical_device;
+    init_info.Device = vulkan_context->device.logical_device;
+    init_info.QueueFamily = vulkan_context->device.graphics_queue_index;
+    init_info.Queue = vulkan_context->device.graphics_queue;
+    init_info.DescriptorPool = vulkan_context->imgui_descriptor_pool;
+    init_info.DescriptorPoolSize = 0;
+    init_info.MinImageCount = vulkan_context->swapchain.max_in_flight_frames;
+    init_info.ImageCount = vulkan_context->swapchain.image_count;
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    init_info.RenderPass = vulkan_context->main_renderpass.handle;
+    init_info.Subpass = 0;
+    init_info.Allocator = vulkan_context->allocator;
+
+    if (!ImGui_ImplVulkan_Init(&init_info)) {
+        CORE_ERROR("Failed to initialize ImGui Vulkan backend");
         return false;
     }
 

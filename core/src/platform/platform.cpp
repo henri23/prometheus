@@ -337,3 +337,22 @@ b8 platform_is_window_maximized() {
     }
     return false;
 }
+
+void platform_get_required_extensions(Auto_Array<const char*>* required_extensions) {
+    // Get the extensions needed by SDL3 for Vulkan
+    Uint32 extension_count = 0;
+    const char* const* extensions = SDL_Vulkan_GetInstanceExtensions(&extension_count);
+
+    if (!extensions) {
+        CORE_ERROR("Failed to get Vulkan instance extensions from SDL3: %s", SDL_GetError());
+        return;
+    }
+
+    // Add all required extensions to the array
+    for (Uint32 i = 0; i < extension_count; ++i) {
+        required_extensions->push_back(extensions[i]);
+        CORE_DEBUG("Required Vulkan extension: %s", extensions[i]);
+    }
+
+    CORE_DEBUG("Added %u Vulkan extensions from SDL3", extension_count);
+}

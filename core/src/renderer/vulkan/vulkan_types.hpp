@@ -52,8 +52,30 @@ struct Vulkan_Image {
     u32 height;
 
     // For sampling in shaders/ImGui
-    VkSampler sampler;        
-    VkDescriptorSet descriptor_set; 
+    VkSampler sampler;
+    VkDescriptorSet descriptor_set;
+};
+
+// Off-screen render target with ImGui display capability
+struct Vulkan_Render_Target {
+    u32 width;
+    u32 height;
+    VkFormat color_format;
+    VkFormat depth_format;
+
+    // Color attachment
+    Vulkan_Image color_attachment;
+
+    // Depth attachment
+    Vulkan_Image depth_attachment;
+
+    // Framebuffer and renderpass
+    VkFramebuffer framebuffer;
+    VkRenderPass renderpass;
+
+    // For displaying in ImGui
+    VkSampler sampler;
+    VkDescriptorSet descriptor_set;
 };
 
 // Finite state machine of the renderpass
@@ -172,7 +194,13 @@ struct Vulkan_Context {
     Vulkan_Device device;
     Vulkan_Renderpass main_renderpass;
 
+    // CAD viewport off-screen rendering
+    Vulkan_Render_Target cad_render_target;
+
     Auto_Array<Vulkan_Command_Buffer> graphics_command_buffers;
+
+    // CAD-specific command buffers for off-screen rendering
+    Auto_Array<Vulkan_Command_Buffer> cad_command_buffers;
 
     Auto_Array<VkSemaphore> image_available_semaphores;
     Auto_Array<VkSemaphore> render_finished_semaphores;
@@ -183,6 +211,11 @@ struct Vulkan_Context {
     // Keep information about the fences of the images currently in flight. The
     // fences are not owned by this array
     Auto_Array<Vulkan_Fence*> images_in_flight;
+
+    // ImGui integration components
+    VkDescriptorPool imgui_descriptor_pool;
+    VkDescriptorSetLayout imgui_descriptor_set_layout;
+    VkSampler imgui_linear_sampler;
 
     s32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 };

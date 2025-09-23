@@ -1,6 +1,6 @@
 # Prometheus
 
-A modern, cross-platform game engine built with **Vulkan**, **ImGui**, and **SDL3**. Designed with a clean core-client architecture for performance, maintainability, and extensibility.
+A modern CAD application for microchip design built with **Vulkan**, **ImGui**, and **SDL3**. Designed with a clean core-client architecture for performance, maintainability, and extensibility.
 
 ## Features
 
@@ -33,12 +33,11 @@ cd prometheus
 ```cmd
 git clone --recursive https://github.com/your-username/prometheus.git
 cd prometheus
-build-modern.bat
+build.bat
 ```
 
 For detailed platform-specific instructions, see:
-- [Linux Build Guide](build_linux.md)
-- [Windows Build Guide](build_windows.md)
+- [Windows Build Guide](BUILD_WINDOWS.md)
 
 ## Project Structure
 

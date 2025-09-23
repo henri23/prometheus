@@ -13,8 +13,13 @@
 
 #include "containers/auto_array.hpp"
 #include "core/application.hpp"
+#include "ui/ui.hpp"
+#include "ui/ui_titlebar.hpp"
+#include "imgui_impl_vulkan.h"
 
 #include "shaders/vulkan_object_shader.hpp"
+#include "vulkan_render_target.hpp"
+#include "vulkan_viewport.hpp"
 #include <cstring>
 
 internal_variable Vulkan_Context context;
@@ -29,20 +34,25 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     void* user_data);
 
 // Debug mode helper private functions
-b8 vulkan_create_debug_logger(VkInstance* instance);
-b8 vulkan_enable_validation_layers(
+INTERNAL_FUNC b8 vulkan_create_debug_logger(VkInstance* instance);
+INTERNAL_FUNC b8 vulkan_enable_validation_layers(
     Auto_Array<const char*>* required_layers_array);
 
 // Needed for z-buffer image format selection in vulkan_device
-s32 find_memory_index(u32 type_filter, u32 property_flags);
+INTERNAL_FUNC s32 find_memory_index(u32 type_filter, u32 property_flags);
 
 // Graphics presentation operations
-void create_command_buffers(Renderer_Backend* backend);
-void create_framebuffers(Renderer_Backend* backend,
+INTERNAL_FUNC void create_command_buffers(Renderer_Backend* backend);
+INTERNAL_FUNC void create_cad_command_buffers(Vulkan_Context* context);
+INTERNAL_FUNC void create_framebuffers(Renderer_Backend* backend,
     Vulkan_Swapchain* swapchain,
     Vulkan_Renderpass* renderpass);
-b8 present_frame(Renderer_Backend* backend);
-b8 get_next_image_index(Renderer_Backend* backend);
+INTERNAL_FUNC b8 present_frame(Renderer_Backend* backend);
+INTERNAL_FUNC b8 get_next_image_index(Renderer_Backend* backend);
+
+// ImGui integration functions
+INTERNAL_FUNC b8 create_ui_library_resources(Vulkan_Context* context);
+INTERNAL_FUNC void destroy_ui_library_resources(Vulkan_Context* context);
 
 // The recreate_swapchain function is called both when a window resize event
 // has ocurred and was published by the platform layer, or when a graphics ops.
@@ -51,7 +61,7 @@ b8 get_next_image_index(Renderer_Backend* backend);
 // descriminates between these two cases and makes sure not to overwrite
 // renderpass size or read cached values, which are != 0 only when resize events
 // occur.
-b8 recreate_swapchain(Renderer_Backend* backend, b8 is_resized_event);
+INTERNAL_FUNC b8 recreate_swapchain(Renderer_Backend* backend, b8 is_resized_event);
 
 b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
 
@@ -97,10 +107,7 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
 
     Auto_Array<const char*> required_extensions_array;
 
-    // Get list of required extensions
-    required_extensions_array.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-
-    // Get platform specific extensions
+    // Get platform specific extensions (includes VK_KHR_surface and others)
     platform_get_required_extensions(&required_extensions_array);
 
     Auto_Array<const char*> required_layers_array;
@@ -192,18 +199,21 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
         0);
 
     // Allocate the framebuffers
-    context.swapchain.framebuffers.reserve(context.swapchain.image_count);
+    context.swapchain.framebuffers.resize(context.swapchain.image_count);
 
     create_framebuffers(backend, &context.swapchain, &context.main_renderpass);
 
     create_command_buffers(backend);
 
-    context.image_available_semaphores.reserve(
+    // Create CAD command buffers
+    create_cad_command_buffers(&context);
+
+    context.image_available_semaphores.resize(
         context.swapchain.max_in_flight_frames);
 
-    context.render_finished_semaphores.reserve(context.swapchain.image_count);
+    context.render_finished_semaphores.resize(context.swapchain.image_count);
 
-    context.in_flight_fences.reserve(context.swapchain.max_in_flight_frames);
+    context.in_flight_fences.resize(context.swapchain.max_in_flight_frames);
 
     VkSemaphoreCreateInfo semaphore_create_info = {
         VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -222,7 +232,7 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
         vulkan_fence_create(&context, true, &context.in_flight_fences[i]);
     }
 
-    context.images_in_flight.reserve(context.swapchain.image_count);
+    context.images_in_flight.resize(context.swapchain.image_count);
     // At this point in time, the images_in_flight fences are not yet created,
     // so we clear the array first. Basically the value should be nullptr when
     // not used
@@ -236,8 +246,21 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     }
 
     // Create builtin shaders
-    if (!vulkan_object_shader_create(&context, &context.object_shader)) {
-        CORE_ERROR("Error loading built-in object shader");
+    // TODO: Temporarily disabled shader loading
+    // if (!vulkan_object_shader_create(&context, &context.object_shader)) {
+    //     CORE_ERROR("Error loading built-in object shader");
+    //     return false;
+    // }
+
+    // Create ImGui components
+    if (!create_ui_library_resources(&context)) {
+        CORE_ERROR("Failed to create ImGui Vulkan components");
+        return false;
+    }
+
+    // Initialize viewport rendering system
+    if (!vulkan_viewport_initialize(&context)) {
+        CORE_ERROR("Failed to initialize viewport rendering system");
         return false;
     }
 
@@ -253,8 +276,39 @@ void vulkan_shutdown(Renderer_Backend* backend) {
     //			errors.
     vkDeviceWaitIdle(context.device.logical_device);
 
+    // Wait for any pending CAD operations to complete
+    vkQueueWaitIdle(context.device.graphics_queue);
+
+    // Reset command pools IMMEDIATELY to invalidate all command buffers
+    // This must be done before any resource destruction to avoid
+    // "resource still in use by command buffer" errors
+    vkResetCommandPool(context.device.logical_device, context.device.graphics_command_pool, 0);
+
+    // Clean up viewport descriptor set BEFORE ImGui shutdown
+    if (context.cad_render_target.descriptor_set != VK_NULL_HANDLE) {
+        ImGui_ImplVulkan_RemoveTexture(context.cad_render_target.descriptor_set);
+        context.cad_render_target.descriptor_set = VK_NULL_HANDLE;
+        CORE_DEBUG("Viewport descriptor set cleaned up early");
+    }
+
+    // Clean up UI image descriptor sets before ImGui shutdown
+    // This must be done here to prevent crashes during UI shutdown
+    CORE_DEBUG("Cleaning up UI Vulkan resources before ImGui shutdown...");
+    ui_titlebar_cleanup_vulkan_resources();
+
+    // Shutdown ImGui Vulkan backend BEFORE destroying the device
+    // This must happen while the Vulkan device is still valid
+    ImGui_ImplVulkan_Shutdown();
+
+    // Destroy ImGui components
+    destroy_ui_library_resources(&context);
+
+    // Shutdown viewport rendering system
+    vulkan_viewport_shutdown(&context);
+
     // Destroy shader modules
-    vulkan_object_shader_destroy(&context, &context.object_shader);
+    // TODO: Temporarily disabled shader cleanup
+    // vulkan_object_shader_destroy(&context, &context.object_shader);
 
     // Destroy sync objects
     for (u8 i = 0; i < context.swapchain.max_in_flight_frames; ++i) {
@@ -265,22 +319,20 @@ void vulkan_shutdown(Renderer_Backend* backend) {
         vulkan_fence_destroy(&context, &context.in_flight_fences[i]);
     }
 
-    // Technically this is not needed because when the command pool of the
-    // device gets destroyed during device shutdown, all associated command
-    // buffers implicitly are freed. However for clarity I will still leave
-    // this here to remember that this operation is done
+    // Destroy render finished semaphores
     for (u32 i = 0; i < context.swapchain.image_count; ++i) {
-
         vkDestroySemaphore(context.device.logical_device,
             context.render_finished_semaphores[i],
             context.allocator);
 
-        if (context.graphics_command_buffers[i].handle) {
-            vulkan_command_buffer_free(&context,
-                context.device.graphics_command_pool,
-                &context.graphics_command_buffers[i]);
-            context.graphics_command_buffers[i].handle = nullptr;
-        }
+        // Command buffers are already invalidated by the pool reset above
+        // Just clear the handles to avoid confusion
+        context.graphics_command_buffers[i].handle = nullptr;
+    }
+
+    // Clear CAD command buffer handles (already invalidated by pool reset)
+    for (u32 i = 0; i < context.swapchain.max_in_flight_frames; ++i) {
+        context.cad_command_buffers[i].handle = nullptr;
     }
 
     // First destroy the Vulkan objects
@@ -429,9 +481,16 @@ b8 vulkan_frame_render(Renderer_Backend* backend, f32 delta_t) {
     context.main_renderpass.w = context.framebuffer_width;
     context.main_renderpass.h = context.framebuffer_height;
 
+    // Viewport Pass: Render viewport content to off-screen render target
+    vulkan_viewport_render(&context);
+
+    // UI Pass: Begin main renderpass for UI
     vulkan_renderpass_begin(command_buffer,
         &context.main_renderpass,
         context.swapchain.framebuffers[context.image_index].handle);
+
+    // Begin UI frame
+    ui_begin_frame();
 
     return true;
 }
@@ -440,6 +499,13 @@ b8 vulkan_frame_present(Renderer_Backend* backend, f32 delta_t) {
 
     Vulkan_Command_Buffer* command_buffer =
         &context.graphics_command_buffers[context.image_index];
+
+    // Render UI and get draw data
+    ImDrawData* draw_data = ui_render();
+    if (draw_data) {
+        // Record ImGui draw commands to the current command buffer
+        ImGui_ImplVulkan_RenderDrawData(draw_data, command_buffer->handle);
+    }
 
     // End the renderpass
     vulkan_renderpass_end(command_buffer, &context.main_renderpass);
@@ -535,7 +601,7 @@ b8 vulkan_enable_validation_layers(
         vkEnumerateInstanceLayerProperties(&available_layer_count, nullptr));
 
     Auto_Array<VkLayerProperties> available_layers_array;
-    available_layers_array.reserve(available_layer_count);
+    available_layers_array.resize(available_layer_count);
 
     VK_ENSURE_SUCCESS(vkEnumerateInstanceLayerProperties(&available_layer_count,
         available_layers_array.data));
@@ -675,7 +741,7 @@ void create_command_buffers(Renderer_Backend* backend) {
     // since the images can be handled asynchronously, so while presenting one
     // image we can draw to the other
     if (!context.graphics_command_buffers.data) {
-        context.graphics_command_buffers.reserve(context.swapchain.image_count);
+        context.graphics_command_buffers.resize(context.swapchain.image_count);
 
         for (u32 i = 0; i < context.swapchain.image_count; ++i) {
             memory_zero(&context.graphics_command_buffers[i],
@@ -700,6 +766,33 @@ void create_command_buffers(Renderer_Backend* backend) {
     }
 
     CORE_DEBUG("Vulkan command buffers created");
+}
+
+void create_cad_command_buffers(Vulkan_Context* context) {
+    // Create command buffers for CAD off-screen rendering
+    // We only need one command buffer per frame in flight for CAD rendering
+    if (!context->cad_command_buffers.data) {
+        context->cad_command_buffers.resize(context->swapchain.max_in_flight_frames);
+        for (u32 i = 0; i < context->swapchain.max_in_flight_frames; ++i) {
+            memory_zero(&context->cad_command_buffers[i],
+                sizeof(Vulkan_Command_Buffer));
+        }
+    }
+
+    for (u32 i = 0; i < context->swapchain.max_in_flight_frames; ++i) {
+        if (context->cad_command_buffers[i].handle) {
+            vulkan_command_buffer_free(context,
+                context->device.graphics_command_pool,
+                &context->cad_command_buffers[i]);
+        }
+        memory_zero(&context->cad_command_buffers[i],
+            sizeof(Vulkan_Command_Buffer));
+        vulkan_command_buffer_allocate(context,
+            context->device.graphics_command_pool,
+            true,
+            &context->cad_command_buffers[i]);
+    }
+    CORE_DEBUG("CAD command buffers created");
 }
 
 // We need a framebuffer per swapchain image
@@ -822,6 +915,9 @@ b8 recreate_swapchain(Renderer_Backend* backend, b8 is_resized_event) {
 
     create_command_buffers(backend);
 
+    // Recreate CAD command buffers
+    create_cad_command_buffers(&context);
+
     context.recreating_swapchain = false;
 
     CORE_DEBUG("recreate_swapchain completed all operations.");
@@ -885,4 +981,108 @@ b8 present_frame(Renderer_Backend* backend) {
         (context.current_frame + 1) % context.swapchain.max_in_flight_frames;
 
     return true;
+}
+
+b8 create_ui_library_resources(Vulkan_Context* context) {
+    CORE_DEBUG("Creating ImGui Vulkan components...");
+
+    // Create descriptor set layout for ImGui textures
+    VkDescriptorSetLayoutBinding binding = {};
+    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    binding.descriptorCount = 1;
+    binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    binding.binding = 0;
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {};
+    layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_info.bindingCount = 1;
+    layout_info.pBindings = &binding;
+
+    VK_ENSURE_SUCCESS(vkCreateDescriptorSetLayout(
+        context->device.logical_device,
+        &layout_info,
+        context->allocator,
+        &context->imgui_descriptor_set_layout));
+
+    // Create descriptor pool for ImGui textures
+    VkDescriptorPoolSize pool_size = {};
+    pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    pool_size.descriptorCount = 1000; // Support up to 1000 textures
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = 1;
+    pool_info.pPoolSizes = &pool_size;
+
+    VK_ENSURE_SUCCESS(vkCreateDescriptorPool(
+        context->device.logical_device,
+        &pool_info,
+        context->allocator,
+        &context->imgui_descriptor_pool));
+
+    // Create linear sampler for ImGui textures
+    VkSamplerCreateInfo sampler_info = {};
+    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_info.magFilter = VK_FILTER_LINEAR;
+    sampler_info.minFilter = VK_FILTER_LINEAR;
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.minLod = -1000;
+    sampler_info.maxLod = 1000;
+    sampler_info.maxAnisotropy = 1.0f;
+
+    VK_ENSURE_SUCCESS(vkCreateSampler(
+        context->device.logical_device,
+        &sampler_info,
+        context->allocator,
+        &context->imgui_linear_sampler));
+
+    CORE_DEBUG("ImGui Vulkan components created successfully");
+    return true;
+}
+
+void destroy_ui_library_resources(Vulkan_Context* context) {
+    CORE_DEBUG("Destroying ImGui Vulkan components...");
+
+    if (context->imgui_linear_sampler) {
+        vkDestroySampler(
+            context->device.logical_device,
+            context->imgui_linear_sampler,
+            context->allocator);
+        context->imgui_linear_sampler = VK_NULL_HANDLE;
+    }
+
+    if (context->imgui_descriptor_pool) {
+        vkDestroyDescriptorPool(
+            context->device.logical_device,
+            context->imgui_descriptor_pool,
+            context->allocator);
+        context->imgui_descriptor_pool = VK_NULL_HANDLE;
+    }
+
+    if (context->imgui_descriptor_set_layout) {
+        vkDestroyDescriptorSetLayout(
+            context->device.logical_device,
+            context->imgui_descriptor_set_layout,
+            context->allocator);
+        context->imgui_descriptor_set_layout = VK_NULL_HANDLE;
+    }
+
+    CORE_DEBUG("ImGui Vulkan components destroyed");
+}
+
+Vulkan_Context* vulkan_get_context() {
+    return &context;
+}
+
+VkDescriptorSet vulkan_get_cad_texture() {
+    return vulkan_viewport_get_texture(&context);
+}
+
+void vulkan_resize_cad_render_target(u32 width, u32 height) {
+    vulkan_viewport_resize(&context, width, height);
 }

@@ -7,7 +7,9 @@
 #include "core/logger.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
+#include "imgui_impl_vulkan.h"
 #include "platform/platform.hpp"
+#include "renderer/vulkan/vulkan_backend.hpp"
 #include "renderer/vulkan/vulkan_image.hpp"
 
 // Internal titlebar state
@@ -91,6 +93,61 @@ b8 ui_titlebar_initialize(PFN_menu_callback callback, const char* app_name) {
     return true;
 }
 
+void ui_titlebar_cleanup_vulkan_resources() {
+    CORE_DEBUG("Cleaning up titlebar Vulkan resources...");
+    // Clean up ImGui descriptor sets AND destroy Vulkan images
+    // This is called from the renderer before ImGui/Vulkan backend shutdown
+    if (state.icons_loaded) {
+        Vulkan_Context* context = vulkan_get_context();
+        if (context) {
+            // Clean up descriptor sets and destroy images
+            if (state.app_icon.descriptor_set != VK_NULL_HANDLE) {
+                ImGui_ImplVulkan_RemoveTexture(state.app_icon.descriptor_set);
+                state.app_icon.descriptor_set = VK_NULL_HANDLE;
+            }
+            if (state.app_icon.handle != VK_NULL_HANDLE) {
+                vulkan_image_destroy(context, &state.app_icon);
+            }
+
+            if (state.minimize_icon.descriptor_set != VK_NULL_HANDLE) {
+                ImGui_ImplVulkan_RemoveTexture(state.minimize_icon.descriptor_set);
+                state.minimize_icon.descriptor_set = VK_NULL_HANDLE;
+            }
+            if (state.minimize_icon.handle != VK_NULL_HANDLE) {
+                vulkan_image_destroy(context, &state.minimize_icon);
+            }
+
+            if (state.maximize_icon.descriptor_set != VK_NULL_HANDLE) {
+                ImGui_ImplVulkan_RemoveTexture(state.maximize_icon.descriptor_set);
+                state.maximize_icon.descriptor_set = VK_NULL_HANDLE;
+            }
+            if (state.maximize_icon.handle != VK_NULL_HANDLE) {
+                vulkan_image_destroy(context, &state.maximize_icon);
+            }
+
+            if (state.restore_icon.descriptor_set != VK_NULL_HANDLE) {
+                ImGui_ImplVulkan_RemoveTexture(state.restore_icon.descriptor_set);
+                state.restore_icon.descriptor_set = VK_NULL_HANDLE;
+            }
+            if (state.restore_icon.handle != VK_NULL_HANDLE) {
+                vulkan_image_destroy(context, &state.restore_icon);
+            }
+
+            if (state.close_icon.descriptor_set != VK_NULL_HANDLE) {
+                ImGui_ImplVulkan_RemoveTexture(state.close_icon.descriptor_set);
+                state.close_icon.descriptor_set = VK_NULL_HANDLE;
+            }
+            if (state.close_icon.handle != VK_NULL_HANDLE) {
+                vulkan_image_destroy(context, &state.close_icon);
+            }
+
+            // Mark icons as no longer loaded
+            state.icons_loaded = false;
+        }
+    }
+    CORE_DEBUG("Titlebar Vulkan resources cleanup completed");
+}
+
 void ui_titlebar_shutdown() {
     CORE_DEBUG("Shutting down custom titlebar...");
 
@@ -99,23 +156,11 @@ void ui_titlebar_shutdown() {
         return;
     }
 
-    // Cleanup icons if loaded - check each one individually
+    // Resources should already be cleaned up by ui_titlebar_cleanup_vulkan_resources()
+    // which is called from renderer shutdown. This is just a safety check.
     if (state.icons_loaded) {
-        if (state.app_icon.descriptor_set != VK_NULL_HANDLE) {
-            vulkan_image_destroy(&state.app_icon);
-        }
-        if (state.minimize_icon.descriptor_set != VK_NULL_HANDLE) {
-            vulkan_image_destroy(&state.minimize_icon);
-        }
-        if (state.maximize_icon.descriptor_set != VK_NULL_HANDLE) {
-            vulkan_image_destroy(&state.maximize_icon);
-        }
-        if (state.restore_icon.descriptor_set != VK_NULL_HANDLE) {
-            vulkan_image_destroy(&state.restore_icon);
-        }
-        if (state.close_icon.descriptor_set != VK_NULL_HANDLE) {
-            vulkan_image_destroy(&state.close_icon);
-        }
+        CORE_DEBUG("Titlebar icons were not properly cleaned up during renderer shutdown");
+        // If we get here, the Vulkan context might be invalid, so be careful
     }
 
     // Reset state

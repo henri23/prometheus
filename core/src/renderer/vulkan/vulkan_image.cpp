@@ -1,7 +1,9 @@
 #include "vulkan_image.hpp"
 #include "renderer/vulkan/vulkan_types.hpp"
+#include "renderer/vulkan/vulkan_command_buffer.hpp"
 
 #include "core/logger.hpp"
+#include "imgui_impl_vulkan.h"
 
 // Images are memory blocks allocated in the device that include information
 // about the content too. Contrary to buffers which are just chunks of data
@@ -48,7 +50,7 @@ void vulkan_image_create(
     // 			...
     // Level N: 1x1
     // If level is set to 1, no mipmapping will be used.
-    image_create_info.mipLevels = 4; // TODO: Make config.
+    image_create_info.mipLevels = 1; // Single mip level for textures
 
     // Used if we want an array of 2D images, not a 3D volume. Obviously without
     // specifying this, Vulkan cannot know how to interpret the other dimension.
@@ -185,10 +187,21 @@ void vulkan_image_destroy(
     // Remove this log if the logger gets too crowded
     CORE_DEBUG("Destroying vulkan image...");
 
+    // Clean up ImGui descriptor set if it exists
+    if (image->descriptor_set != VK_NULL_HANDLE) {
+        ImGui_ImplVulkan_RemoveTexture(image->descriptor_set);
+        image->descriptor_set = VK_NULL_HANDLE;
+    }
+
+    // Note: Don't destroy sampler here if it's shared (like imgui_linear_sampler)
+    // Only destroy samplers that were created specifically for this image
+    // The shared samplers will be destroyed by their owners
+    image->sampler = VK_NULL_HANDLE;
+
     if (image->view) {
         vkDestroyImageView(
             context->device.logical_device,
-            image->view, 
+            image->view,
 			context->allocator);
 
 		image->view = nullptr;
@@ -197,7 +210,7 @@ void vulkan_image_destroy(
     if (image->memory) {
         vkFreeMemory(
             context->device.logical_device,
-            image->memory, 
+            image->memory,
 			context->allocator);
 
 		image->memory = nullptr;
@@ -206,11 +219,252 @@ void vulkan_image_destroy(
     if (image->handle) {
         vkDestroyImage(
             context->device.logical_device,
-            image->handle, 
+            image->handle,
 			context->allocator);
 
 		image->handle = nullptr;
     }
-	
+
     CORE_DEBUG("Vulkan image destroyed");
+}
+
+void vulkan_image_create_for_imgui(
+    Vulkan_Context* context,
+    u32 width,
+    u32 height,
+    VkFormat format,
+    const void* pixel_data,
+    u32 pixel_data_size,
+    Vulkan_Image* out_image) {
+
+    // Create the Vulkan image
+    vulkan_image_create(
+        context,
+        VK_IMAGE_TYPE_2D,
+        width,
+        height,
+        format,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        true,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        out_image);
+
+    // Initialize descriptor set to NULL handle
+    out_image->descriptor_set = VK_NULL_HANDLE;
+    out_image->sampler = VK_NULL_HANDLE;
+
+    // Upload pixel data if provided
+    if (pixel_data && pixel_data_size > 0) {
+        // Create staging buffer
+        VkBuffer staging_buffer;
+        VkDeviceMemory staging_buffer_memory;
+
+        VkBufferCreateInfo buffer_info = {};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = pixel_data_size;
+        buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VK_ENSURE_SUCCESS(vkCreateBuffer(
+            context->device.logical_device,
+            &buffer_info,
+            context->allocator,
+            &staging_buffer));
+
+        VkMemoryRequirements mem_requirements;
+        vkGetBufferMemoryRequirements(
+            context->device.logical_device,
+            staging_buffer,
+            &mem_requirements);
+
+        VkMemoryAllocateInfo alloc_info = {};
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize = mem_requirements.size;
+        s32 memory_type_index = context->find_memory_index(
+            mem_requirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        if (memory_type_index == -1) {
+            CORE_ERROR("Failed to find suitable memory type for staging buffer");
+            vkDestroyBuffer(context->device.logical_device, staging_buffer, context->allocator);
+            return;
+        }
+        alloc_info.memoryTypeIndex = memory_type_index;
+
+        VK_ENSURE_SUCCESS(vkAllocateMemory(
+            context->device.logical_device,
+            &alloc_info,
+            context->allocator,
+            &staging_buffer_memory));
+
+        VK_ENSURE_SUCCESS(vkBindBufferMemory(
+            context->device.logical_device,
+            staging_buffer,
+            staging_buffer_memory,
+            0));
+
+        // Copy pixel data to staging buffer
+        void* data;
+        vkMapMemory(
+            context->device.logical_device,
+            staging_buffer_memory,
+            0,
+            pixel_data_size,
+            0,
+            &data);
+        memcpy(data, pixel_data, pixel_data_size);
+        vkUnmapMemory(context->device.logical_device, staging_buffer_memory);
+
+        // Transition image layout for transfer destination
+        vulkan_image_transition_layout(
+            context,
+            out_image->handle,
+            VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        // Copy buffer to image
+        Vulkan_Command_Buffer command_buffer;
+        vulkan_command_buffer_startup_single_use(
+            context,
+            context->device.graphics_command_pool,
+            &command_buffer);
+
+        VkBufferImageCopy region = {};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {
+            out_image->width,
+            out_image->height,
+            1
+        };
+
+        vkCmdCopyBufferToImage(
+            command_buffer.handle,
+            staging_buffer,
+            out_image->handle,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &region);
+
+        vulkan_command_buffer_end_single_use(
+            context,
+            context->device.graphics_command_pool,
+            &command_buffer,
+            context->device.graphics_queue);
+
+        // Transition image layout for shader reading
+        vulkan_image_transition_layout(
+            context,
+            out_image->handle,
+            VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        // Clean up staging buffer
+        vkDestroyBuffer(context->device.logical_device, staging_buffer, context->allocator);
+        vkFreeMemory(context->device.logical_device, staging_buffer_memory, context->allocator);
+    }
+
+    // Note: We're using the shared imgui_linear_sampler, but we don't own it
+    // so we don't set it in the image structure to avoid cleanup issues
+    out_image->sampler = VK_NULL_HANDLE;
+
+    // Create descriptor set using ImGui's function
+    out_image->descriptor_set = ImGui_ImplVulkan_AddTexture(
+        context->imgui_linear_sampler,
+        out_image->view,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    CORE_DEBUG("ImGui image created: %ux%u", width, height);
+}
+
+void vulkan_image_destroy_imgui(Vulkan_Image* image) {
+    if (image->descriptor_set != VK_NULL_HANDLE) {
+        ImGui_ImplVulkan_RemoveTexture(image->descriptor_set);
+        image->descriptor_set = VK_NULL_HANDLE;
+    }
+
+    // Note: The Vulkan image resources (view, memory, handle) still need to be
+    // cleaned up by the regular vulkan_image_destroy function
+}
+
+void vulkan_image_transition_layout(
+    Vulkan_Context* context,
+    VkImage image,
+    VkFormat format,
+    VkImageLayout old_layout,
+    VkImageLayout new_layout) {
+
+    Vulkan_Command_Buffer command_buffer;
+    vulkan_command_buffer_startup_single_use(
+        context,
+        context->device.graphics_command_pool,
+        &command_buffer);
+
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags source_stage;
+    VkPipelineStageFlags destination_stage;
+
+    if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+        new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    } else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+               new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+               new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        // Direct transition from undefined to shader read-only for render targets
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else {
+        CORE_ERROR("Unsupported layout transition!");
+        return;
+    }
+
+    vkCmdPipelineBarrier(
+        command_buffer.handle,
+        source_stage, destination_stage,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier
+    );
+
+    vulkan_command_buffer_end_single_use(
+        context,
+        context->device.graphics_command_pool,
+        &command_buffer,
+        context->device.graphics_queue);
 }

@@ -99,7 +99,7 @@ b8 select_physical_device(Vulkan_Context* context,
     // VkPhysicalDevice physical_devices_array[physical_device_count];
 
     Auto_Array<VkPhysicalDevice> physical_devices_array;
-    physical_devices_array.reserve(physical_device_count);
+    physical_devices_array.resize(physical_device_count);
 
     vkEnumeratePhysicalDevices(context->instance, &physical_device_count,
                                physical_devices_array.data);
@@ -223,7 +223,7 @@ b8 create_logical_device(Vulkan_Context* context) {
 
     // u32 queue_family_indeces[distinct_queue_family_indices_count];
     Auto_Array<u32> queue_family_indices;
-    queue_family_indices.reserve(distinct_queue_family_indices_count);
+    queue_family_indices.resize(distinct_queue_family_indices_count);
 
     queue_family_indices[0] = context->device.graphics_queue_index;
 
@@ -235,7 +235,7 @@ b8 create_logical_device(Vulkan_Context* context) {
 
     // Information for the queues that we want to request
     Auto_Array<VkDeviceQueueCreateInfo> queue_create_infos;
-    queue_create_infos.reserve(distinct_queue_family_indices_count);
+    queue_create_infos.resize(distinct_queue_family_indices_count);
 
     u32 max_queue_count = 2;
 

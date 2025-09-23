@@ -1,8 +1,13 @@
 #include "assets.hpp"
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
+
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
 #include "defines.hpp"
+#include "renderer/vulkan/vulkan_backend.hpp"
+#include "renderer/vulkan/vulkan_image.hpp"
 
 // Include embedded asset data directly
 #include "fonts/roboto_bold.embed"
@@ -81,4 +86,57 @@ const u8* assets_get_font_data(const char* font_name, u64* out_size) {
     *out_size = asset->size;
     CORE_DEBUG("Retrieved font data: %s (%llu bytes)", font_name, asset->size);
     return asset->data;
+}
+
+b8 assets_load_image(Vulkan_Image* out_image, const char* image_name) {
+    RUNTIME_ASSERT_MSG(out_image, "Output image pointer cannot be null");
+    RUNTIME_ASSERT_MSG(image_name, "Image name cannot be null");
+
+    const Embedded_Asset* asset = find_embedded_asset(image_name);
+    if (!asset) {
+        CORE_ERROR("Image asset '%s' not found", image_name);
+        return false;
+    }
+
+    // Decode the image data using stb_image
+    s32 width, height, channels;
+    u8* pixel_data = stbi_load_from_memory(
+        asset->data,
+        (s32)asset->size,
+        &width,
+        &height,
+        &channels,
+        STBI_rgb_alpha);
+
+    if (!pixel_data) {
+        CORE_ERROR("Failed to decode image asset '%s': %s", image_name, stbi_failure_reason());
+        return false;
+    }
+
+    // Calculate pixel data size
+    u32 pixel_data_size = width * height * 4; // RGBA
+
+    // Get Vulkan context
+    Vulkan_Context* context = vulkan_get_context();
+    if (!context) {
+        CORE_ERROR("Failed to get Vulkan context for image loading");
+        stbi_image_free(pixel_data);
+        return false;
+    }
+
+    // Create ImGui-compatible Vulkan image
+    vulkan_image_create_for_imgui(
+        context,
+        (u32)width,
+        (u32)height,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        pixel_data,
+        pixel_data_size,
+        out_image);
+
+    // Clean up decoded pixel data
+    stbi_image_free(pixel_data);
+
+    CORE_DEBUG("Loaded image asset: %s (%dx%d)", image_name, width, height);
+    return true;
 }

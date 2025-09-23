@@ -70,17 +70,17 @@ typedef b8 (*PFN_event_callback)(const Event* event);
 
 // Event callback priority levels (lower numbers = higher priority)
 enum class Event_Priority {
-    HIGHEST = 0,    // Canvas/viewport operations
-    HIGH = 1,       // Application logic
-    NORMAL = 2,     // Default priority
-    LOW = 3,        // Debug/logging callbacks
-    LOWEST = 4      // UI (ImGui) - can consume without blocking important callbacks
+    HIGHEST = 0, // Canvas/viewport operations
+    HIGH = 1,    // Application logic
+    NORMAL = 2,  // Default priority
+    LOW = 3,     // Debug/logging callbacks
+    LOWEST = 4 // UI (ImGui) - can consume without blocking important callbacks
 };
 
 // Event callback entry with priority and listener support
 struct Event_Callback_Entry {
     PFN_event_callback callback;
-    void* listener;              // Always nullptr for now, future extensibility
+    void* listener; // Always nullptr for now, future extensibility
     Event_Priority priority;
 };
 
@@ -88,11 +88,15 @@ struct Event_Callback_Entry {
 void events_initialize();
 void events_shutdown();
 
-// Register event callback for specific event type with priority (called by application)
-void events_register_callback(Event_Type event_type, PFN_event_callback callback, Event_Priority priority = Event_Priority::NORMAL);
+// Register event callback for specific event type with priority (called by
+// application)
+void events_register_callback(Event_Type event_type,
+    PFN_event_callback callback,
+    Event_Priority priority = Event_Priority::NORMAL);
 
 // Unregister event callback for specific event type
-void events_unregister_callback(Event_Type event_type, PFN_event_callback callback);
+void events_unregister_callback(Event_Type event_type,
+    PFN_event_callback callback);
 
 // Called by platform layer to dispatch events
 void events_dispatch(const Event* event);

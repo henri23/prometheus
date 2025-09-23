@@ -4,6 +4,10 @@
 
 #include <SDL3/SDL.h>
 
+// Forward declaration
+template<typename T>
+struct Auto_Array;
+
 struct Platform_State {
     SDL_Window* window;
     SDL_Renderer* renderer;

@@ -5,7 +5,8 @@
 
 // Internal event state with multiple subscribers per event type
 struct Event_State {
-    // Static array for each event type, dynamic arrays for priority-ordered callbacks
+    // Static array for each event type, dynamic arrays for priority-ordered
+    // callbacks
     Auto_Array<Event_Callback_Entry> callbacks[(u32)Event_Type::MAX_EVENTS];
     b8 is_initialized;
 };
@@ -51,7 +52,9 @@ void events_shutdown() {
     CORE_DEBUG("Event system shut down");
 }
 
-void events_register_callback(Event_Type event_type, PFN_event_callback callback, Event_Priority priority) {
+void events_register_callback(Event_Type event_type,
+    PFN_event_callback callback,
+    Event_Priority priority) {
     if (!event_state.is_initialized) {
         CORE_ERROR("Event system not initialized");
         return;
@@ -62,16 +65,16 @@ void events_register_callback(Event_Type event_type, PFN_event_callback callback
         return;
     }
 
-    Auto_Array<Event_Callback_Entry>& callbacks = event_state.callbacks[(u32)event_type];
+    Auto_Array<Event_Callback_Entry>& callbacks =
+        event_state.callbacks[(u32)event_type];
 
     // Create new callback entry
-    Event_Callback_Entry new_entry = {
-        .callback = callback,
+    Event_Callback_Entry new_entry = {.callback = callback,
         .listener = nullptr,
-        .priority = priority
-    };
+        .priority = priority};
 
-    // Find insertion position to maintain ascending priority order (lower priority number = higher priority)
+    // Find insertion position to maintain ascending priority order (lower
+    // priority number = higher priority)
     u32 insertion_index = 0;
     for (u32 i = 0; i < callbacks.length; ++i) {
         if ((u32)callbacks[i].priority > (u32)priority) {
@@ -84,11 +87,16 @@ void events_register_callback(Event_Type event_type, PFN_event_callback callback
     // Insert at the correct position
     callbacks.insert(callbacks.data + insertion_index, new_entry);
 
-    CORE_DEBUG("Event callback registered for event type: %d with priority: %d at index: %d",
-               (int)event_type, (int)priority, insertion_index);
+    CORE_DEBUG(
+        "Event callback registered for event type: %d with priority: %d at "
+        "index: %d",
+        (int)event_type,
+        (int)priority,
+        insertion_index);
 }
 
-void events_unregister_callback(Event_Type event_type, PFN_event_callback callback) {
+void events_unregister_callback(Event_Type event_type,
+    PFN_event_callback callback) {
     if (!event_state.is_initialized) {
         CORE_ERROR("Event system not initialized");
         return;
@@ -99,16 +107,19 @@ void events_unregister_callback(Event_Type event_type, PFN_event_callback callba
         return;
     }
 
-    Auto_Array<Event_Callback_Entry>& callbacks = event_state.callbacks[(u32)event_type];
+    Auto_Array<Event_Callback_Entry>& callbacks =
+        event_state.callbacks[(u32)event_type];
     for (u32 i = 0; i < callbacks.length; ++i) {
         if (callbacks[i].callback == callback) {
             callbacks.erase(&callbacks[i]);
-            CORE_DEBUG("Event callback unregistered for event type: %d", (int)event_type);
+            CORE_DEBUG("Event callback unregistered for event type: %d",
+                (int)event_type);
             return;
         }
     }
 
-    CORE_WARN("Callback not found for unregistration, event type: %d", (int)event_type);
+    CORE_WARN("Callback not found for unregistration, event type: %d",
+        (int)event_type);
 }
 
 void events_dispatch(const Event* event) {
@@ -121,7 +132,8 @@ void events_dispatch(const Event* event) {
         return;
     }
 
-    Auto_Array<Event_Callback_Entry>& callbacks = event_state.callbacks[(u32)event->type];
+    Auto_Array<Event_Callback_Entry>& callbacks =
+        event_state.callbacks[(u32)event->type];
 
     // Dispatch to all callbacks for this event type in priority order
     // If any callback returns true (consumed), stop propagation

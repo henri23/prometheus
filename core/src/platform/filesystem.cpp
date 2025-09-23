@@ -5,7 +5,14 @@
 
 #include <stdio.h>
 #include <string.h>
+
+#ifdef PLATFORM_WINDOWS
+#include <io.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#else
+#include <sys/stat.h>
+#endif
 
 // TODO: 	Refactor this to not use the standart library but instead the native
 // 			filesystems of the platforms

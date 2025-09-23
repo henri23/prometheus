@@ -63,15 +63,14 @@ INTERNAL_FUNC b8 app_on_resized_callback(const Event* event) {
                 internal_state->is_suspended = false;
             }
 
-            internal_state->client->on_resize(
-                internal_state->client,
+            internal_state->client->on_resize(internal_state->client,
                 internal_state->width,
                 internal_state->height);
 
             renderer_on_resize(internal_state->width, internal_state->height);
         }
     }
-	return false;
+    return false;
 }
 
 b8 application_init(Client* client_state) {
@@ -242,10 +241,6 @@ void application_shutdown() {
         CORE_DEBUG("Client shutdown complete.");
     }
 
-    CORE_DEBUG("Shutting down UI subsystem...");
-    ui_shutdown();
-    CORE_DEBUG("UI shutdown complete.");
-
     CORE_DEBUG("Shutting down assets subsystem...");
     assets_shutdown();
     CORE_DEBUG("Assets shutdown complete.");
@@ -253,6 +248,10 @@ void application_shutdown() {
     CORE_DEBUG("Shutting down renderer subsystem...");
     renderer_shutdown();
     CORE_DEBUG("Renderer shutdown complete.");
+
+    CORE_DEBUG("Shutting down UI subsystem...");
+    ui_shutdown();
+    CORE_DEBUG("UI shutdown complete.");
 
     CORE_DEBUG("Shutting down input and event subsystems...");
     input_shutdown();
