@@ -267,6 +267,12 @@ INTERNAL_FUNC void draw_titlebar_menus(PFN_menu_callback callback) {
         return;
     }
 
+    // Safety check: ensure ImGui context is ready
+    ImGuiContext* ctx = ImGui::GetCurrentContext();
+    if (!ctx) {
+        return;
+    }
+
     // Use Walnut's exact approach
     ImGui::SetItemAllowOverlap();
     const float logoHorizontalOffset =
@@ -600,8 +606,14 @@ INTERNAL_FUNC ImRect rect_offset(const ImRect& rect, float x, float y) {
 }
 
 INTERNAL_FUNC bool begin_menubar(const ImRect& barRectangle) {
+    // Safety check: ensure ImGui context is valid
+    ImGuiContext* ctx = ImGui::GetCurrentContext();
+    if (!ctx) {
+        return false;
+    }
+
     ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if (window->SkipItems)
+    if (!window || window->SkipItems)
         return false;
 
     IM_ASSERT(!window->DC.MenuBarAppending);
