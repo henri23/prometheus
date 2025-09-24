@@ -1,5 +1,31 @@
 #!/bin/bash
 
+# Usage function
+show_usage() {
+    echo "Usage: $0 [--dynamic]"
+    echo "  --dynamic    Build with dynamic linking (DLL)"
+    echo "  (default)    Build with static linking (single executable)"
+    exit 1
+}
+
+# Parse command line arguments
+LINKING_MODE="STATIC"
+for arg in "$@"; do
+    case $arg in
+        --dynamic)
+            LINKING_MODE="DYNAMIC"
+            shift
+            ;;
+        --help|-h)
+            show_usage
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            show_usage
+            ;;
+    esac
+done
+
 # Colors for modern output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -91,11 +117,24 @@ echo
 print_status "step" "Creating build directory..."
 mkdir -p bin
 
+# Set CMake linking option based on mode
+if [ "$LINKING_MODE" = "STATIC" ]; then
+    CMAKE_LINKING_FLAG="-DPROMETHEUS_STATIC_LINKING=ON"
+    LINKING_DESC="Static (single self-contained executable)"
+    LIBRARIES_DESC="Core, SDL3, spdlog, ImGui → all static"
+else
+    CMAKE_LINKING_FLAG="-DPROMETHEUS_STATIC_LINKING=OFF"
+    LINKING_DESC="Dynamic (executable + shared libraries)"
+    LIBRARIES_DESC="Core, SDL3 → shared | spdlog, ImGui → static"
+fi
+
 # Run CMake with Ninja generator and Clang++
 print_status "step" "Configuring project with CMake..."
 echo -e "${BLUE}${ARROW} Generator:${NC} Ninja"
 echo -e "${BLUE}${ARROW} Compiler:${NC} clang++"
 echo -e "${BLUE}${ARROW} Build Type:${NC} Debug"
+echo -e "${BLUE}${ARROW} Linking Mode:${NC} $LINKING_DESC"
+echo -e "${BLUE}${ARROW} Libraries:${NC} $LIBRARIES_DESC"
 echo
 
 if time cmake -G Ninja \
@@ -103,6 +142,7 @@ if time cmake -G Ninja \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_BUILD_TYPE=Debug \
 	-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    $CMAKE_LINKING_FLAG \
     -B bin \
     .; then
     print_status "success" "CMake configuration completed"
@@ -141,6 +181,42 @@ echo
 
 if time ninja prometheus_client; then
     print_status "success" "Build completed successfully"
+
+    echo
+    print_status "step" "Build verification..."
+
+    # Show file sizes
+    EXECUTABLE_SIZE=$(du -h client/prometheus_client | cut -f1)
+    echo -e "${BLUE}${ARROW} Executable size:${NC} $EXECUTABLE_SIZE"
+
+    if [ "$LINKING_MODE" = "STATIC" ]; then
+        # Check that no shared libraries are present
+        if [ -f "core/libprometheus_core.so" ]; then
+            print_status "warning" "Unexpected shared library found"
+        else
+            print_status "success" "No shared libraries generated (as expected)"
+        fi
+
+        # Show dependency count
+        DEPS_COUNT=$(ldd client/prometheus_client 2>/dev/null | wc -l)
+        echo -e "${BLUE}${ARROW} Dynamic dependencies:${NC} $DEPS_COUNT (system libraries only)"
+
+    else
+        # Show shared library sizes
+        if [ -f "core/libprometheus_core.so" ]; then
+            CORE_SIZE=$(du -h core/libprometheus_core.so | cut -f1)
+            echo -e "${BLUE}${ARROW} Core library size:${NC} $CORE_SIZE"
+        fi
+
+        if [ -f "external/SDL3/libSDL3.so.0.3.0" ]; then
+            SDL_SIZE=$(du -h external/SDL3/libSDL3.so.0.3.0 | cut -f1)
+            echo -e "${BLUE}${ARROW} SDL3 library size:${NC} $SDL_SIZE"
+        fi
+
+        DEPS_COUNT=$(ldd client/prometheus_client 2>/dev/null | wc -l)
+        echo -e "${BLUE}${ARROW} Dynamic dependencies:${NC} $DEPS_COUNT (includes project libraries)"
+    fi
+
 else
     print_status "error" "Build failed with exit code $?"
     exit 1

@@ -85,23 +85,29 @@ constexpr u64 KIB (1 << 10);
 #endif
 
 /*
-  When building a .dll we want to export the functions that we want to make available from the dll
+  Flexible linking support - static or dynamic
+  Controlled by PROMETHEUS_STATIC_LINKING preprocessor definition
 */
-#ifdef API_EXPORT
-
-// Exports
-#ifdef _MSC_VER
-#define PROMETHEUS_API __declspec(dllexport)
+#ifdef PROMETHEUS_STATIC_LINKING
+    // Static linking - no export/import needed
+    #define PROMETHEUS_API
 #else
-#define PROMETHEUS_API __attribute__((visibility("default")))
-#endif
-#else
-// Imports
-#ifdef _MSC_VER
-#define PROMETHEUS_API __declspec(dllimport)
-#else
-#define PROMETHEUS_API
-#endif
+    // Dynamic linking - use DLL export/import
+    #ifdef API_EXPORT
+        // Exports when building the core DLL
+        #ifdef _MSC_VER
+            #define PROMETHEUS_API __declspec(dllexport)
+        #else
+            #define PROMETHEUS_API __attribute__((visibility("default")))
+        #endif
+    #else
+        // Imports when using the core DLL from client
+        #ifdef _MSC_VER
+            #define PROMETHEUS_API __declspec(dllimport)
+        #else
+            #define PROMETHEUS_API
+        #endif
+    #endif
 #endif
 
 #define CLAMP(value, min, max) ((value > max) ? max : (value < min) ? min : value)

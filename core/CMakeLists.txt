@@ -5,7 +5,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(VULKAN_SDK $ENV{VULKAN_SDK})
 
-add_compile_definitions(API_EXPORT)
+# Set linking mode preprocessor definitions (option defined in root CMakeLists.txt)
+if(PROMETHEUS_STATIC_LINKING)
+    add_compile_definitions(PROMETHEUS_STATIC_LINKING)
+    message(STATUS "Prometheus Core: Static linking enabled")
+else()
+    add_compile_definitions(API_EXPORT)
+    message(STATUS "Prometheus Core: Dynamic linking enabled")
+endif()
+
 add_compile_definitions(DEBUG_BUILD)
 
 # Windows/MSVC specific settings
@@ -27,8 +35,12 @@ message(STATUS "Core headers found: ${HEADERS}")
 
 find_package(Vulkan REQUIRED)
 
-# Create the prometheus core .dll library for the time being (maybe switch to static later)
-add_library(${PROJECT_NAME} SHARED ${ENGINE_SRC} ${HEADERS})
+# Create the prometheus core library (static or shared based on option)
+if(PROMETHEUS_STATIC_LINKING)
+    add_library(${PROJECT_NAME} STATIC ${ENGINE_SRC} ${HEADERS})
+else()
+    add_library(${PROJECT_NAME} SHARED ${ENGINE_SRC} ${HEADERS})
+endif()
 
 # Link libraries (Vulkan and SDL3)
 target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)

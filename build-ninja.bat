@@ -8,9 +8,38 @@ echo ========================================
 REM -------------------------------
 REM Parse arguments
 REM   %1 = Debug|Release (default Debug)
+REM   %2 = --dynamic (optional, default static)
 REM -------------------------------
 set "BUILD_TYPE=Debug"
-if /I "%~1"=="Release" set "BUILD_TYPE=Release"
+set "LINKING_MODE=STATIC"
+
+:parse_args
+if /I "%~1"=="Release" (
+    set "BUILD_TYPE=Release"
+    shift
+    goto parse_args
+) else if /I "%~1"=="Debug" (
+    set "BUILD_TYPE=Debug"
+    shift
+    goto parse_args
+) else if /I "%~1"=="--dynamic" (
+    set "LINKING_MODE=DYNAMIC"
+    shift
+    goto parse_args
+) else if /I "%~1"=="--help" (
+    echo Usage: %~nx0 [Debug^|Release] [--dynamic]
+    echo   Debug^|Release  Build configuration (default: Debug)
+    echo   --dynamic       Build with dynamic linking (default: static)
+    exit /b 0
+) else if "%~1" neq "" (
+    echo Unknown option: %~1
+    echo Usage: %~nx0 [Debug^|Release] [--dynamic]
+    exit /b 1
+) else (
+    goto done_parsing
+)
+
+:done_parsing
 
 REM -------------------------------
 REM Ensure Visual C++ (cl.exe) is available (load vcvars if needed)
@@ -125,8 +154,22 @@ pushd "%BUILD_DIR%" || (
     exit /b 1
 )
 
+REM Set CMake linking option based on mode
+if /I "%LINKING_MODE%"=="STATIC" (
+    set "CMAKE_LINKING_FLAG=-DPROMETHEUS_STATIC_LINKING=ON"
+    set "LINKING_DESC=Static (self-contained executable)"
+    set "LIBRARIES_DESC=Core, SDL3, spdlog, ImGui → all static"
+) else (
+    set "CMAKE_LINKING_FLAG=-DPROMETHEUS_STATIC_LINKING=OFF"
+    set "LINKING_DESC=Dynamic (DLL + executable)"
+    set "LIBRARIES_DESC=Core, SDL3 → shared | spdlog, ImGui → static"
+)
+
 echo ========================================
 echo Configuring with CMake...
+echo Build Type: %BUILD_TYPE%
+echo Linking Mode: %LINKING_DESC%
+echo Libraries: %LIBRARIES_DESC%
 echo ========================================
 
 cmake -G "Ninja" ^
@@ -134,6 +177,7 @@ cmake -G "Ninja" ^
   -DCMAKE_CXX_COMPILER=cl.exe ^
   -DCMAKE_BUILD_TYPE=%BUILD_TYPE% ^
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ^
+  %CMAKE_LINKING_FLAG% ^
   ../..
 
 if errorlevel 1 (

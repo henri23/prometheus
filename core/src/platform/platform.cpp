@@ -129,7 +129,8 @@ b8 platform_startup(
     SDL_WindowFlags window_flags =
 		SDL_WINDOW_VULKAN |
         SDL_WINDOW_RESIZABLE |
-        SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        SDL_WINDOW_HIGH_PIXEL_DENSITY |
+        SDL_WINDOW_BORDERLESS;
 
     state_ptr->window = SDL_CreateWindow(
         application_name,

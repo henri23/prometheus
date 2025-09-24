@@ -60,3 +60,11 @@ UI_Theme ui_get_current_theme();
  * @return PFN_event_callback for UI event handling
  */
 PROMETHEUS_API PFN_event_callback ui_get_event_callback();
+
+/**
+ * Get the ImGui context for Windows DLL compatibility
+ * This is needed on Windows when ImGui is built into a DLL
+ * The client must call ImGui::SetCurrentContext() with this value
+ * @return void* - ImGui context pointer (cast to ImGuiContext*)
+ */
+PROMETHEUS_API void* ui_get_imgui_context();

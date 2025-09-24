@@ -603,3 +603,8 @@ UI_Theme ui_get_current_theme() { return ui_state.current_theme; }
 
 // Expose UI event callback for application registration
 PFN_event_callback ui_get_event_callback() { return ui_event_handler; }
+
+// Get ImGui context for Windows DLL compatibility
+void* ui_get_imgui_context() {
+    return ImGui::GetCurrentContext();
+}

@@ -1,3 +1,4 @@
+#include "imgui.h"
 #include "ui/client_ui.hpp"
 #include "app_viewport_layer.hpp"
 
@@ -7,6 +8,12 @@
 #include <events/events.hpp>
 #include <input/input_codes.hpp>
 #include <memory/memory.hpp>
+#include <ui/ui.hpp>
+#include <ui/ui_types.hpp>
+
+#if defined(PLATFORM_WINDOWS) && !defined(PROMETHEUS_STATIC_LINKING)
+#include <imgui.h>
+#endif
 
 // Client-specific state structure
 struct Frontend_State {
@@ -26,8 +33,23 @@ b8 client_memory_debug_callback(const Event* event) {
 // Client lifecycle callback implementations
 b8 client_initialize(Client* client_state) {
 
+#if defined(PLATFORM_WINDOWS) && !defined(PROMETHEUS_STATIC_LINKING)
+    // Get ImGui context from core DLL for Windows compatibility
+    // Only needed when using dynamic linking (DLL)
+    void* imgui_context = ui_get_imgui_context();
+    if (imgui_context) {
+        ImGui::SetCurrentContext((ImGuiContext*)imgui_context);
+        CLIENT_DEBUG("Set ImGui context from core DLL");
+    } else {
+        CLIENT_WARN("Failed to get ImGui context from core DLL");
+    }
+#endif
+
     // Register memory debug event listener - press 'M' to show allocation count
-    events_register_callback(Event_Type::KEY_PRESSED, client_memory_debug_callback, Event_Priority::LOW);
+    events_register_callback(
+        Event_Type::KEY_PRESSED,
+        client_memory_debug_callback,
+        Event_Priority::LOW);
 
     // Initialize viewport layer
     if (!app_viewport_layer_initialize()) {
@@ -85,21 +107,22 @@ b8 create_client(Client* client_state) {
     client_state->state =
         memory_allocate(sizeof(Frontend_State), Memory_Tag::CLIENT);
 
-    client_state->layers.push_back({
-        .name = "prometheus_window",
-            .on_render = client_ui_render_prometheus_window,
-            .on_attach = nullptr,
-            .on_detach = nullptr,
-            .component_state = nullptr
-    });
+    // Create layers using C++17 compatible initialization
+    UI_Layer prometheus_layer;
+    prometheus_layer.name = "prometheus_window";
+    prometheus_layer.on_render = client_ui_render_prometheus_window;
+    prometheus_layer.on_attach = nullptr;
+    prometheus_layer.on_detach = nullptr;
+    prometheus_layer.component_state = nullptr;
+    client_state->layers.push_back(prometheus_layer);
 
-    client_state->layers.push_back({
-        .name = "viewport_layer",
-            .on_render = app_viewport_layer_render,
-            .on_attach = nullptr,
-            .on_detach = nullptr,
-            .component_state = nullptr
-    });
+    UI_Layer viewport_layer;
+    viewport_layer.name = "viewport_layer";
+    viewport_layer.on_render = app_viewport_layer_render;
+    viewport_layer.on_attach = nullptr;
+    viewport_layer.on_detach = nullptr;
+    viewport_layer.component_state = nullptr;
+    client_state->layers.push_back(viewport_layer);
 
     client_state->menu_callback = client_ui_render_menus;
 

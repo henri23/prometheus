@@ -3,6 +3,34 @@
 # Modern Build System for Prometheus
 # Features: ASCII art, progress tracking, scrolling logs, modern UI
 
+# Usage function
+show_usage() {
+    echo "Usage: $0 [--dynamic]"
+    echo "  --dynamic    Build with dynamic linking (DLL)"
+    echo "  (default)    Build with static linking (single executable)"
+    exit 1
+}
+
+# Parse command line arguments
+LINKING_MODE="STATIC"
+for arg in "$@"; do
+    case $arg in
+        --dynamic)
+            LINKING_MODE="DYNAMIC"
+            shift
+            ;;
+        --help|-h)
+            show_usage
+            ;;
+        *)
+            if [ -n "$arg" ]; then
+                echo "Unknown option: $arg"
+                show_usage
+            fi
+            ;;
+    esac
+done
+
 # Terminal control codes
 CLEAR_SCREEN='\033[2J'
 CLEAR_LINE='\033[2K'
@@ -310,7 +338,18 @@ main() {
     update_logs_only
     mkdir -p bin
 
-    if execute_with_log "cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=YES -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_POSITION_INDEPENDENT_CODE=ON -B bin ." "CMake configuration"; then
+    # Set CMake linking option based on mode
+    if [ "$LINKING_MODE" = "STATIC" ]; then
+        CMAKE_LINKING_FLAG="-DPROMETHEUS_STATIC_LINKING=ON"
+        add_log "Linking Mode: Static (self-contained executable)"
+        add_log "Libraries: Core, SDL3, spdlog, ImGui → all static"
+    else
+        CMAKE_LINKING_FLAG="-DPROMETHEUS_STATIC_LINKING=OFF"
+        add_log "Linking Mode: Dynamic (executable + shared libraries)"
+        add_log "Libraries: Core, SDL3 → shared | spdlog, ImGui → static"
+    fi
+
+    if execute_with_log "cmake -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=YES -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_POSITION_INDEPENDENT_CODE=ON $CMAKE_LINKING_FLAG -B bin ." "CMake configuration"; then
         set_step_status 1 "completed"
     else
         set_step_status 1 "failed"

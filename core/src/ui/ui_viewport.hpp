@@ -30,13 +30,13 @@ struct Viewport_State {
 };
 
 // Initialize viewport layer
-b8 ui_viewport_initialize();
+PROMETHEUS_API b8 ui_viewport_initialize();
 
 // Shutdown viewport layer
-void ui_viewport_shutdown();
+PROMETHEUS_API void ui_viewport_shutdown();
 
 // Draw the viewport (called from UI layer)
-void ui_viewport_draw(void* component_state);
+PROMETHEUS_API void ui_viewport_draw(void* component_state);
 
 // Viewport coordinate transformations
 ImVec2 ui_viewport_world_to_screen(const Viewport_State* viewport, ImVec2 world_pos);

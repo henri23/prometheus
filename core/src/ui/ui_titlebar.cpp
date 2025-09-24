@@ -5,6 +5,8 @@
 
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
+
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "imgui_impl_vulkan.h"
