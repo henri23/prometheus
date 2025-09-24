@@ -52,3 +52,7 @@ void platform_maximize_window();
 void platform_restore_window();
 void platform_close_window();
 b8 platform_is_window_maximized();
+void platform_set_window_position(s32 x, s32 y);
+void platform_get_window_position(s32* x, s32* y);
+void platform_set_window_size(s32 width, s32 height);
+void platform_get_window_size(s32* width, s32* height);

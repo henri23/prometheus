@@ -39,3 +39,9 @@ PROMETHEUS_API void ui_titlebar_shutdown();
  */
 PROMETHEUS_API void ui_titlebar_draw();
 
+/**
+ * Check if the titlebar is currently hovered (for native window dragging)
+ * @return true if titlebar is hovered, false otherwise
+ */
+extern "C" PROMETHEUS_API b8 ui_is_titlebar_hovered();
+

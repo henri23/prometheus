@@ -100,16 +100,16 @@ b8 ui_fonts_register_embedded(const char* name, const char* family, UI_Font_Weig
 
     // Create and add font info
     UI_Font_Info font_info = {
-        .name = name,
-        .family = family,
-        .weight = weight,
-        .style = style,
-        .size = size,
-        .data = data,
-        .data_size = data_size,
-        .imgui_font = nullptr,
-        .is_loaded = false,
-        .is_default = false};
+        name,
+        family,
+        weight,
+        style,
+        size,
+        data,
+        data_size,
+        nullptr,
+        false,
+        false};
 
     font_registry.fonts.push_back(font_info);
 
@@ -135,16 +135,16 @@ b8 ui_fonts_register_system(const char* name, const char* family, UI_Font_Weight
 
     // Create and add font info for system font
     UI_Font_Info font_info = {
-        .name = name,
-        .family = family,
-        .weight = weight,
-        .style = style,
-        .size = size,
-        .data = (const u8*)filepath, // Store filepath for system fonts
-        .data_size = 0,              // 0 indicates system font
-        .imgui_font = nullptr,
-        .is_loaded = false,
-        .is_default = false};
+        name,
+        family,
+        weight,
+        style,
+        size,
+        (const u8*)filepath, // Store filepath for system fonts
+        0,              // 0 indicates system font
+        nullptr,
+        false,
+        false};
 
     font_registry.fonts.push_back(font_info);
 

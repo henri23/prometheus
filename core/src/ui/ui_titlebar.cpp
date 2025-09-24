@@ -32,6 +32,10 @@ struct Titlebar_State {
     b8 icons_loaded;
 
     PFN_menu_callback callback;
+
+    // Titlebar hover state for native dragging
+    b8 is_titlebar_hovered;
+    b8 is_menu_hovered;
 };
 
 internal_variable Titlebar_State state = {};
@@ -50,6 +54,7 @@ INTERNAL_FUNC void draw_titlebar_logo();
 INTERNAL_FUNC void draw_titlebar_menus(PFN_menu_callback callback);
 INTERNAL_FUNC void draw_titlebar_text();
 INTERNAL_FUNC void draw_titlebar_buttons();
+INTERNAL_FUNC void handle_titlebar_hover();
 
 INTERNAL_FUNC b8 draw_titlebar_button(const char* icon,
     ImVec2 pos,
@@ -182,15 +187,20 @@ void ui_titlebar_draw() {
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoBringToFrontOnFocus;
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoDocking;
 
     if (ImGui::Begin("##CustomTitlebar", nullptr, flags)) {
+        // Disable docking for the entire titlebar area
+        ImGui::GetCurrentWindow()->DockNode = nullptr; // Ensure no dock node
+
         draw_titlebar_background();
         draw_titlebar_gradient();
         draw_titlebar_logo();
         draw_titlebar_menus(state.callback);
         draw_titlebar_text();
         draw_titlebar_buttons();
+        handle_titlebar_hover();
     }
     ImGui::End();
 }
@@ -266,12 +276,14 @@ INTERNAL_FUNC void draw_titlebar_logo() {
 
 INTERNAL_FUNC void draw_titlebar_menus(PFN_menu_callback callback) {
     if (!callback) {
+        state.is_menu_hovered = false;
         return;
     }
 
     // Safety check: ensure ImGui context is ready
     ImGuiContext* ctx = ImGui::GetCurrentContext();
     if (!ctx) {
+        state.is_menu_hovered = false;
         return;
     }
 
@@ -288,12 +300,23 @@ INTERNAL_FUNC void draw_titlebar_menus(PFN_menu_callback callback) {
             ImGui::GetFrameHeightWithSpacing()}};
 
     ImGui::BeginGroup();
+
+    // Store cursor position before rendering menus
+    ImVec2 menu_start_pos = ImGui::GetCursorScreenPos();
+
     if (begin_menubar(menuBarRect)) {
         callback(nullptr);
     }
 
+    // Store cursor position after rendering menus to get actual width
+    ImVec2 menu_end_pos = ImGui::GetCursorScreenPos();
+
     end_menubar();
     ImGui::EndGroup();
+
+    // Simple approach like Walnut: check if menu group is hovered or any popup is open
+    state.is_menu_hovered = ImGui::IsItemHovered() ||
+                           ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
 }
 
 INTERNAL_FUNC void draw_titlebar_text() {
@@ -692,4 +715,40 @@ INTERNAL_FUNC void end_menubar() {
     window->DC.LayoutType = ImGuiLayoutType_Vertical;
     window->DC.NavLayerCurrent = ImGuiNavLayer_Main;
     window->DC.MenuBarAppending = false;
+}
+
+INTERNAL_FUNC void handle_titlebar_hover() {
+    // Create invisible button for the drag area (like Walnut does)
+    f32 button_area_width = 3 * (26.0f + 2.0f) + 4.0f; // 3 buttons + spacing + margin
+    f32 drag_zone_width = (state.titlebar_max.x - state.titlebar_min.x) - button_area_width;
+    f32 drag_zone_height = state.titlebar_max.y - state.titlebar_min.y;
+
+    // Position the invisible button to cover the draggable area
+    ImGui::SetCursorScreenPos(state.titlebar_min);
+
+    // Push flags to prevent this button from being a docking target
+    ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, true);
+    ImGui::InvisibleButton("##titleBarDragZone", ImVec2(drag_zone_width, drag_zone_height));
+    ImGui::PopItemFlag();
+
+    // Set hover state based on the button (like Walnut)
+    state.is_titlebar_hovered = ImGui::IsItemHovered();
+
+    // If menu is hovered, disable dragging (like Walnut does)
+    if (state.is_menu_hovered) {
+        state.is_titlebar_hovered = false;
+    }
+
+    // Handle double-click to maximize/restore (SDL will handle single-click dragging)
+    if (state.is_titlebar_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+        if (platform_is_window_maximized()) {
+            platform_restore_window();
+        } else {
+            platform_maximize_window();
+        }
+    }
+}
+
+extern "C" b8 ui_is_titlebar_hovered() {
+    return state.is_titlebar_hovered;
 }

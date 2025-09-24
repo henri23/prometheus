@@ -1,300 +1,75 @@
 @echo off
-setlocal enableextensions enabledelayedexpansion
+setlocal enabledelayedexpansion
 
-echo ========================================
-echo Prometheus Windows Build Script
-echo ========================================
+echo PROMETHEUS BUILD SYSTEM
+echo =======================
+echo.
 
-REM -------------------------------
-REM Parse arguments
-REM   %1 = Debug|Release (default Debug)
-REM   %2 = --dynamic (optional, default static)
-REM -------------------------------
-set "BUILD_TYPE=Debug"
-set "LINKING_MODE=STATIC"
+:: Parse arguments
+set LINKING_MODE=STATIC
+if "%~1"=="--dynamic" set LINKING_MODE=DYNAMIC
 
-:parse_args
-if /I "%~1"=="Release" (
-    set "BUILD_TYPE=Release"
-    shift
-    goto parse_args
-) else if /I "%~1"=="Debug" (
-    set "BUILD_TYPE=Debug"
-    shift
-    goto parse_args
-) else if /I "%~1"=="--dynamic" (
-    set "LINKING_MODE=DYNAMIC"
-    shift
-    goto parse_args
-) else if /I "%~1"=="--help" (
-    echo Usage: %~nx0 [Debug^|Release] [--dynamic]
-    echo   Debug^|Release  Build configuration (default: Debug)
-    echo   --dynamic       Build with dynamic linking (default: static)
-    exit /b 0
-) else if "%~1" neq "" (
-    echo Unknown option: %~1
-    echo Usage: %~nx0 [Debug^|Release] [--dynamic]
-    exit /b 1
-) else (
-    goto done_parsing
-)
+:: Hardcoded vcvarsall.bat path
+set VCVARS="C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
 
-:done_parsing
-
-REM -------------------------------
-REM Ensure Visual C++ (cl.exe) is available (load vcvars if needed)
-REM -------------------------------
-where /q cl.exe
+:: Setup MSVC if cl.exe not found
+where cl >nul 2>&1
 if errorlevel 1 (
-    echo Visual Studio C++ compiler not found in PATH
-    echo Attempting to locate and setup Visual Studio environment...
-
-    set "VSCMD_BAT="
-    set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-    if exist "%VSWHERE%" (
-        for /f "usebackq delims=" %%I in (`"%VSWHERE%" -latest -prerelease -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
-            if exist "%%~I\VC\Auxiliary\Build\vcvarsall.bat" (
-                set "VSCMD_BAT=%%~I\VC\Auxiliary\Build\vcvarsall.bat"
-                goto :have_vs
-            )
-        )
-    )
-
-    REM Fallback common locations
-    for %%P in (
-        "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
-        "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat"
-        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
-        "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
-        "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvarsall.bat"
-        "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
-    ) do (
-        if exist %%~P (
-            set "VSCMD_BAT=%%~P"
-            goto :have_vs
-        )
-    )
-
-    :have_vs
-    if not defined VSCMD_BAT (
-        echo ERROR: Could not find a supported Visual Studio installation with C++ tools.
-        pause
+    if not exist %VCVARS% (
+        echo ERROR: Could not find vcvarsall.bat at %VCVARS%
         exit /b 1
     )
+    echo Setting up MSVC environment...
+    call %VCVARS% x64
+)
 
-    echo Found Visual Studio environment: "%VSCMD_BAT%"
-    call "%VSCMD_BAT%" x64
+:: Check required tools
+for %%T in (cmake ninja cl) do (
+    where %%T >nul 2>&1
     if errorlevel 1 (
-        echo ERROR: Failed to initialize the Visual Studio environment.
-        pause
+        echo ERROR: Missing required tool: %%T
         exit /b 1
     )
+)
 
-    where /q cl.exe
-    if errorlevel 1 (
-        echo ERROR: cl.exe is still not available after vcvarsall. Environment may be corrupted.
-        pause
-        exit /b 1
-    )
-    echo Visual Studio environment setup successfully.
+echo All required tools are available.
+echo.
+
+:: Linking flags
+if "%LINKING_MODE%"=="STATIC" (
+    set CMAKE_LINKING_FLAG=-DPROMETHEUS_STATIC_LINKING=ON
 ) else (
-    echo Visual Studio C++ compiler found in PATH
+    set CMAKE_LINKING_FLAG=-DPROMETHEUS_STATIC_LINKING=OFF
 )
 
-REM -------------------------------
-REM Check required tools
-REM -------------------------------
-echo Checking for required tools...
+:: Ensure bin directory
+if not exist bin mkdir bin
 
-where /q cmake
-if errorlevel 1 (
-    echo ERROR: CMake not found in PATH
-    pause
-    exit /b 1
-)
-echo - CMake found
-
-where /q ninja
-if errorlevel 1 (
-    echo ERROR: Ninja not found in PATH
-    pause
-    exit /b 1
-)
-echo - Ninja found
-
-REM -------------------------------
-REM Check Vulkan SDK
-REM -------------------------------
-if not defined VULKAN_SDK (
-    echo ERROR: VULKAN_SDK environment variable not set
-    pause
-    exit /b 1
-)
-if not exist "%VULKAN_SDK%" (
-    echo ERROR: VULKAN_SDK points to a path that does not exist:
-    echo        "%VULKAN_SDK%"
-    pause
-    exit /b 1
-)
-echo - Vulkan SDK found at: %VULKAN_SDK%
-
-echo Build type: %BUILD_TYPE%
-
-REM -------------------------------
-REM Setup build directory: bin/Debug or bin/Release
-REM -------------------------------
-set "BUILD_DIR=bin\%BUILD_TYPE%"
-if not exist "%BUILD_DIR%" (
-    mkdir "%BUILD_DIR%"
-)
-
-pushd "%BUILD_DIR%" || (
-    echo ERROR: Could not enter build directory "%BUILD_DIR%".
-    pause
-    exit /b 1
-)
-
-REM Set CMake linking option based on mode
-if /I "%LINKING_MODE%"=="STATIC" (
-    set "CMAKE_LINKING_FLAG=-DPROMETHEUS_STATIC_LINKING=ON"
-    set "LINKING_DESC=Static (self-contained executable)"
-    set "LIBRARIES_DESC=Core, SDL3, spdlog, ImGui → all static"
-) else (
-    set "CMAKE_LINKING_FLAG=-DPROMETHEUS_STATIC_LINKING=OFF"
-    set "LINKING_DESC=Dynamic (DLL + executable)"
-    set "LIBRARIES_DESC=Core, SDL3 → shared | spdlog, ImGui → static"
-)
-
-echo ========================================
-echo Configuring with CMake...
-echo Build Type: %BUILD_TYPE%
-echo Linking Mode: %LINKING_DESC%
-echo Libraries: %LIBRARIES_DESC%
-echo ========================================
-
-cmake -G "Ninja" ^
-  -DCMAKE_C_COMPILER=cl.exe ^
-  -DCMAKE_CXX_COMPILER=cl.exe ^
-  -DCMAKE_BUILD_TYPE=%BUILD_TYPE% ^
-  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ^
-  %CMAKE_LINKING_FLAG% ^
-  ../..
-
+:: Configure with CMake
+echo Configuring project with CMake...
+cmake -G Ninja ^
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=YES ^
+    -DCMAKE_CXX_COMPILER=cl ^
+    -DCMAKE_BUILD_TYPE=Debug ^
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON ^
+    %CMAKE_LINKING_FLAG% ^
+    -B bin ^
+    .
 if errorlevel 1 (
     echo ERROR: CMake configuration failed.
-    popd
-    pause
     exit /b 1
 )
 
-echo ========================================
-echo Building with Ninja...
-echo ========================================
-
-ninja
+:: Build
+cd bin
+echo Building prometheus_client...
+ninja prometheus_client
 if errorlevel 1 (
     echo ERROR: Build failed.
-    popd
-    pause
     exit /b 1
 )
 
-echo ========================================
-echo Build completed successfully!
-echo ========================================
-
-REM -------------------------------
-REM Copy DLLs into client folder
-REM -------------------------------
-set "CLIENT_DIR=%BUILD_DIR%\client\"
-
-if exist "%CLIENT_DIR%\prometheus_client.exe" (
-    echo ========================================
-    echo Copying runtime DLLs into client folder...
-    echo ========================================
-
-    REM Copy prometheus_core.dll (from core build dir)
-    if exist "%BUILD_DIR%\core\prometheus_core.dll" (
-        copy /Y "%BUILD_DIR%\core\prometheus_core.dll" "%CLIENT_DIR%" >nul
-        echo [OK] Copied prometheus_core.dll
-    ) else (
-        echo [ERROR] prometheus_core.dll not found at %BUILD_DIR%\core\
-        echo This DLL is required for the application to run!
-    )
-
-    REM Copy SDL3.dll - Try multiple locations
-    set "SDL_COPIED=false"
-    if exist "%BUILD_DIR%\SDL3.dll" (
-        copy /Y "%BUILD_DIR%\SDL3.dll" "%CLIENT_DIR%" >nul
-        echo [OK] Copied SDL3.dll from %BUILD_DIR%
-        set "SDL_COPIED=true"
-    ) else if exist "%BUILD_DIR%\external\SDL3\SDL3.dll" (
-        copy /Y "%BUILD_DIR%\external\SDL3\SDL3.dll" "%CLIENT_DIR%" >nul
-        echo [OK] Copied SDL3.dll from external\SDL3
-        set "SDL_COPIED=true"
-    ) else if exist "%BUILD_DIR%\external\SDL3\libSDL3.dll" (
-        copy /Y "%BUILD_DIR%\external\SDL3\libSDL3.dll" "%CLIENT_DIR%\SDL3.dll" >nul
-        echo [OK] Copied libSDL3.dll as SDL3.dll
-        set "SDL_COPIED=true"
-    )
-
-    if "%SDL_COPIED%"=="false" (
-        echo [WARNING] SDL3.dll not found - application may fail to start
-        echo Checked locations:
-        echo   - %BUILD_DIR%\SDL3.dll
-        echo   - %BUILD_DIR%\external\SDL3\SDL3.dll
-        echo   - %BUILD_DIR%\external\SDL3\libSDL3.dll
-    )
-
-    REM Copy spdlog.dll if it exists (might be static)
-    if exist "%BUILD_DIR%\external\spdlog\spdlog.dll" (
-        copy /Y "%BUILD_DIR%\external\spdlog\spdlog.dll" "%CLIENT_DIR%" >nul
-        echo [OK] Copied spdlog.dll
-    )
-
-    REM Copy any Vulkan validation layer DLLs if present (Debug builds)
-    if /I "%BUILD_TYPE%"=="Debug" (
-        if exist "%VULKAN_SDK%\Bin\VkLayer_khronos_validation.dll" (
-            copy /Y "%VULKAN_SDK%\Bin\VkLayer_khronos_validation.dll" "%CLIENT_DIR%" >nul
-            echo [OK] Copied Vulkan validation layer for debugging
-        )
-    )
-
-    echo DLL copying completed.
-    echo.
-    echo Executable location: %CLIENT_DIR%prometheus_client.exe
-    echo You can now run the application directly from this folder.
-) else (
-    echo [ERROR] prometheus_client.exe not found in %CLIENT_DIR%
-    echo Cannot copy DLLs - build may have failed.
-)
-
-REM -------------------------------
-REM Always run application
-REM -------------------------------
-if exist "%CLIENT_DIR%\prometheus_client.exe" (
-    echo ========================================
-    echo Running the application...
-    echo ========================================
-    pushd "%CLIENT_DIR%"
-    start /wait "" prometheus_client.exe
-    set "RUN_ERR=%ERRORLEVEL%"
-    popd
-    if not "%RUN_ERR%"=="0" (
-        echo Application exited with code %RUN_ERR%.
-    )
-) else (
-    echo ERROR: prometheus_client.exe not found, cannot run.
-)
-
-popd
-
-REM Keep window open if launched by Explorer
-if /I "%CMDCMDLINE%"=="%CMDCMDLINE:\=%" (
-    REM already in console
-) else (
-    pause
-)
-
-endlocal
-
+echo Build completed successfully.
+echo Launching prometheus_client...
+client\prometheus_client.exe
+cd ..
