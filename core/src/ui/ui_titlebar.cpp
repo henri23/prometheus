@@ -8,8 +8,8 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
-#include "imgui_internal.h"
 #include "imgui_impl_vulkan.h"
+#include "imgui_internal.h"
 #include "platform/platform.hpp"
 #include "renderer/vulkan/vulkan_backend.hpp"
 #include "renderer/vulkan/vulkan_ui_image.hpp"
@@ -143,10 +143,13 @@ void ui_titlebar_shutdown() {
         return;
     }
 
-    // Resources should already be cleaned up by ui_titlebar_cleanup_vulkan_resources()
-    // which is called from renderer shutdown. This is just a safety check.
+    // Resources should already be cleaned up by
+    // ui_titlebar_cleanup_vulkan_resources() which is called from renderer
+    // shutdown. This is just a safety check.
     if (state.icons_loaded) {
-        CORE_DEBUG("Titlebar icons were not properly cleaned up during renderer shutdown");
+        CORE_DEBUG(
+            "Titlebar icons were not properly cleaned up during renderer "
+            "shutdown");
         // If we get here, the Vulkan context might be invalid, so be careful
     }
 
@@ -187,8 +190,7 @@ void ui_titlebar_draw() {
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoDocking;
+        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoDocking;
 
     if (ImGui::Begin("##CustomTitlebar", nullptr, flags)) {
         // Disable docking for the entire titlebar area
@@ -290,7 +292,7 @@ INTERNAL_FUNC void draw_titlebar_menus(PFN_menu_callback callback) {
     // Use Walnut's exact approach
     ImGui::SetItemAllowOverlap();
     const float logoHorizontalOffset =
-        4.0f + 50.0f + 4.0f;          // logo_margin + logo_size + spacing
+        4.0f + 50.0f + 4.0f;           // logo_margin + logo_size + spacing
     const float menuTopPadding = 2.0f; // Same as logo and buttons
     ImGui::SetCursorPos(ImVec2(logoHorizontalOffset, menuTopPadding));
 
@@ -314,9 +316,12 @@ INTERNAL_FUNC void draw_titlebar_menus(PFN_menu_callback callback) {
     end_menubar();
     ImGui::EndGroup();
 
-    // Simple approach like Walnut: check if menu group is hovered or any popup is open
-    state.is_menu_hovered = ImGui::IsItemHovered() ||
-                           ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+    // Simple approach like Walnut: check if menu group is hovered or any popup
+    // is open
+    state.is_menu_hovered =
+        ImGui::IsItemHovered() ||
+        ImGui::IsPopupOpen("",
+            ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
 }
 
 INTERNAL_FUNC void draw_titlebar_text() {
@@ -719,8 +724,10 @@ INTERNAL_FUNC void end_menubar() {
 
 INTERNAL_FUNC void handle_titlebar_hover() {
     // Create invisible button for the drag area (like Walnut does)
-    f32 button_area_width = 3 * (26.0f + 2.0f) + 4.0f; // 3 buttons + spacing + margin
-    f32 drag_zone_width = (state.titlebar_max.x - state.titlebar_min.x) - button_area_width;
+    f32 button_area_width =
+        3 * (26.0f + 2.0f) + 4.0f; // 3 buttons + spacing + margin
+    f32 drag_zone_width =
+        (state.titlebar_max.x - state.titlebar_min.x) - button_area_width;
     f32 drag_zone_height = state.titlebar_max.y - state.titlebar_min.y;
 
     // Position the invisible button to cover the draggable area
@@ -728,7 +735,8 @@ INTERNAL_FUNC void handle_titlebar_hover() {
 
     // Push flags to prevent this button from being a docking target
     ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, true);
-    ImGui::InvisibleButton("##titleBarDragZone", ImVec2(drag_zone_width, drag_zone_height));
+    ImGui::InvisibleButton("##titleBarDragZone",
+        ImVec2(drag_zone_width, drag_zone_height));
     ImGui::PopItemFlag();
 
     // Set hover state based on the button (like Walnut)
@@ -739,8 +747,10 @@ INTERNAL_FUNC void handle_titlebar_hover() {
         state.is_titlebar_hovered = false;
     }
 
-    // Handle double-click to maximize/restore (SDL will handle single-click dragging)
-    if (state.is_titlebar_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+    // Handle double-click to maximize/restore (SDL will handle single-click
+    // dragging)
+    if (state.is_titlebar_hovered &&
+        ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
         if (platform_is_window_maximized()) {
             platform_restore_window();
         } else {
@@ -749,6 +759,4 @@ INTERNAL_FUNC void handle_titlebar_hover() {
     }
 }
 
-extern "C" b8 ui_is_titlebar_hovered() {
-    return state.is_titlebar_hovered;
-}
+extern "C" b8 ui_is_titlebar_hovered() { return state.is_titlebar_hovered; }

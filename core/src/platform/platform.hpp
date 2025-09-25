@@ -39,11 +39,9 @@ void* platform_set_memory(void* dest, s32 value, u64 size);
 
 f64 platform_get_absolute_time();
 
+b8 platform_get_drawable_size(u32* width, u32* height);
+
 void platform_sleep(u64 ms);
-
-
-// Temporary accessor for UI subsystem (TODO: improve architecture)
-Platform_State* get_platform_state();
 
 // Window control functions
 b8 platform_get_window_details(u32* width, u32* height, f32* main_scale);

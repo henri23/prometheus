@@ -310,9 +310,11 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window) {
     // Apply the configured theme
     ui_themes_apply(ui_state.current_theme, style);
 
+#ifndef PLATFORM_APPLE
     // Setup scaling
     style.ScaleAllSizes(main_scale);
     style.FontScaleDpi = main_scale;
+#endif
 
 // When viewports are enabled we tweak WindowRounding/WindowBg so platform
 // windows can look identical to regular ones.

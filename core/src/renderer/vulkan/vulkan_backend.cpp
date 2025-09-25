@@ -1,5 +1,6 @@
 #include "core/logger.hpp"
 
+#include "platform/platform.hpp"
 #include "renderer/renderer_types.hpp"
 #include "vulkan_command_buffer.hpp"
 #include "vulkan_device.hpp"
@@ -13,13 +14,14 @@
 
 #include "containers/auto_array.hpp"
 #include "core/application.hpp"
+#include "imgui_impl_vulkan.h"
 #include "ui/ui.hpp"
 #include "ui/ui_titlebar.hpp"
-#include "imgui_impl_vulkan.h"
 
 #include "shaders/vulkan_object_shader.hpp"
 #include "vulkan_viewport.hpp"
 #include <cstring>
+#include <vulkan/vulkan_core.h>
 
 internal_variable Vulkan_Context context;
 internal_variable u32 cached_framebuffer_width = 0;
@@ -60,7 +62,8 @@ INTERNAL_FUNC void destroy_ui_library_resources(Vulkan_Context* context);
 // descriminates between these two cases and makes sure not to overwrite
 // renderpass size or read cached values, which are != 0 only when resize events
 // occur.
-INTERNAL_FUNC b8 recreate_swapchain(Renderer_Backend* backend, b8 is_resized_event);
+INTERNAL_FUNC b8 recreate_swapchain(Renderer_Backend* backend,
+    b8 is_resized_event);
 
 b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
 
@@ -72,7 +75,10 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
 
     // TODO: I do not like that the renderer calls the application layer,
     // since the dependency should be inverse.
-    application_get_framebuffer_size(&cached_framebuffer_width,
+    // application_get_framebuffer_size(&cached_framebuffer_width,
+    //     &cached_framebuffer_height);
+
+    platform_get_drawable_size(&cached_framebuffer_width,
         &cached_framebuffer_height);
 
     context.framebuffer_width =
@@ -103,6 +109,10 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     VkInstanceCreateInfo createInfo = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
 
     createInfo.pApplicationInfo = &app_info;
+
+#ifdef PLATFORM_APPLE
+    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
 
     Auto_Array<const char*> required_extensions_array;
 
@@ -158,7 +168,11 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     device_requirements.graphics = true;
     device_requirements.transfer = true;
     device_requirements.present = true;
+#ifndef PLATFORM_APPLE
     device_requirements.discrete_gpu = true;
+#else
+    device_requirements.discrete_gpu = false;
+#endif
     device_requirements.device_extension_names =
         &device_level_extension_requirements;
 
@@ -271,8 +285,8 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
 void vulkan_shutdown(Renderer_Backend* backend) {
     // NOTE:	We might get problems when trying to shutdown the renderer while
     //			there are graphic operation still going on. First, it is
-    //better 			to wait until all operations have completed, so we do not get
-    //			errors.
+    // better 			to wait until all operations have completed, so
+    // we do not get 			errors.
     vkDeviceWaitIdle(context.device.logical_device);
 
     // Wait for any pending CAD operations to complete
@@ -281,11 +295,14 @@ void vulkan_shutdown(Renderer_Backend* backend) {
     // Reset command pools IMMEDIATELY to invalidate all command buffers
     // This must be done before any resource destruction to avoid
     // "resource still in use by command buffer" errors
-    vkResetCommandPool(context.device.logical_device, context.device.graphics_command_pool, 0);
+    vkResetCommandPool(context.device.logical_device,
+        context.device.graphics_command_pool,
+        0);
 
     // Clean up viewport descriptor set BEFORE ImGui shutdown
     if (context.cad_render_target.descriptor_set != VK_NULL_HANDLE) {
-        ImGui_ImplVulkan_RemoveTexture(context.cad_render_target.descriptor_set);
+        ImGui_ImplVulkan_RemoveTexture(
+            context.cad_render_target.descriptor_set);
         context.cad_render_target.descriptor_set = VK_NULL_HANDLE;
         CORE_DEBUG("Viewport descriptor set cleaned up early");
     }
@@ -771,7 +788,8 @@ void create_cad_command_buffers(Vulkan_Context* context) {
     // Create command buffers for CAD off-screen rendering
     // We only need one command buffer per frame in flight for CAD rendering
     if (!context->cad_command_buffers.data) {
-        context->cad_command_buffers.resize(context->swapchain.max_in_flight_frames);
+        context->cad_command_buffers.resize(
+            context->swapchain.max_in_flight_frames);
         for (u32 i = 0; i < context->swapchain.max_in_flight_frames; ++i) {
             memory_zero(&context->cad_command_buffers[i],
                 sizeof(Vulkan_Command_Buffer));
@@ -997,11 +1015,11 @@ b8 create_ui_library_resources(Vulkan_Context* context) {
     layout_info.bindingCount = 1;
     layout_info.pBindings = &binding;
 
-    VK_ENSURE_SUCCESS(vkCreateDescriptorSetLayout(
-        context->device.logical_device,
-        &layout_info,
-        context->allocator,
-        &context->imgui_descriptor_set_layout));
+    VK_ENSURE_SUCCESS(
+        vkCreateDescriptorSetLayout(context->device.logical_device,
+            &layout_info,
+            context->allocator,
+            &context->imgui_descriptor_set_layout));
 
     // Create descriptor pool for ImGui textures
     VkDescriptorPoolSize pool_size = {};
@@ -1015,8 +1033,7 @@ b8 create_ui_library_resources(Vulkan_Context* context) {
     pool_info.poolSizeCount = 1;
     pool_info.pPoolSizes = &pool_size;
 
-    VK_ENSURE_SUCCESS(vkCreateDescriptorPool(
-        context->device.logical_device,
+    VK_ENSURE_SUCCESS(vkCreateDescriptorPool(context->device.logical_device,
         &pool_info,
         context->allocator,
         &context->imgui_descriptor_pool));
@@ -1034,8 +1051,7 @@ b8 create_ui_library_resources(Vulkan_Context* context) {
     sampler_info.maxLod = 1000;
     sampler_info.maxAnisotropy = 1.0f;
 
-    VK_ENSURE_SUCCESS(vkCreateSampler(
-        context->device.logical_device,
+    VK_ENSURE_SUCCESS(vkCreateSampler(context->device.logical_device,
         &sampler_info,
         context->allocator,
         &context->imgui_linear_sampler));
@@ -1048,24 +1064,21 @@ void destroy_ui_library_resources(Vulkan_Context* context) {
     CORE_DEBUG("Destroying ImGui Vulkan components...");
 
     if (context->imgui_linear_sampler) {
-        vkDestroySampler(
-            context->device.logical_device,
+        vkDestroySampler(context->device.logical_device,
             context->imgui_linear_sampler,
             context->allocator);
         context->imgui_linear_sampler = VK_NULL_HANDLE;
     }
 
     if (context->imgui_descriptor_pool) {
-        vkDestroyDescriptorPool(
-            context->device.logical_device,
+        vkDestroyDescriptorPool(context->device.logical_device,
             context->imgui_descriptor_pool,
             context->allocator);
         context->imgui_descriptor_pool = VK_NULL_HANDLE;
     }
 
     if (context->imgui_descriptor_set_layout) {
-        vkDestroyDescriptorSetLayout(
-            context->device.logical_device,
+        vkDestroyDescriptorSetLayout(context->device.logical_device,
             context->imgui_descriptor_set_layout,
             context->allocator);
         context->imgui_descriptor_set_layout = VK_NULL_HANDLE;
@@ -1074,9 +1087,7 @@ void destroy_ui_library_resources(Vulkan_Context* context) {
     CORE_DEBUG("ImGui Vulkan components destroyed");
 }
 
-Vulkan_Context* vulkan_get_context() {
-    return &context;
-}
+Vulkan_Context* vulkan_get_context() { return &context; }
 
 VkDescriptorSet vulkan_get_cad_texture() {
     return vulkan_viewport_get_texture(&context);

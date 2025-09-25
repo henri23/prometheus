@@ -219,10 +219,19 @@ void platform_sleep(u64 ms) {
     SDL_Delay((u32)ms);
 }
 
+b8 platform_get_drawable_size(u32* width, u32* height) {
+	if(!state_ptr || !state_ptr->window)
+		return false;
 
+	int w, h;
+	SDL_GetWindowSizeInPixels(state_ptr->window, &w, &h);
 
-Platform_State* get_platform_state() {
-    return state_ptr;
+	*width = w;
+	*height = h;
+
+	CORE_DEBUG("platform_get_drawable_size: (%d:%d) in physical pixels", w, h);
+
+	return true;
 }
 
 void platform_minimize_window() {
@@ -278,6 +287,14 @@ void platform_get_required_extensions(Auto_Array<const char*>* required_extensio
         required_extensions->push_back(extensions[i]);
         CORE_DEBUG("Required Vulkan extension: %s", extensions[i]);
     }
+
+#ifdef PLATFORM_APPLE
+	// Add macOS specific portability extension required by MoltenVK
+	required_extensions->push_back("VK_KHR_portability_enumeration");
+	required_extensions->push_back("VK_KHR_get_physical_device_properties2");
+
+    CORE_DEBUG("Added macOS portability extensions for MoltenVK");
+#endif
 
     CORE_DEBUG("Added %u Vulkan extensions from SDL3", extension_count);
 }
