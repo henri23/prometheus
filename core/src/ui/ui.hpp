@@ -29,18 +29,6 @@ PROMETHEUS_API b8 ui_initialize(
  */
 PROMETHEUS_API void ui_shutdown();
 
-
-/**
- * Begin a new UI frame
- */
-PROMETHEUS_API void ui_begin_frame();
-
-/**
- * Render all UI components and prepare draw data
- * @return ImDrawData* - draw data for renderer to consume, nullptr if minimized
- */
-PROMETHEUS_API ImDrawData* ui_render();
-
 /**
  * Register a UI component with the system
  * @param component - component to register (copied internally)

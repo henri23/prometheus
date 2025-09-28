@@ -20,7 +20,7 @@ void vulkan_fence_create(
         fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     }
 
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkCreateFence(
             context->device.logical_device,
             &fence_create_info,
@@ -90,7 +90,7 @@ void vulkan_fence_reset(
     Vulkan_Fence* fence) {
 
     if (fence->is_signaled) {
-        VK_ENSURE_SUCCESS(
+        VK_CHECK(
             vkResetFences(
                 context->device.logical_device,
                 1,

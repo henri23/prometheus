@@ -73,6 +73,7 @@ void create_swapchain(
 
     if (!found)
         selected_present_mode = VK_PRESENT_MODE_FIFO_KHR;
+        // selected_present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 
     // The swap extent is the resolution of the swap chain images and it is
     // almost always equal to the resolution of the windows (with the exception)
@@ -152,7 +153,7 @@ void create_swapchain(
     // any older swapchain
     create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    VK_ENSURE_SUCCESS(vkCreateSwapchainKHR(
+    VK_CHECK(vkCreateSwapchainKHR(
         context->device.logical_device,
         &create_info,
         context->allocator,
@@ -217,7 +218,7 @@ void create_swapchain(
         view_info.subresourceRange.baseArrayLayer = 0;
         view_info.subresourceRange.layerCount = 1;
 
-        VK_ENSURE_SUCCESS(
+        VK_CHECK(
             vkCreateImageView(
                 context->device.logical_device,
                 &view_info,

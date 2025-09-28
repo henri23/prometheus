@@ -1,0 +1,230 @@
+[2025-09-27 15:43:17.266] [prometheus_core] [debug] Log subsystem initialized.
+[2025-09-27 15:43:17.267] [prometheus_core] [debug] Starting platform subsystem...
+[2025-09-27 15:43:17.308] [prometheus_core] [debug] SDL initialized successfully
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] Window created successfully
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] Window positioned and shown
+[2025-09-27 15:43:17.379] [prometheus_core] [info] Platform subsystem initialized successfully
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] Initializing event system...
+[2025-09-27 15:43:17.379] [prometheus_core] [info] Event system initialized successfully
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] Initializing input system...
+[2025-09-27 15:43:17.379] [prometheus_core] [info] Input system initialized successfully
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] platform_get_drawable_size: (1280:720) in physical pixels
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] Required Vulkan extension: VK_KHR_surface
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] Required Vulkan extension: VK_KHR_xlib_surface
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] Added 2 Vulkan extensions from SDL3
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] Required VULKAN extensions:
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] VK_KHR_surface
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] VK_KHR_xlib_surface
+[2025-09-27 15:43:17.379] [prometheus_core] [debug] VK_EXT_debug_utils
+[2025-09-27 15:43:17.379] [prometheus_core] [info] Vulkan validation layers enabled. Enumerating...
+[2025-09-27 15:43:17.381] [prometheus_core] [info] Searching for layer: VK_LAYER_KHRONOS_validation ...
+[2025-09-27 15:43:17.381] [prometheus_core] [info] Found.
+[2025-09-27 15:43:17.381] [prometheus_core] [info] All required validaton layers are valid
+[2025-09-27 15:43:17.392] [prometheus_core] [debug] Creating Vulkan debug logger
+[2025-09-27 15:43:17.392] [prometheus_core] [debug] Vulkan debugger created
+[2025-09-27 15:43:17.392] [prometheus_core] [info] linux_read_sorted_physical_devices:
+[2025-09-27 15:43:17.392] [prometheus_core] [info]      Original order:
+[2025-09-27 15:43:17.393] [prometheus_core] [info]            [0] NVIDIA GeForce GTX 1660 Ti
+[2025-09-27 15:43:17.393] [prometheus_core] [info]      Sorted order:
+[2025-09-27 15:43:17.393] [prometheus_core] [info]            [0] NVIDIA GeForce GTX 1660 Ti  
+[2025-09-27 15:43:17.393] [prometheus_core] [trace] Copying old device 0 into new device 0
+[2025-09-27 15:43:17.393] [prometheus_core] [info] linux_read_sorted_physical_devices:
+[2025-09-27 15:43:17.393] [prometheus_core] [info]      Original order:
+[2025-09-27 15:43:17.393] [prometheus_core] [info]            [0] NVIDIA GeForce GTX 1660 Ti
+[2025-09-27 15:43:17.393] [prometheus_core] [info]      Sorted order:
+[2025-09-27 15:43:17.393] [prometheus_core] [info]            [0] NVIDIA GeForce GTX 1660 Ti  
+[2025-09-27 15:43:17.393] [prometheus_core] [trace] Copying old device 0 into new device 0
+[2025-09-27 15:43:17.393] [prometheus_core] [info] Graphics | Present | Compute | Transfer | Name
+[2025-09-27 15:43:17.393] [prometheus_core] [info]        0 |       2 |       2 |        1 | NVIDIA GeForce GTX 1660 Ti
+[2025-09-27 15:43:17.393] [prometheus_core] [info] Device 'NVIDIA GeForce GTX 1660 Ti' has swapchain support
+[2025-09-27 15:43:17.393] [prometheus_core] [info] Device meets all the requirements.
+[2025-09-27 15:43:17.393] [prometheus_core] [trace] Graphics queue family index: 0
+[2025-09-27 15:43:17.393] [prometheus_core] [trace] Compute queue family index: 2
+[2025-09-27 15:43:17.393] [prometheus_core] [trace] Transfer queue family index: 1
+[2025-09-27 15:43:17.393] [prometheus_core] [trace] Present queue family index: 2
+[2025-09-27 15:43:17.393] [prometheus_core] [info] Selected device: 'NVIDIA GeForce GTX 1660 Ti'
+[2025-09-27 15:43:17.393] [prometheus_core] [info] GPU type is discrete.
+[2025-09-27 15:43:17.393] [prometheus_core] [debug] GPU Driver Version: 580.328.576
+[2025-09-27 15:43:17.393] [prometheus_core] [debug] Vulkan API Version: 1.4.312
+[2025-09-27 15:43:17.393] [prometheus_core] [debug] Local GPU memory: 6.00 GiB
+[2025-09-27 15:43:17.393] [prometheus_core] [debug] Shared GPU memory: 23.38 GiB
+[2025-09-27 15:43:17.393] [prometheus_core] [debug] Local GPU memory: 0.24 GiB
+[2025-09-27 15:43:17.393] [prometheus_core] [info] Creating logical device...
+[2025-09-27 15:43:17.394] [prometheus_core] [info] Inserted device layer "VK_LAYER_KHRONOS_validation" (libVkLayer_khronos_validation.so)
+[2025-09-27 15:43:17.394] [prometheus_core] [info] vkCreateDevice layer callstack setup to:
+[2025-09-27 15:43:17.394] [prometheus_core] [info]    <Application>
+[2025-09-27 15:43:17.394] [prometheus_core] [info]      ||
+[2025-09-27 15:43:17.394] [prometheus_core] [info]    <Loader>
+[2025-09-27 15:43:17.394] [prometheus_core] [info]      ||
+[2025-09-27 15:43:17.394] [prometheus_core] [info]    VK_LAYER_KHRONOS_validation
+[2025-09-27 15:43:17.394] [prometheus_core] [info]            Type: Explicit
+[2025-09-27 15:43:17.394] [prometheus_core] [info]            Enabled By: By the Application
+[2025-09-27 15:43:17.394] [prometheus_core] [info]            Manifest: /usr/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[2025-09-27 15:43:17.394] [prometheus_core] [info]            Library:  libVkLayer_khronos_validation.so
+[2025-09-27 15:43:17.394] [prometheus_core] [info]      ||
+[2025-09-27 15:43:17.394] [prometheus_core] [info]    <Device>
+[2025-09-27 15:43:17.395] [prometheus_core] [info]        Using "NVIDIA GeForce GTX 1660 Ti" with driver: "libGLX_nvidia.so.0"
+[2025-09-27 15:43:17.561] [prometheus_core] [info] Logical device created.
+[2025-09-27 15:43:17.561] [prometheus_core] [info] Queues obtained
+[2025-09-27 15:43:17.561] [prometheus_core] [info] Graphics command pool created
+[2025-09-27 15:43:17.600] [prometheus_core] [debug] Vulkan swapchain instance created
+[2025-09-27 15:43:17.600] [prometheus_core] [debug] Created images and image views for swapchain
+[2025-09-27 15:43:17.600] [prometheus_core] [info] Vulkan swapchain successfully created.
+[2025-09-27 15:43:17.600] [prometheus_core] [info] Renderpass object created successfully
+[2025-09-27 15:43:17.600] [prometheus_core] [info] UI renderpass object created successfully
+[2025-09-27 15:43:17.600] [prometheus_core] [debug] Vulkan command buffers created
+[2025-09-27 15:43:17.600] [prometheus_core] [debug] main renderer command buffers created
+[2025-09-27 15:43:17.601] [prometheus_core] [debug] Creating ImGui Vulkan components...
+[2025-09-27 15:43:17.601] [prometheus_core] [debug] UI library Vulkan components created successfully
+[2025-09-27 15:43:17.602] [prometheus_core] [debug] Linear sampler created successfully
+[2025-09-27 15:43:17.603] [prometheus_core] [info] Vulkan backend initialized
+[2025-09-27 15:43:17.603] [prometheus_core] [debug] Renderer subsystem initialized
+[2025-09-27 15:43:17.603] [prometheus_core] [debug] Assets system initialized
+[2025-09-27 15:43:17.603] [prometheus_core] [debug] Initializing UI subsystem...
+[2025-09-27 15:43:17.603] [prometheus_core] [debug] ImGui viewports disabled (SDL3 compatibility mode)
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] ImGui context setup completed
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] Initializing font management system...
+[2025-09-27 15:43:17.631] [prometheus_core] [info] Font management system initialized
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] Registering default embedded fonts...
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] Retrieved font data: roboto_regular (168260 bytes)
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] Retrieved font data: roboto_bold (167336 bytes)
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] Retrieved font data: roboto_italic (170504 bytes)
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] Default embedded fonts registered successfully
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] Initializing dockspace system...
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] ImGui docking enabled
+[2025-09-27 15:43:17.631] [prometheus_core] [info] Dockspace system initialized successfully
+[2025-09-27 15:43:17.631] [prometheus_core] [debug] Initializing custom titlebar...
+[2025-09-27 15:43:17.635] [prometheus_core] [debug] UI image created: 50x50
+[2025-09-27 15:43:17.635] [prometheus_core] [debug] Loaded image asset: prometheus_icon (50x50)
+[2025-09-27 15:43:17.636] [prometheus_core] [debug] UI image created: 14x2
+[2025-09-27 15:43:17.636] [prometheus_core] [debug] Loaded image asset: window_minimize (14x2)
+[2025-09-27 15:43:17.637] [prometheus_core] [debug] UI image created: 14x14
+[2025-09-27 15:43:17.637] [prometheus_core] [debug] Loaded image asset: window_maximize (14x14)
+[2025-09-27 15:43:17.638] [prometheus_core] [debug] UI image created: 14x14
+[2025-09-27 15:43:17.638] [prometheus_core] [debug] Loaded image asset: window_restore (14x14)
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] UI image created: 14x14
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Loaded image asset: window_close (14x14)
+[2025-09-27 15:43:17.639] [prometheus_core] [info] All titlebar icons loaded successfully
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 1 with priority: 4 at index: 0
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 2 with priority: 4 at index: 0
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 3 with priority: 4 at index: 0
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 4 with priority: 4 at index: 0
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 5 with priority: 4 at index: 0
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 6 with priority: 4 at index: 0
+[2025-09-27 15:43:17.639] [prometheus_core] [info] UI subsystem initialized successfully
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 1 with priority: 1 at index: 0
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 8 with priority: 1 at index: 0
+[2025-09-27 15:43:17.639] [prometheus_core] [info] All subsystems initialized correctly.
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Summary of allocated memory (tagged):
+UNKNOWN  	: 0.00 B
+DARRAY   	: 2.94 KiB
+LINEAR_ALLOC	: 0.00 B
+EVENTS   	: 0.00 B
+STRING   	: 0.00 B
+CLIENT     	: 1.00 B
+INPUT 		: 0.00 B
+RENDERER 	: 140.00 B
+APPLICATION	: 40.00 B
+UI		: 0.00 B
+LAYERS		: 0.00 B
+
+[2025-09-27 15:43:17.639] [prometheus_core] [info] Client application initialized successfully
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Event callback registered for event type: 1 with priority: 3 at index: 1
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Initializing app viewport layer...
+[2025-09-27 15:43:17.639] [prometheus_core] [debug] Initializing viewport layer...
+[2025-09-27 15:43:17.639] [prometheus_core] [info] Viewport layer initialized successfully
+[2025-09-27 15:43:17.639] [prometheus_core] [info] App viewport layer initialized successfully
+[2025-09-27 15:43:17.645] [prometheus_core] [debug] Generated dockspace ID: 3823187248
+[2025-09-27 15:43:17.645] [prometheus_core] [debug] Custom titlebar rendering started
+[2025-09-27 15:43:17.645] [prometheus_core] [debug] Titlebar logo debug: app_icon=0x55b084684c00, icons_loaded=true, descriptor_set=0x310000000031
+[2025-09-27 15:43:17.646] [prometheus_core] [debug] Resizing viewport from 800x600 to 203x22
+[2025-09-27 15:43:17.646] [prometheus_core] [debug] Sampler destroyed
+[2025-09-27 15:43:17.646] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:17.646] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:17.646] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:17.647] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:17.647] [prometheus_core] [debug] Linear sampler created successfully
+[2025-09-27 15:43:17.647] [prometheus_core] [debug] Viewport descriptor set updated: 0x520000000052
+[2025-09-27 15:43:22.311] [prometheus_core] [info] Starting application shutdown...
+[2025-09-27 15:43:22.311] [prometheus_core] [debug] Shutting down client...
+[2025-09-27 15:43:22.311] [prometheus_core] [debug] Shutting down app viewport layer...
+[2025-09-27 15:43:22.311] [prometheus_core] [debug] Shutting down viewport layer...
+[2025-09-27 15:43:22.311] [prometheus_core] [debug] Client shutdown complete.
+[2025-09-27 15:43:22.311] [prometheus_core] [debug] Shutting down assets subsystem...
+[2025-09-27 15:43:22.311] [prometheus_core] [debug] Assets system shut down
+[2025-09-27 15:43:22.311] [prometheus_core] [debug] Assets shutdown complete.
+[2025-09-27 15:43:22.311] [prometheus_core] [debug] Shutting down renderer subsystem...
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] Viewport descriptor set cleaned up early
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] Cleaning up UI Vulkan resources before ImGui shutdown...
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] Cleaning up titlebar Vulkan resources...
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] UI image destroyed
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] UI image destroyed
+[2025-09-27 15:43:22.313] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] UI image destroyed
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] UI image destroyed
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] UI image destroyed
+[2025-09-27 15:43:22.314] [prometheus_core] [debug] Titlebar Vulkan resources cleanup completed
+[2025-09-27 15:43:22.318] [prometheus_core] [debug] Destroying ImGui Vulkan components...
+[2025-09-27 15:43:22.318] [prometheus_core] [debug] ImGui Vulkan components destroyed
+[2025-09-27 15:43:22.318] [prometheus_core] [debug] Sampler destroyed
+[2025-09-27 15:43:22.318] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:22.318] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:22.318] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:22.318] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:22.320] [prometheus_core] [debug] Destroying vulkan image...
+[2025-09-27 15:43:22.321] [prometheus_core] [debug] Vulkan image destroyed
+[2025-09-27 15:43:22.321] [prometheus_core] [debug] Destroying image views... Found 3 views
+[2025-09-27 15:43:22.321] [prometheus_core] [debug] All image views destroyed
+[2025-09-27 15:43:22.321] [prometheus_core] [info] Destroying Vulkan swapchain...
+[2025-09-27 15:43:22.369] [prometheus_core] [info] Swapchain destroyed.
+[2025-09-27 15:43:22.369] [prometheus_core] [debug] Destroying command pools...
+[2025-09-27 15:43:22.369] [prometheus_core] [info] Destroying logical device recource...
+[2025-09-27 15:43:22.491] [prometheus_core] [info] Releasing physical device resource...
+[2025-09-27 15:43:22.491] [prometheus_core] [debug] Destroying Vulkan debugger...
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Vulkan renderer shut down
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Renderer subsystem shutting down...
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Renderer shutdown complete.
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Shutting down UI subsystem...
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Shutting down UI subsystem...
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Event callback unregistered for event type: 1
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Event callback unregistered for event type: 2
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Event callback unregistered for event type: 3
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Event callback unregistered for event type: 4
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Event callback unregistered for event type: 5
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Event callback unregistered for event type: 6
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Shutting down custom titlebar...
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Custom titlebar shut down successfully
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] UI titlebar shutdown complete.
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Shutting down dockspace system...
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Dockspace system shut down successfully
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] UI dockspace shutdown complete.
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Shutting down font management system...
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] Font management system shut down successfully
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] UI fonts shutdown complete.
+[2025-09-27 15:43:22.508] [prometheus_core] [debug] ImGui backends shutdown complete.
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] ImGui context destroyed.
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] UI components cleared.
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] UI subsystem shut down successfully
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] UI shutdown complete.
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Shutting down input and event subsystems...
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Shutting down input system...
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Input system shut down
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Shutting down event system...
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Event system shut down
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Input and event subsystems shutdown complete.
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Shutting down platform subsystem...
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Platform shutting down...
+[2025-09-27 15:43:22.509] [prometheus_core] [debug] Platform shut down.
+[2025-09-27 15:43:22.510] [prometheus_core] [debug] Platform shutdown complete.
+[2025-09-27 15:43:22.510] [prometheus_core] [info] All subsystems shut down correctly.
+[2025-09-27 15:43:22.510] [prometheus_core] [debug] Shutting down logging subsystem...
+[2025-09-27 15:43:22.510] [prometheus_core] [debug] Logger shutting down...

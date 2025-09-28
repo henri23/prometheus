@@ -18,3 +18,22 @@ b8 renderer_begin_frame(f32 delta_t);
 b8 renderer_end_frame(f32 delta_t);
 
 b8 renderer_draw_frame(Render_Packet* packet);
+
+// UI Image Resource Structure - directly exposes what users need
+struct UI_Image_Resource {
+    u32 handle;
+    u32 width;
+    u32 height;
+    void* descriptor_set; // VkDescriptorSet cast to void* for abstraction
+    b8 is_valid;
+};
+
+// UI Image Management
+b8 renderer_create_ui_image(
+    u32 width,
+    u32 height,
+    const void* pixel_data,
+    u32 pixel_data_size,
+    UI_Image_Resource* out_image_resource);
+
+void renderer_destroy_ui_image(UI_Image_Resource* resource);

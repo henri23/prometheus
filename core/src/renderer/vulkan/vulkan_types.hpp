@@ -7,7 +7,14 @@
 
 #include <vulkan/vulkan.h>
 
-#define VK_ENSURE_SUCCESS(expr) RUNTIME_ASSERT(expr == VK_SUCCESS);
+#define VK_CHECK(expr) RUNTIME_ASSERT(expr == VK_SUCCESS);
+
+// Forward declarations and enums
+enum class Renderpass_Type {
+    MAIN,   // Main 3D scene rendering with depth buffer
+    UI      // UI overlay rendering, color only
+};
+
 
 struct Vulkan_Swapchain_Support_Info {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -52,28 +59,6 @@ struct Vulkan_Image {
     u32 height;
 };
 
-// Off-screen render target with ImGui display capability
-struct Vulkan_Render_Target {
-    u32 width;
-    u32 height;
-    VkFormat color_format;
-    VkFormat depth_format;
-
-    // Color attachment
-    Vulkan_Image color_attachment;
-
-    // Depth attachment
-    Vulkan_Image depth_attachment;
-
-    // Framebuffer and renderpass
-    VkFramebuffer framebuffer;
-    VkRenderPass renderpass;
-
-    // For displaying in ImGui
-    VkSampler sampler;
-    VkDescriptorSet descriptor_set;
-};
-
 // Finite state machine of the renderpass
 enum class Renderpass_State {
     READY,
@@ -93,6 +78,7 @@ struct Vulkan_Renderpass {
     f32 depth;
     u32 stencil;
 
+    Renderpass_Type type;  // Store renderpass type for attachment count optimization
     Renderpass_State state;
 };
 
@@ -101,6 +87,23 @@ struct Vulkan_Framebuffer {
     u32 attachment_count;
     VkImageView* attachments;
     Vulkan_Renderpass* renderpass;
+};
+
+// Off-screen rendering target (groups related resources like Vulkan_Swapchain)
+struct Vulkan_Offscreen_Target {
+    u32 width;
+    u32 height;
+    VkFormat color_format;
+    VkFormat depth_format;
+
+    // Rendering attachments
+    Vulkan_Image color_attachment;
+    Vulkan_Image depth_attachment;
+    Vulkan_Framebuffer framebuffer;
+
+    // Texture sampling resources
+    VkSampler sampler;
+    VkDescriptorSet descriptor_set;
 };
 
 struct Vulkan_Swapchain {
@@ -189,14 +192,16 @@ struct Vulkan_Context {
     Vulkan_Swapchain swapchain;
     Vulkan_Device device;
     Vulkan_Renderpass main_renderpass;
+    Vulkan_Renderpass ui_renderpass;
 
-    // CAD viewport off-screen rendering
-    Vulkan_Render_Target cad_render_target;
+    // Main off-screen rendering target
+    Vulkan_Offscreen_Target main_target;
 
-    Auto_Array<Vulkan_Command_Buffer> graphics_command_buffers;
+	// Command buffers for rendering ui components
+    Auto_Array<Vulkan_Command_Buffer> ui_graphics_command_buffers;
 
-    // CAD-specific command buffers for off-screen rendering
-    Auto_Array<Vulkan_Command_Buffer> cad_command_buffers;
+    // Main renderer command buffers for off-screen rendering
+    Auto_Array<Vulkan_Command_Buffer> main_command_buffers;
 
     Auto_Array<VkSemaphore> image_available_semaphores;
     Auto_Array<VkSemaphore> render_finished_semaphores;
@@ -209,9 +214,9 @@ struct Vulkan_Context {
     Auto_Array<Vulkan_Fence*> images_in_flight;
 
     // ImGui integration components
-    VkDescriptorPool imgui_descriptor_pool;
-    VkDescriptorSetLayout imgui_descriptor_set_layout;
-    VkSampler imgui_linear_sampler;
+    VkDescriptorPool ui_descriptor_pool;
+    VkDescriptorSetLayout ui_descriptor_set_layout;
+    VkSampler ui_linear_sampler;
 
     s32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 };

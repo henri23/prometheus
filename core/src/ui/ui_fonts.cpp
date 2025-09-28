@@ -1,6 +1,6 @@
 #include "ui_fonts.hpp"
 
-#include "assets/assets.hpp"
+#include "resources/resource_manager.hpp"
 #include "containers/auto_array.hpp"
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
@@ -317,7 +317,7 @@ b8 ui_fonts_register_defaults() {
 
     // Load Roboto Regular
     u64 roboto_regular_size;
-    const u8* roboto_regular_data = assets_get_font_data("roboto_regular", &roboto_regular_size);
+    const u8* roboto_regular_data = resource_get_binary_data("roboto_regular", &roboto_regular_size);
     if (roboto_regular_data) {
         ImFontConfig config = {};
         config.FontDataOwnedByAtlas = false;
@@ -352,7 +352,7 @@ b8 ui_fonts_register_defaults() {
 
     // Load Roboto Bold
     u64 roboto_bold_size;
-    const u8* roboto_bold_data = assets_get_font_data("roboto_bold", &roboto_bold_size);
+    const u8* roboto_bold_data = resource_get_binary_data("roboto_bold", &roboto_bold_size);
     if (roboto_bold_data) {
         ImFontConfig config = {};
         config.FontDataOwnedByAtlas = false;
@@ -387,7 +387,7 @@ b8 ui_fonts_register_defaults() {
 
     // Load Roboto Italic
     u64 roboto_italic_size;
-    const u8* roboto_italic_data = assets_get_font_data("roboto_italic", &roboto_italic_size);
+    const u8* roboto_italic_data = resource_get_binary_data("roboto_italic", &roboto_italic_size);
     if (roboto_italic_data) {
         ImFontConfig config = {};
         config.FontDataOwnedByAtlas = false;

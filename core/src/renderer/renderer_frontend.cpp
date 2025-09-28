@@ -63,3 +63,16 @@ b8 renderer_draw_frame(Render_Packet* packet) {
 
     return true;
 }
+
+b8 renderer_create_ui_image(
+    u32 width,
+    u32 height,
+    const void* pixel_data,
+    u32 pixel_data_size,
+    UI_Image_Resource* out_image_resource) {
+    return state.backend.create_ui_image(&state.backend, width, height, pixel_data, pixel_data_size, out_image_resource);
+}
+
+void renderer_destroy_ui_image(UI_Image_Resource* resource) {
+    state.backend.destroy_ui_image(&state.backend, resource);
+}

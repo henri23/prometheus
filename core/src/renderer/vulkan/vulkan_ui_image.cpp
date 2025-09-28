@@ -43,7 +43,7 @@ void vulkan_ui_image_create(
         buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        VK_ENSURE_SUCCESS(vkCreateBuffer(
+        VK_CHECK(vkCreateBuffer(
             context->device.logical_device,
             &buffer_info,
             context->allocator,
@@ -69,13 +69,13 @@ void vulkan_ui_image_create(
         }
         alloc_info.memoryTypeIndex = memory_type_index;
 
-        VK_ENSURE_SUCCESS(vkAllocateMemory(
+        VK_CHECK(vkAllocateMemory(
             context->device.logical_device,
             &alloc_info,
             context->allocator,
             &staging_buffer_memory));
 
-        VK_ENSURE_SUCCESS(vkBindBufferMemory(
+        VK_CHECK(vkBindBufferMemory(
             context->device.logical_device,
             staging_buffer,
             staging_buffer_memory,
@@ -152,7 +152,7 @@ void vulkan_ui_image_create(
 
     // Create descriptor set using ImGui's function with shared sampler
     out_ui_image->descriptor_set = ImGui_ImplVulkan_AddTexture(
-        context->imgui_linear_sampler,
+        context->ui_linear_sampler,
         out_ui_image->base_image.view,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 

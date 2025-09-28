@@ -38,7 +38,7 @@ void vulkan_framebuffer_create(
     framebuffer_info.height = height;
     framebuffer_info.layers = 1;
 
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkCreateFramebuffer(
             context->device.logical_device,
             &framebuffer_info,

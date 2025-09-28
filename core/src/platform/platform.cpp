@@ -11,11 +11,9 @@
 #include "input/input.hpp"
 #include "input/input_codes.hpp"
 #include "renderer/vulkan/vulkan_types.hpp"
+#include "ui/ui_titlebar.hpp"
 
 internal_variable Platform_State* state_ptr = nullptr;
-
-// Forward declarations for titlebar dragging
-extern "C" b8 ui_is_titlebar_hovered();
 
 // Internal function to translate SDL events to engine events
 INTERNAL_FUNC void translate_sdl_event(const SDL_Event* sdl_event);
@@ -53,11 +51,6 @@ b8 platform_startup(Platform_State* state,
     state_ptr->window =
         SDL_CreateWindow(application_name, width, height, window_flags);
 
-    // Enable native window dragging and resizing for borderless window
-    SDL_SetWindowHitTest(state_ptr->window,
-        platform_hit_test_callback,
-        nullptr);
-
     if (state_ptr->window == nullptr) {
         CORE_ERROR("SDL_CreateWindow() failed with message: '%s'",
             SDL_GetError());
@@ -66,6 +59,17 @@ b8 platform_startup(Platform_State* state,
     }
 
     CORE_DEBUG("Window created successfully");
+
+    // Enable native window dragging and resizing for borderless window
+    int hit_test_result = SDL_SetWindowHitTest(state_ptr->window,
+        platform_hit_test_callback,
+        nullptr);
+
+    if (hit_test_result == 0) {
+        CORE_DEBUG("SDL hit test callback registered successfully");
+    } else {
+        CORE_ERROR("Failed to register SDL hit test callback: %s", SDL_GetError());
+    }
 
     SDL_SetWindowPosition(state_ptr->window,
         SDL_WINDOWPOS_CENTERED,
@@ -286,6 +290,7 @@ void platform_get_required_extensions(
     CORE_DEBUG("Added %u Vulkan extensions from SDL3", extension_count);
 }
 
+// TODO: Make this communication event based instead
 void platform_set_window_position(s32 x, s32 y) {
     if (state_ptr && state_ptr->window) {
         SDL_SetWindowPosition(state_ptr->window, x, y);
@@ -319,17 +324,39 @@ void platform_get_window_size(s32* width, s32* height) {
 INTERNAL_FUNC SDL_HitTestResult platform_hit_test_callback(SDL_Window* win,
     const SDL_Point* area,
     void* data) {
-    // Don't allow dragging/resizing when window is maximized
-    if (platform_is_window_maximized()) {
-        return SDL_HITTEST_NORMAL;
-    }
+
 
     int window_width, window_height;
     SDL_GetWindowSize(win, &window_width, &window_height);
 
+    int window_width_pixels, window_height_pixels;
+    SDL_GetWindowSizeInPixels(win, &window_width_pixels, &window_height_pixels);
+
+
+    // Check if we're in titlebar drag area first (should work even when maximized)
+    // Scale titlebar height for DPI - SDL hit test uses pixel coordinates
+    f32 scale_y = (f32)window_height_pixels / window_height;
+    const int TITLEBAR_HEIGHT_LOGICAL = 58;
+    const int TITLEBAR_HEIGHT_PIXELS = (int)(TITLEBAR_HEIGHT_LOGICAL * scale_y);
+
+
+    if (area->y <= TITLEBAR_HEIGHT_PIXELS) {
+        // Call UI function to check if we're hovering the titlebar (not buttons)
+        b8 titlebar_hovered = ui_is_titlebar_hovered();
+
+        if (titlebar_hovered) {
+            return SDL_HITTEST_DRAGGABLE;
+        }
+    }
+
+    // Don't allow resizing when window is maximized, but allow titlebar dragging above
+    if (platform_is_window_maximized()) {
+        return SDL_HITTEST_NORMAL;
+    }
+
     const int BORDER_SIZE = 4; // Size of resize borders
 
-    // Check for resize areas first (edges and corners)
+    // Check for resize areas (edges and corners) - only when not maximized
     bool on_left = area->x <= BORDER_SIZE;
     bool on_right = area->x >= window_width - BORDER_SIZE;
     bool on_top = area->y <= BORDER_SIZE;
@@ -354,16 +381,6 @@ INTERNAL_FUNC SDL_HitTestResult platform_hit_test_callback(SDL_Window* win,
         return SDL_HITTEST_RESIZE_LEFT;
     if (on_right)
         return SDL_HITTEST_RESIZE_RIGHT;
-
-    // Check if we're in titlebar drag area
-    const int TITLEBAR_HEIGHT = 58;
-    if (area->y <= TITLEBAR_HEIGHT) {
-        // Call UI function to check if we're hovering the titlebar (not
-        // buttons)
-        if (ui_is_titlebar_hovered()) {
-            return SDL_HITTEST_DRAGGABLE;
-        }
-    }
 
     return SDL_HITTEST_NORMAL;
 }

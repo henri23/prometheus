@@ -93,7 +93,7 @@ void vulkan_image_create(
     // one queue
     image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkCreateImage(
             context->device.logical_device,
             &image_create_info,
@@ -127,7 +127,7 @@ void vulkan_image_create(
     memory_allocate_info.allocationSize = memory_requirements.size;
     memory_allocate_info.memoryTypeIndex = memory_type;
 
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkAllocateMemory(
             context->device.logical_device,
             &memory_allocate_info,
@@ -135,7 +135,7 @@ void vulkan_image_create(
             &out_image->memory));
 
     // Bind the memory to the image
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkBindImageMemory(
             context->device.logical_device,
             out_image->handle,
@@ -172,7 +172,7 @@ void vulkan_image_view_create(
     view_create_info.subresourceRange.baseArrayLayer = 0;
     view_create_info.subresourceRange.layerCount = 1;
 
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkCreateImageView(
             context->device.logical_device,
             &view_create_info,

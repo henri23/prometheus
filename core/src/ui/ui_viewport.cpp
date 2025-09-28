@@ -60,20 +60,21 @@ void ui_viewport_draw(void* component_state) {
         viewport_state.viewport_pos = canvas_p0;
         viewport_state.viewport_size = canvas_sz;
 
-        // Resize CAD render target to match viewport size
+        // Resize main renderer target to match viewport size
         u32 target_width = (u32)fmaxf(canvas_sz.x, 1.0f);
         u32 target_height = (u32)fmaxf(canvas_sz.y, 1.0f);
-        vulkan_resize_cad_render_target(target_width, target_height);
 
-        // Get the CAD render target texture
-        VkDescriptorSet cad_texture = vulkan_get_cad_texture();
+        vulkan_resize_main_target(target_width, target_height);
 
-        // Display the off-screen rendered CAD content as a texture
-        if (cad_texture != VK_NULL_HANDLE) {
-            ImGui::Image((ImTextureID)cad_texture, canvas_sz);
+        // Get the main renderer texture
+        VkDescriptorSet main_texture = vulkan_get_main_texture();
+
+        // Display the off-screen rendered content as a texture
+        if (main_texture != VK_NULL_HANDLE) {
+            ImGui::Image((ImTextureID)main_texture, canvas_sz);
         } else {
             // Fallback: display a placeholder
-            ImGui::Text("CAD Viewport Loading...");
+            ImGui::Text("Viewport Loading...");
         }
 
         // Handle input for the image

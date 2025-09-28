@@ -26,7 +26,7 @@ void vulkan_command_buffer_allocate(
     // array of command buffers, so it should be a double pointer, but since we
     // have only one command buffer (for now) we can pass the address of the
     // single command buffer
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkAllocateCommandBuffers(
             context->device.logical_device,
             &allocate_info,
@@ -79,7 +79,7 @@ void vulkan_command_buffer_begin(
         begin_info.flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
     }
 
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkBeginCommandBuffer(
             command_buffer->handle,
             &begin_info));
@@ -90,7 +90,7 @@ void vulkan_command_buffer_begin(
 void vulkan_command_buffer_end(
     Vulkan_Command_Buffer* command_buffer) {
 
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkEndCommandBuffer(
             command_buffer->handle));
 
@@ -139,7 +139,7 @@ void vulkan_command_buffer_end_single_use(
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &command_buffer->handle;
 
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkQueueSubmit(
             queue,
             1,
@@ -148,7 +148,7 @@ void vulkan_command_buffer_end_single_use(
 
     // Technically a fence should be used to properly wait for the submit
     // however we can wait for it to finish synchronously
-    VK_ENSURE_SUCCESS(
+    VK_CHECK(
         vkQueueWaitIdle(queue));
 
 	// After we wait, we can safelly free the command buffer

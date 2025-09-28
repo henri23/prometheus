@@ -11,9 +11,12 @@
 // All drawing must be contained inside a renderpass. The graphics pipeline
 // needs to know where its rendering to, so the renderpass object must be created
 // before the graphics pipeline so the renderpass can tell it about the images.
+
+// Create renderpass based on type - dispatches to appropriate internal function
 void vulkan_renderpass_create(
     Vulkan_Context* context,
     Vulkan_Renderpass* out_renderpass,
+    Renderpass_Type type,
     // Definition of the area of the image that we want to render to
     f32 x, f32 y, f32 w, f32 h, // (TODO) Change to Vec4
     f32 r, f32 g, f32 b, f32 a, // Clear color

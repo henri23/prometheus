@@ -1,6 +1,6 @@
 #include "application.hpp"
 
-#include "assets/assets.hpp"
+#include "resources/resource_manager.hpp"
 #include "client_types.hpp"
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
@@ -113,8 +113,8 @@ b8 application_init(Client* client_state) {
         return false;
     }
 
-    if (!assets_initialize()) {
-        CORE_FATAL("Failed to initialize asset system");
+    if (!resource_manager_initialize()) {
+        CORE_FATAL("Failed to initialize resource system");
         return false;
     }
 
@@ -241,32 +241,26 @@ void application_shutdown() {
         CORE_DEBUG("Client shutdown complete.");
     }
 
-    CORE_DEBUG("Shutting down assets subsystem...");
-    assets_shutdown();
-    CORE_DEBUG("Assets shutdown complete.");
+    CORE_DEBUG("Shutting down resource manager...");
+    resource_manager_shutdown();
 
     CORE_DEBUG("Shutting down renderer subsystem...");
     renderer_shutdown();
-    CORE_DEBUG("Renderer shutdown complete.");
 
     CORE_DEBUG("Shutting down UI subsystem...");
     ui_shutdown();
-    CORE_DEBUG("UI shutdown complete.");
 
     CORE_DEBUG("Shutting down input and event subsystems...");
     input_shutdown();
     events_shutdown();
-    CORE_DEBUG("Input and event subsystems shutdown complete.");
 
     CORE_DEBUG("Shutting down platform subsystem...");
     platform_shutdown();
-    CORE_DEBUG("Platform shutdown complete.");
 
     CORE_INFO("All subsystems shut down correctly.");
 
     CORE_DEBUG("Shutting down logging subsystem...");
     log_shutdown();
-    CORE_DEBUG("Logger shutdown complete.");
 
     // Free application state
     memory_deallocate(internal_state,

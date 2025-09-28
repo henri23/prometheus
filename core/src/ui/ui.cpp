@@ -1,4 +1,5 @@
 #include "ui.hpp"
+#include "renderer/vulkan/vulkan_ui.hpp"
 #include "ui_dockspace.hpp"
 #include "ui_fonts.hpp"
 #include "ui_themes.hpp"
@@ -12,7 +13,6 @@
 #include "input/input_codes.hpp"
 #include "memory/memory.hpp"
 #include "platform/platform.hpp"
-#include "renderer/vulkan/vulkan_backend.hpp"
 #include "renderer/vulkan/vulkan_types.hpp"
 
 #include <SDL3/SDL.h>
@@ -23,6 +23,10 @@ struct UI_State {
     UI_Theme current_theme;
     PFN_menu_callback menu_callback;
     b8 is_initialized;
+
+    // Vulkan backend initialization info (prepared in
+    // ui_setup_vulkan_resources)
+    ImGui_ImplVulkan_InitInfo vulkan_init_info;
 };
 
 internal_variable UI_State ui_state;
@@ -46,8 +50,15 @@ b8 ui_initialize(UI_Theme theme,
         return true;
     }
 
+    // Preserve vulkan_init_info before zeroing state
+    ImGui_ImplVulkan_InitInfo preserved_vulkan_init_info =
+        ui_state.vulkan_init_info;
+
     // Zero out the state (though it should already be zero)
     memory_zero(&ui_state, sizeof(UI_State));
+
+    // Restore vulkan_init_info
+    ui_state.vulkan_init_info = preserved_vulkan_init_info;
 
     // Set configuration from parameters BEFORE setting up ImGui context
     ui_state.current_theme = theme;
@@ -207,6 +218,7 @@ INTERNAL_FUNC b8 ui_event_handler(const Event* event) {
             io.AddMouseButtonEvent(imgui_button,
                 event->type == Event_Type::MOUSE_BUTTON_PRESSED);
         }
+
         return io.WantCaptureMouse; // Consume if ImGui wants mouse input
     }
 
@@ -223,62 +235,6 @@ INTERNAL_FUNC b8 ui_event_handler(const Event* event) {
     default:
         return false;
     }
-}
-
-void ui_begin_frame() {
-    if (!ui_state.is_initialized) {
-        return;
-    }
-
-    // Start the Dear ImGui frame
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplSDL3_NewFrame();
-    ImGui::NewFrame();
-}
-
-ImDrawData* ui_render() {
-    if (!ui_state.is_initialized) {
-        return nullptr;
-    }
-
-    // Render all UI components using the component system
-    // Render dockspace first - it provides the container for other windows
-    ui_dockspace_begin(&ui_state);
-
-    // Render custom titlebar if enabled
-    ui_titlebar_draw();
-
-    // Render all registered UI components
-    for (u32 i = 0; i < ui_state.layers->length; ++i) {
-        UI_Layer* layer = &ui_state.layers->data[i];
-
-        if (layer->on_render)
-            layer->on_render(layer->component_state);
-    }
-
-    // End dockspace if it was started
-    ui_dockspace_end();
-
-    // Finalize rendering and get draw data
-    ImGui::Render();
-    ImDrawData* draw_data = ImGui::GetDrawData();
-
-// Update and Render additional Platform Windows (for
-// ImGuiConfigFlags_ViewportsEnable) Only render viewports if they're enabled
-// and working properly
-#ifdef PROMETHEUS_ENABLE_VIEWPORTS
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-    }
-#endif
-
-    // Check if minimized
-    const bool is_minimized =
-        (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
-
-    return is_minimized ? nullptr : draw_data;
 }
 
 // Internal function implementations
@@ -337,29 +293,8 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window) {
         return false;
     }
 
-    // Initialize Vulkan backend for ImGui
-    Vulkan_Context* vulkan_context = vulkan_get_context();
-    if (!vulkan_context) {
-        CORE_ERROR("Failed to get Vulkan context for ImGui initialization");
-        return false;
-    }
-
-    ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = vulkan_context->instance;
-    init_info.PhysicalDevice = vulkan_context->device.physical_device;
-    init_info.Device = vulkan_context->device.logical_device;
-    init_info.QueueFamily = vulkan_context->device.graphics_queue_index;
-    init_info.Queue = vulkan_context->device.graphics_queue;
-    init_info.DescriptorPool = vulkan_context->imgui_descriptor_pool;
-    init_info.DescriptorPoolSize = 0;
-    init_info.MinImageCount = vulkan_context->swapchain.max_in_flight_frames;
-    init_info.ImageCount = vulkan_context->swapchain.image_count;
-    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    init_info.RenderPass = vulkan_context->main_renderpass.handle;
-    init_info.Subpass = 0;
-    init_info.Allocator = vulkan_context->allocator;
-
-    if (!ImGui_ImplVulkan_Init(&init_info)) {
+    // Initialize ImGui Vulkan backend using prepared init info
+    if (!ImGui_ImplVulkan_Init(&ui_state.vulkan_init_info)) {
         CORE_ERROR("Failed to initialize ImGui Vulkan backend");
         return false;
     }
@@ -369,6 +304,200 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window) {
 }
 
 // Component system implementation
+
+// Internal accessor for current theme (for core UI components only)
+UI_Theme ui_get_current_theme() { return ui_state.current_theme; }
+
+// Expose UI event callback for application registration
+PFN_event_callback ui_get_event_callback() { return ui_event_handler; }
+
+// Get ImGui context for Windows DLL compatibility
+void* ui_get_imgui_context() { return ImGui::GetCurrentContext(); }
+
+// ========================================================================
+// UI → Renderer Interface Implementation
+// ========================================================================
+
+b8 ui_setup_vulkan_resources(Vulkan_Context* context) {
+    CORE_DEBUG("Setting up UI Vulkan resources...");
+
+    // Create descriptor set layout for ImGui textures
+    VkDescriptorSetLayoutBinding binding = {};
+    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    binding.descriptorCount = 1;
+    binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    binding.binding = 0;
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {};
+    layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_info.bindingCount = 1;
+    layout_info.pBindings = &binding;
+
+    VK_CHECK(vkCreateDescriptorSetLayout(context->device.logical_device,
+        &layout_info,
+        context->allocator,
+        &context->ui_descriptor_set_layout));
+
+    // Create descriptor pool for ImGui textures
+    VkDescriptorPoolSize pool_size = {};
+    pool_size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    pool_size.descriptorCount = 1000; // Support up to 1000 textures
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = 1;
+    pool_info.pPoolSizes = &pool_size;
+
+    VK_CHECK(vkCreateDescriptorPool(context->device.logical_device,
+        &pool_info,
+        context->allocator,
+        &context->ui_descriptor_pool));
+
+    // Create linear sampler for ImGui textures
+    VkSamplerCreateInfo sampler_info = {};
+    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_info.magFilter = VK_FILTER_LINEAR;
+    sampler_info.minFilter = VK_FILTER_LINEAR;
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.minLod = -1000;
+    sampler_info.maxLod = 1000;
+    sampler_info.maxAnisotropy = 1.0f;
+
+    VK_CHECK(vkCreateSampler(context->device.logical_device,
+        &sampler_info,
+        context->allocator,
+        &context->ui_linear_sampler));
+
+    // Prepare ImGui Vulkan backend initialization info for later use
+    ui_state.vulkan_init_info = {};
+    ui_state.vulkan_init_info.Instance = context->instance;
+    ui_state.vulkan_init_info.PhysicalDevice = context->device.physical_device;
+    ui_state.vulkan_init_info.Device = context->device.logical_device;
+    ui_state.vulkan_init_info.QueueFamily =
+        context->device.graphics_queue_index;
+    ui_state.vulkan_init_info.Queue = context->device.graphics_queue;
+    ui_state.vulkan_init_info.DescriptorPool = context->ui_descriptor_pool;
+    ui_state.vulkan_init_info.DescriptorPoolSize = 0;
+    ui_state.vulkan_init_info.MinImageCount =
+        context->swapchain.max_in_flight_frames;
+    ui_state.vulkan_init_info.ImageCount = context->swapchain.image_count;
+    ui_state.vulkan_init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    ui_state.vulkan_init_info.RenderPass = context->ui_renderpass.handle;
+    ui_state.vulkan_init_info.Subpass = 0;
+    ui_state.vulkan_init_info.Allocator = context->allocator;
+
+    CORE_DEBUG("UI Vulkan resources created successfully");
+    return true;
+}
+
+void ui_cleanup_vulkan_resources(Vulkan_Context* context) {
+    CORE_DEBUG("Cleaning up UI Vulkan resources...");
+
+    // Shutdown ImGui Vulkan backend BEFORE destroying Vulkan resources
+    ImGui_ImplVulkan_Shutdown();
+
+    if (context->ui_linear_sampler) {
+        vkDestroySampler(context->device.logical_device,
+            context->ui_linear_sampler,
+            context->allocator);
+        context->ui_linear_sampler = VK_NULL_HANDLE;
+    }
+
+    if (context->ui_descriptor_pool) {
+        vkDestroyDescriptorPool(context->device.logical_device,
+            context->ui_descriptor_pool,
+            context->allocator);
+        context->ui_descriptor_pool = VK_NULL_HANDLE;
+    }
+
+    if (context->ui_descriptor_set_layout) {
+        vkDestroyDescriptorSetLayout(context->device.logical_device,
+            context->ui_descriptor_set_layout,
+            context->allocator);
+        context->ui_descriptor_set_layout = VK_NULL_HANDLE;
+    }
+
+    CORE_DEBUG("UI Vulkan resources cleanup completed");
+}
+
+void ui_on_vulkan_resize(Vulkan_Context* context, u32 width, u32 height) {
+    // UI doesn't need special resize handling for now
+    // ImGui automatically adapts to new framebuffer size
+    CORE_DEBUG("UI handling Vulkan resize: %ux%u", width, height);
+}
+
+void ui_begin_vulkan_frame() {
+    if (!ui_state.is_initialized) {
+        return;
+    }
+
+    // Start the Dear ImGui frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+}
+
+b8 ui_draw_components(Vulkan_Command_Buffer* command_buffer) {
+    if (!ui_state.is_initialized) {
+        CORE_ERROR(
+            "ui_render_vulkan_components called, but ui state is not "
+            "intialized");
+        return false;
+    }
+
+    // Render all UI components using the component system
+    // Render dockspace first - it provides the container for other windows
+    ui_dockspace_begin(&ui_state);
+
+    // Render custom titlebar if enabled
+    ui_titlebar_draw();
+
+    // Render all registered UI components
+    for (u32 i = 0; i < ui_state.layers->length; ++i) {
+        UI_Layer* layer = &ui_state.layers->data[i];
+
+        if (layer->on_render)
+            layer->on_render(layer->component_state);
+    }
+
+    // End dockspace if it was started
+    ui_dockspace_end();
+
+    // Finalize rendering and get draw data
+    ImGui::Render();
+    ImDrawData* draw_data = ImGui::GetDrawData();
+
+// Update and Render additional Platform Windows (for
+// ImGuiConfigFlags_ViewportsEnable) Only render viewports if they're enabled
+// and working properly
+#ifdef PROMETHEUS_ENABLE_VIEWPORTS
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
+#endif
+
+    // Check if minimized
+    const bool is_minimized =
+        (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
+
+    if (is_minimized) {
+        CORE_WARN(
+            "ui_render_vulkan_components called, but the window is minimized");
+        return false;
+    }
+
+    // Record ImGui draw commands to the current command buffer
+    ImGui_ImplVulkan_RenderDrawData(draw_data, command_buffer->handle);
+
+    return true;
+}
 
 // Convert engine key codes to ImGui key codes
 INTERNAL_FUNC ImGuiKey engine_key_to_imgui_key(Key_Code key) {
@@ -598,15 +727,4 @@ INTERNAL_FUNC int engine_mouse_to_imgui_button(Mouse_Button button) {
     default:
         return -1;
     }
-}
-
-// Internal accessor for current theme (for core UI components only)
-UI_Theme ui_get_current_theme() { return ui_state.current_theme; }
-
-// Expose UI event callback for application registration
-PFN_event_callback ui_get_event_callback() { return ui_event_handler; }
-
-// Get ImGui context for Windows DLL compatibility
-void* ui_get_imgui_context() {
-    return ImGui::GetCurrentContext();
 }

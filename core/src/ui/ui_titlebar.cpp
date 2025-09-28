@@ -1,5 +1,6 @@
 #include "ui_titlebar.hpp"
-#include "assets/assets.hpp"
+#include "resources/resource_manager.hpp"
+#include "renderer/renderer_frontend.hpp"
 #include "ui.hpp"
 #include "ui_themes.hpp"
 
@@ -11,20 +12,18 @@
 #include "imgui_impl_vulkan.h"
 #include "imgui_internal.h"
 #include "platform/platform.hpp"
-#include "renderer/vulkan/vulkan_backend.hpp"
-#include "renderer/vulkan/vulkan_ui_image.hpp"
 
 // Internal titlebar state
 struct Titlebar_State {
     b8 is_initialized;
     const char* title_text;
 
-    // Icons loaded directly
-    Vulkan_UI_Image app_icon;
-    Vulkan_UI_Image minimize_icon;
-    Vulkan_UI_Image maximize_icon;
-    Vulkan_UI_Image restore_icon;
-    Vulkan_UI_Image close_icon;
+    // UI Image resources
+    UI_Image_Resource* app_icon;
+    UI_Image_Resource* minimize_icon;
+    UI_Image_Resource* maximize_icon;
+    UI_Image_Resource* restore_icon;
+    UI_Image_Resource* close_icon;
 
     ImVec2 titlebar_min;
     ImVec2 titlebar_max;
@@ -60,7 +59,7 @@ INTERNAL_FUNC b8 draw_titlebar_button(const char* icon,
     ImVec2 pos,
     ImVec2 size);
 
-INTERNAL_FUNC b8 draw_titlebar_image_button(const Vulkan_UI_Image* image,
+INTERNAL_FUNC b8 draw_titlebar_image_button(UI_Image_Resource* image_resource,
     const char* fallback_text,
     ImVec2 pos,
     ImVec2 size);
@@ -81,13 +80,13 @@ b8 ui_titlebar_initialize(PFN_menu_callback callback, const char* app_name) {
     // Dockspace menubar is disabled by default, so titlebar menus take
     // precedence
 
-    // Load icons directly
+    // Load icons using resource manager
     b8 icons_success = true;
-    icons_success &= assets_load_image(&state.app_icon, "prometheus_icon");
-    icons_success &= assets_load_image(&state.minimize_icon, "window_minimize");
-    icons_success &= assets_load_image(&state.maximize_icon, "window_maximize");
-    icons_success &= assets_load_image(&state.restore_icon, "window_restore");
-    icons_success &= assets_load_image(&state.close_icon, "window_close");
+    icons_success &= resource_load_image("prometheus_icon", &state.app_icon);
+    icons_success &= resource_load_image("window_minimize", &state.minimize_icon);
+    icons_success &= resource_load_image("window_maximize", &state.maximize_icon);
+    icons_success &= resource_load_image("window_restore", &state.restore_icon);
+    icons_success &= resource_load_image("window_close", &state.close_icon);
 
     if (icons_success) {
         CORE_INFO("All titlebar icons loaded successfully");
@@ -101,38 +100,40 @@ b8 ui_titlebar_initialize(PFN_menu_callback callback, const char* app_name) {
 }
 
 void ui_titlebar_cleanup_vulkan_resources() {
-    CORE_DEBUG("Cleaning up titlebar Vulkan resources...");
-    // Clean up ImGui descriptor sets AND destroy Vulkan images
+    CORE_DEBUG("Cleaning up titlebar GPU resources...");
+    // Clean up GPU image resources
     // This is called from the renderer before ImGui/Vulkan backend shutdown
     if (state.icons_loaded) {
-        Vulkan_Context* context = vulkan_get_context();
-        if (context) {
-            // Clean up UI images using proper function
-            if (state.app_icon.base_image.handle != VK_NULL_HANDLE) {
-                vulkan_ui_image_destroy(context, &state.app_icon);
-            }
-
-            if (state.minimize_icon.base_image.handle != VK_NULL_HANDLE) {
-                vulkan_ui_image_destroy(context, &state.minimize_icon);
-            }
-
-            if (state.maximize_icon.base_image.handle != VK_NULL_HANDLE) {
-                vulkan_ui_image_destroy(context, &state.maximize_icon);
-            }
-
-            if (state.restore_icon.base_image.handle != VK_NULL_HANDLE) {
-                vulkan_ui_image_destroy(context, &state.restore_icon);
-            }
-
-            if (state.close_icon.base_image.handle != VK_NULL_HANDLE) {
-                vulkan_ui_image_destroy(context, &state.close_icon);
-            }
-
-            // Mark icons as no longer loaded
-            state.icons_loaded = false;
+        // Clean up UI image resources
+        if (state.app_icon) {
+            resource_free_image(state.app_icon);
+            state.app_icon = nullptr;
         }
+
+        if (state.minimize_icon) {
+            resource_free_image(state.minimize_icon);
+            state.minimize_icon = nullptr;
+        }
+
+        if (state.maximize_icon) {
+            resource_free_image(state.maximize_icon);
+            state.maximize_icon = nullptr;
+        }
+
+        if (state.restore_icon) {
+            resource_free_image(state.restore_icon);
+            state.restore_icon = nullptr;
+        }
+
+        if (state.close_icon) {
+            resource_free_image(state.close_icon);
+            state.close_icon = nullptr;
+        }
+
+        // Mark icons as no longer loaded
+        state.icons_loaded = false;
     }
-    CORE_DEBUG("Titlebar Vulkan resources cleanup completed");
+    CORE_DEBUG("Titlebar GPU resources cleanup completed");
 }
 
 void ui_titlebar_shutdown() {
@@ -223,19 +224,16 @@ INTERNAL_FUNC void draw_titlebar_background() {
 }
 
 INTERNAL_FUNC void draw_titlebar_logo() {
-    const Vulkan_UI_Image* app_icon =
-        state.icons_loaded ? &state.app_icon : nullptr;
+    UI_Image_Resource* app_icon = state.icons_loaded ? state.app_icon : nullptr;
     b8 icons_loaded = state.icons_loaded;
 
     // Debug output to see what's happening
     static b8 debug_logged = false;
     if (!debug_logged) {
         CORE_DEBUG(
-            "Titlebar logo debug: app_icon=%p, icons_loaded=%s, "
-            "descriptor_set=%p",
+            "Titlebar logo debug: app_icon=%p, icons_loaded=%s",
             (void*)app_icon,
-            icons_loaded ? "true" : "false",
-            app_icon ? (void*)app_icon->descriptor_set : nullptr);
+            icons_loaded ? "true" : "false");
         debug_logged = true;
     }
 
@@ -251,16 +249,23 @@ INTERNAL_FUNC void draw_titlebar_logo() {
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-    if (app_icon && icons_loaded &&
-        app_icon->descriptor_set != VK_NULL_HANDLE) {
-        // Render the scalable logo image
-        draw_list->AddImage((ImTextureID)(intptr_t)app_icon->descriptor_set,
-            logo_pos,
-            ImVec2(logo_pos.x + logo_size, logo_pos.y + logo_size),
-            ImVec2(0, 0),
-            ImVec2(1, 1),
-            IM_COL32_WHITE);
+    if (app_icon && icons_loaded && app_icon->is_valid) {
+        // Get descriptor set directly from resource
+        VkDescriptorSet descriptor_set = (VkDescriptorSet)app_icon->descriptor_set;
+        if (descriptor_set != VK_NULL_HANDLE) {
+            // Render the scalable logo image
+            draw_list->AddImage((ImTextureID)(intptr_t)descriptor_set,
+                logo_pos,
+                ImVec2(logo_pos.x + logo_size, logo_pos.y + logo_size),
+                ImVec2(0, 0),
+                ImVec2(1, 1),
+                IM_COL32_WHITE);
+        } else {
+            // GPU resource not ready, use fallback
+            goto logo_fallback;
+        }
     } else {
+logo_fallback:
         // Fallback: draw a scalable placeholder
         const UI_Theme_Palette& palette = get_current_palette();
         draw_list->AddRect(logo_pos,
@@ -386,10 +391,11 @@ INTERNAL_FUNC void draw_titlebar_buttons() {
         current_x -= button_size;
         ImVec2 close_pos = ImVec2(current_x,
             state.titlebar_min.y + top_padding); // Top-aligned
+
         ImVec2 close_size = ImVec2(button_size, button_size);
 
-        const Vulkan_UI_Image* close_icon =
-            state.icons_loaded ? &state.close_icon : nullptr;
+        UI_Image_Resource* close_icon =
+            state.icons_loaded ? state.close_icon : nullptr;
         if (draw_titlebar_image_button(close_icon,
                 "×",
                 close_pos,
@@ -409,10 +415,10 @@ INTERNAL_FUNC void draw_titlebar_buttons() {
 
         // Check if window is maximized and use appropriate icon
         b8 is_maximized = platform_is_window_maximized();
-        const Vulkan_UI_Image* max_icon =
+        UI_Image_Resource* max_icon =
             is_maximized
-                ? (state.icons_loaded ? &state.restore_icon : nullptr)
-                : (state.icons_loaded ? &state.maximize_icon : nullptr);
+                ? (state.icons_loaded ? state.restore_icon : nullptr)
+                : (state.icons_loaded ? state.maximize_icon : nullptr);
         const char* fallback_text = is_maximized ? "🗗" : "□";
 
         if (draw_titlebar_image_button(max_icon,
@@ -438,8 +444,8 @@ INTERNAL_FUNC void draw_titlebar_buttons() {
 
         ImVec2 min_size = ImVec2(button_size, button_size);
 
-        const Vulkan_UI_Image* min_icon =
-            state.icons_loaded ? &state.minimize_icon : nullptr;
+        UI_Image_Resource* min_icon =
+            state.icons_loaded ? state.minimize_icon : nullptr;
 
         if (draw_titlebar_image_button(min_icon, "−", min_pos, min_size)) {
 
@@ -485,7 +491,7 @@ INTERNAL_FUNC b8 draw_titlebar_button(const char* icon,
     return clicked;
 }
 
-INTERNAL_FUNC b8 draw_titlebar_image_button(const Vulkan_UI_Image* image,
+INTERNAL_FUNC b8 draw_titlebar_image_button(UI_Image_Resource* image_resource,
     const char* fallback_text,
     ImVec2 pos,
     ImVec2 size) {
@@ -510,66 +516,81 @@ INTERNAL_FUNC b8 draw_titlebar_image_button(const Vulkan_UI_Image* image,
         ImVec2(pos.x + size.x, pos.y + size.y),
         button_color);
 
-    if (image && state.icons_loaded &&
-        image->descriptor_set != VK_NULL_HANDLE) {
-        // Draw the icon image centered in the button with aspect ratio
-        // preservation Get original icon dimensions
-        f32 original_width = (f32)image->base_image.width;
-        f32 original_height = (f32)image->base_image.height;
-        f32 original_aspect = original_width / original_height;
+    if (image_resource && state.icons_loaded && image_resource->is_valid) {
+        // Get descriptor set directly from resource
+        VkDescriptorSet descriptor_set = (VkDescriptorSet)image_resource->descriptor_set;
+        if (descriptor_set != VK_NULL_HANDLE) {
+            // Get actual image dimensions to preserve aspect ratio
+            u32 original_width = image_resource->width;
+            u32 original_height = image_resource->height;
 
-        // Calculate available space for icon (with padding)
-        f32 available_width = size.x * 0.7f;  // 70% of button width for icon
-        f32 available_height = size.y * 0.7f; // 70% of button height for icon
+            f32 original_aspect = (f32)original_width / (f32)original_height;
 
-        // Use icons at their natural size (no scaling unless they're too large)
-        f32 scale = 1.0f; // Start with natural size
+            // Calculate available space for icon (with padding)
+            f32 available_width = size.x * 0.7f;  // 70% of button width for icon
+            f32 available_height = size.y * 0.7f; // 70% of button height for icon
 
-        // Only scale down if the icon is larger than available space
-        if (original_width > available_width) {
-            scale = available_width / original_width;
-        }
-        if (original_height > available_height) {
-            f32 height_scale = available_height / original_height;
-            if (height_scale < scale) {
-                scale = height_scale;
+            // Use icons at their natural size (no scaling unless they're too large)
+            f32 scale = 1.0f; // Start with natural size
+
+            // Only scale down if the icon is larger than available space
+            if ((f32)original_width > available_width) {
+                scale = available_width / (f32)original_width;
             }
+            if ((f32)original_height > available_height) {
+                f32 height_scale = available_height / (f32)original_height;
+                if (height_scale < scale) {
+                    scale = height_scale;
+                }
+            }
+
+            // Calculate final dimensions (natural size or scaled down if needed)
+            f32 scaled_width = (f32)original_width * scale;
+            f32 scaled_height = (f32)original_height * scale;
+
+            ImVec2 image_size = ImVec2(scaled_width, scaled_height);
+
+            // Special positioning for minimize icon (thin horizontal line)
+            f32 vertical_pos;
+            if (original_height <= 3 && original_width > original_height * 3) {
+                // This is likely a minimize icon (very thin and wide) - align to bottom
+                vertical_pos = pos.y + size.y - image_size.y - (size.y * 0.15f); // 15% padding from bottom
+            } else {
+                // Normal icons - center vertically
+                vertical_pos = pos.y + (size.y - image_size.y) * 0.5f;
+            }
+
+            ImVec2 image_pos = ImVec2(pos.x + (size.x - image_size.x) * 0.5f, // Center horizontally
+                vertical_pos);
+
+            // Render the icon with proper color tinting based on button state
+            u32 icon_color = palette.text;
+            if (ImGui::IsItemActive()) {
+                icon_color = palette.text; // Keep same color when active
+            } else if (ImGui::IsItemHovered()) {
+                icon_color = IM_COL32_WHITE; // Brighter when hovered
+            }
+
+            draw_list->AddImage((ImTextureID)(intptr_t)descriptor_set,
+                image_pos,
+                ImVec2(image_pos.x + image_size.x, image_pos.y + image_size.y),
+                ImVec2(0, 0),
+                ImVec2(1, 1),
+                icon_color);
+        } else {
+            // GPU resource not ready, use fallback
+            goto button_fallback;
         }
-
-        // Calculate final dimensions (natural size or scaled down if needed)
-        f32 scaled_width = original_width * scale;
-        f32 scaled_height = original_height * scale;
-
-        ImVec2 image_size = ImVec2(scaled_width, scaled_height);
-        ImVec2 image_pos = ImVec2(pos.x + (size.x - image_size.x) *
-                                              0.5f, // Center horizontally
-            pos.y + size.y - image_size.y -
-                (size.y * 0.15f)); // Anchor to bottom with padding
-
-        // Render the icon with proper color tinting based on button state
-        u32 icon_color = palette.text;
-        if (ImGui::IsItemActive()) {
-            icon_color = palette.text; // Keep same color when active
-        } else if (ImGui::IsItemHovered()) {
-            icon_color = IM_COL32_WHITE; // Brighter when hovered
-        }
-
-        draw_list->AddImage((ImTextureID)(intptr_t)image->descriptor_set,
-            image_pos,
-            ImVec2(image_pos.x + image_size.x, image_pos.y + image_size.y),
-            ImVec2(0, 0),
-            ImVec2(1, 1),
-            icon_color);
     } else {
-        // Fall back to text if no image is available
+button_fallback:
+        // Fall back to text if no image resource or GPU resource not ready
         // Debug: Log why we're falling back
         static b8 button_debug_logged = false;
         if (!button_debug_logged) {
             CORE_DEBUG(
-                "Button fallback: image=%p, icons_loaded=%s, descriptor_set=%p",
-                (void*)image,
-                state.icons_loaded ? "true" : "false",
-                image ? (void*)image->descriptor_set : nullptr);
+                "Button fallback: image_resource=%p, icons_loaded=%s",
+                (void*)image_resource,
+                state.icons_loaded ? "true" : "false");
             button_debug_logged = true;
         }
 
@@ -730,6 +751,14 @@ INTERNAL_FUNC void handle_titlebar_hover() {
         (state.titlebar_max.x - state.titlebar_min.x) - button_area_width;
     f32 drag_zone_height = state.titlebar_max.y - state.titlebar_min.y;
 
+    // Ensure valid drag zone dimensions
+    if (drag_zone_width <= 0 || drag_zone_height <= 0) {
+        CORE_ERROR("Invalid drag zone dimensions: width=%.2f, height=%.2f",
+                   drag_zone_width, drag_zone_height);
+        state.is_titlebar_hovered = false;
+        return;
+    }
+
     // Position the invisible button to cover the draggable area
     ImGui::SetCursorScreenPos(state.titlebar_min);
 
@@ -759,4 +788,6 @@ INTERNAL_FUNC void handle_titlebar_hover() {
     }
 }
 
-extern "C" b8 ui_is_titlebar_hovered() { return state.is_titlebar_hovered; }
+b8 ui_is_titlebar_hovered() {
+    return state.is_titlebar_hovered;
+}
