@@ -19,6 +19,7 @@
 
 #include "shaders/vulkan_object_shader.hpp"
 #include "vulkan_viewport.hpp"
+
 #include <cstring>
 
 internal_variable Vulkan_Context context;
@@ -164,11 +165,13 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     device_requirements.graphics = true;
     device_requirements.transfer = true;
     device_requirements.present = true;
+
 #ifndef PLATFORM_APPLE
     device_requirements.discrete_gpu = true;
 #else
     device_requirements.discrete_gpu = false;
 #endif
+
     device_requirements.device_extension_names =
         &device_level_extension_requirements;
 

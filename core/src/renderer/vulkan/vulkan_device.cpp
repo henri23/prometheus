@@ -283,9 +283,15 @@ b8 create_logical_device(Vulkan_Context* context) {
     logical_device_create_info.pEnabledFeatures = &device_features_to_request;
 
     // Request swapchain extension for physical device
-    const char* required_extensions = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-    logical_device_create_info.ppEnabledExtensionNames = &required_extensions;
-    logical_device_create_info.enabledExtensionCount = 1;
+    Auto_Array<const char*> required_extensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+#ifdef PLATFORM_APPLE
+	required_extensions.push_back("VK_KHR_portability_subset");
+#endif
+
+    logical_device_create_info.ppEnabledExtensionNames = required_extensions.data;
+    logical_device_create_info.enabledExtensionCount = required_extensions.length;
 
     // Depracated, for clarity explicitly set them to uninitialized
     logical_device_create_info.enabledLayerCount = 0;
