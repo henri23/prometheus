@@ -347,4 +347,4 @@ ninja -v
 
 ---
 
-For Windows builds, see [build_windows.md](build_windows.md)
+For Windows builds, see [BUILD_WINDOWS.md](BUILD_WINDOWS.md)

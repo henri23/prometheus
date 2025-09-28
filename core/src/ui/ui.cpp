@@ -398,7 +398,10 @@ b8 ui_setup_vulkan_resources(Vulkan_Context* context) {
 void ui_cleanup_vulkan_resources(Vulkan_Context* context) {
     CORE_DEBUG("Cleaning up UI Vulkan resources...");
 
-    // Shutdown ImGui Vulkan backend BEFORE destroying Vulkan resources
+    // Clean up all UI component Vulkan resources first
+    ui_titlebar_cleanup_vulkan_resources();
+
+    // Shutdown ImGui Vulkan backend AFTER component cleanup
     ImGui_ImplVulkan_Shutdown();
 
     if (context->ui_linear_sampler) {

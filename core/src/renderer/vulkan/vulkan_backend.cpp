@@ -17,8 +17,6 @@
 #include "containers/auto_array.hpp"
 
 #include "imgui_impl_vulkan.h"
-#include "ui/ui.hpp"
-#include "ui/ui_titlebar.hpp"
 #include "vulkan_ui.hpp"
 
 #include "shaders/vulkan_object_shader.hpp"
@@ -386,12 +384,7 @@ void vulkan_shutdown(Renderer_Backend* backend) {
     CORE_DEBUG("Waiting for device to finish operations before UI cleanup...");
     vkDeviceWaitIdle(context.device.logical_device);
 
-    // Clean up UI image descriptor sets before ImGui shutdown
-    // This must be done here to prevent crashes during UI shutdown
-    CORE_DEBUG("Cleaning up UI Vulkan resources before ImGui shutdown...");
-    ui_titlebar_cleanup_vulkan_resources();
-
-    // Cleanup UI Vulkan resources using new interface (includes ImGui shutdown)
+    // Cleanup UI Vulkan resources (includes ImGui shutdown and component cleanup)
     ui_cleanup_vulkan_resources(&context);
 
     // Destroy main render target resources

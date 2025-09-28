@@ -284,4 +284,4 @@ The codebase includes Windows-specific features:
 
 ---
 
-For Linux builds, see [build_linux.md](build_linux.md)
+For Linux builds, see [BUILD_LINUX.md](BUILD_LINUX.md)
