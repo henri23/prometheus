@@ -1,6 +1,6 @@
 #include "ui_fonts.hpp"
 
-#include "resources/resource_manager.hpp"
+#include "resources/loaders/binary_loader.hpp"
 #include "containers/auto_array.hpp"
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
@@ -60,23 +60,6 @@ b8 ui_fonts_initialize() {
 
     CORE_INFO("Font management system initialized");
     return true;
-}
-
-void ui_fonts_shutdown() {
-    CORE_DEBUG("Shutting down font management system...");
-
-    if (!font_registry.is_initialized) {
-        CORE_WARN("Font system not initialized - already shut down or never initialized");
-        return;
-    }
-
-    // Note: ImGui fonts are managed by ImGui's font atlas
-    // Auto_Array destructor handles memory cleanup automatically
-
-    // Reset registry
-    font_registry = {};
-
-    CORE_DEBUG("Font management system shut down successfully");
 }
 
 b8 ui_fonts_register_embedded(const char* name, const char* family, UI_Font_Weight weight, UI_Font_Style style, const u8* data, u32 data_size, f32 size) {
@@ -317,7 +300,7 @@ b8 ui_fonts_register_defaults() {
 
     // Load Roboto Regular
     u64 roboto_regular_size;
-    const u8* roboto_regular_data = resource_get_binary_data("roboto_regular", &roboto_regular_size);
+    const u8* roboto_regular_data = binary_loader_get_data("roboto_regular", &roboto_regular_size);
     if (roboto_regular_data) {
         ImFontConfig config = {};
         config.FontDataOwnedByAtlas = false;
@@ -352,7 +335,7 @@ b8 ui_fonts_register_defaults() {
 
     // Load Roboto Bold
     u64 roboto_bold_size;
-    const u8* roboto_bold_data = resource_get_binary_data("roboto_bold", &roboto_bold_size);
+    const u8* roboto_bold_data = binary_loader_get_data("roboto_bold", &roboto_bold_size);
     if (roboto_bold_data) {
         ImFontConfig config = {};
         config.FontDataOwnedByAtlas = false;
@@ -387,7 +370,7 @@ b8 ui_fonts_register_defaults() {
 
     // Load Roboto Italic
     u64 roboto_italic_size;
-    const u8* roboto_italic_data = resource_get_binary_data("roboto_italic", &roboto_italic_size);
+    const u8* roboto_italic_data = binary_loader_get_data("roboto_italic", &roboto_italic_size);
     if (roboto_italic_data) {
         ImFontConfig config = {};
         config.FontDataOwnedByAtlas = false;

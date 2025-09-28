@@ -1,11 +1,12 @@
 #include "ui_titlebar.hpp"
-#include "resources/resource_manager.hpp"
+#include "resources/loaders/image_loader.hpp"
 #include "renderer/renderer_frontend.hpp"
 #include "ui.hpp"
 #include "ui_themes.hpp"
 
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
+#include "stb_image.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
@@ -15,20 +16,17 @@
 
 // Internal titlebar state
 struct Titlebar_State {
-    b8 is_initialized;
     const char* title_text;
 
-    // UI Image resources
-    UI_Image_Resource* app_icon;
-    UI_Image_Resource* minimize_icon;
-    UI_Image_Resource* maximize_icon;
-    UI_Image_Resource* restore_icon;
-    UI_Image_Resource* close_icon;
+    // UI Image resources (stack-allocated)
+    UI_Image_Resource app_icon;
+    UI_Image_Resource minimize_icon;
+    UI_Image_Resource maximize_icon;
+    UI_Image_Resource restore_icon;
+    UI_Image_Resource close_icon;
 
     ImVec2 titlebar_min;
     ImVec2 titlebar_max;
-
-    b8 icons_loaded;
 
     PFN_menu_callback callback;
 
@@ -47,6 +45,7 @@ INTERNAL_FUNC bool begin_menubar(const ImRect& barRectangle);
 INTERNAL_FUNC void end_menubar();
 
 // Internal functions
+INTERNAL_FUNC b8 load_ui_image(const char* image_name, UI_Image_Resource* image_resource);
 INTERNAL_FUNC void draw_titlebar_background();
 INTERNAL_FUNC void draw_titlebar_gradient();
 INTERNAL_FUNC void draw_titlebar_logo();
@@ -64,108 +63,57 @@ INTERNAL_FUNC b8 draw_titlebar_image_button(UI_Image_Resource* image_resource,
     ImVec2 pos,
     ImVec2 size);
 
-b8 ui_titlebar_initialize(PFN_menu_callback callback, const char* app_name) {
-    CORE_DEBUG("Initializing custom titlebar...");
-
-    if (state.is_initialized) {
-        CORE_WARN("Titlebar already initialized");
-        return true;
-    }
-
-    // Initialize with defaults
+// Setup titlebar with configuration
+void ui_titlebar_setup(PFN_menu_callback callback, const char* app_name) {
+    // Setup configuration
     state.title_text = app_name;
-    state.is_initialized = true;
     state.callback = callback;
 
-    // Dockspace menubar is disabled by default, so titlebar menus take
-    // precedence
-
-    // Load icons using resource manager
+    // Load icons using image loader and renderer directly
     b8 icons_success = true;
-    icons_success &= resource_load_image("prometheus_icon", &state.app_icon);
-    icons_success &= resource_load_image("window_minimize", &state.minimize_icon);
-    icons_success &= resource_load_image("window_maximize", &state.maximize_icon);
-    icons_success &= resource_load_image("window_restore", &state.restore_icon);
-    icons_success &= resource_load_image("window_close", &state.close_icon);
+    icons_success &= load_ui_image("prometheus_icon", &state.app_icon);
+    icons_success &= load_ui_image("window_minimize", &state.minimize_icon);
+    icons_success &= load_ui_image("window_maximize", &state.maximize_icon);
+    icons_success &= load_ui_image("window_restore", &state.restore_icon);
+    icons_success &= load_ui_image("window_close", &state.close_icon);
 
     if (icons_success) {
         CORE_INFO("All titlebar icons loaded successfully");
     } else {
         CORE_WARN("Some titlebar icons failed to load, using fallback text");
     }
-
-    state.icons_loaded = true;
-
-    return true;
 }
 
-void ui_titlebar_cleanup_vulkan_resources() {
-    CORE_DEBUG("Cleaning up titlebar GPU resources...");
-    // Clean up GPU image resources
-    // This is called from the renderer before ImGui/Vulkan backend shutdown
-    if (state.icons_loaded) {
-        // Clean up UI image resources
-        if (state.app_icon) {
-            resource_free_image(state.app_icon);
-            state.app_icon = nullptr;
-        }
+void ui_titlebar_cleanup_renderer_resources() {
+    CORE_DEBUG("Cleaning up titlebar renderer resources...");
 
-        if (state.minimize_icon) {
-            resource_free_image(state.minimize_icon);
-            state.minimize_icon = nullptr;
-        }
-
-        if (state.maximize_icon) {
-            resource_free_image(state.maximize_icon);
-            state.maximize_icon = nullptr;
-        }
-
-        if (state.restore_icon) {
-            resource_free_image(state.restore_icon);
-            state.restore_icon = nullptr;
-        }
-
-        if (state.close_icon) {
-            resource_free_image(state.close_icon);
-            state.close_icon = nullptr;
-        }
-
-        // Mark icons as no longer loaded
-        state.icons_loaded = false;
+    // Clean up UI image resources directly through renderer
+    // Check if resources are valid before destroying
+    if (state.app_icon.is_valid) {
+        renderer_destroy_ui_image(&state.app_icon);
     }
-    CORE_DEBUG("Titlebar GPU resources cleanup completed");
+
+    if (state.minimize_icon.is_valid) {
+        renderer_destroy_ui_image(&state.minimize_icon);
+    }
+
+    if (state.maximize_icon.is_valid) {
+        renderer_destroy_ui_image(&state.maximize_icon);
+    }
+
+    if (state.restore_icon.is_valid) {
+        renderer_destroy_ui_image(&state.restore_icon);
+    }
+
+    if (state.close_icon.is_valid) {
+        renderer_destroy_ui_image(&state.close_icon);
+    }
+
+    CORE_DEBUG("Titlebar renderer resources cleanup completed");
 }
 
-void ui_titlebar_shutdown() {
-    CORE_DEBUG("Shutting down custom titlebar...");
-
-    if (!state.is_initialized) {
-        CORE_WARN("Titlebar not initialized");
-        return;
-    }
-
-    // Resources should already be cleaned up by
-    // ui_titlebar_cleanup_vulkan_resources() which is called from renderer
-    // shutdown. This is just a safety check.
-    if (state.icons_loaded) {
-        CORE_DEBUG(
-            "Titlebar icons were not properly cleaned up during renderer "
-            "shutdown");
-        // If we get here, the Vulkan context might be invalid, so be careful
-    }
-
-    // Reset state
-    state.is_initialized = false;
-    state.icons_loaded = false;
-
-    CORE_DEBUG("Custom titlebar shut down successfully");
-}
 
 void ui_titlebar_draw() {
-    if (!state.is_initialized) {
-        CORE_DEBUG("Titlebar not initialized, skipping render");
-        return;
-    }
 
     // Colors are now fetched directly from theme in render functions
 
@@ -224,18 +172,7 @@ INTERNAL_FUNC void draw_titlebar_background() {
 }
 
 INTERNAL_FUNC void draw_titlebar_logo() {
-    UI_Image_Resource* app_icon = state.icons_loaded ? state.app_icon : nullptr;
-    b8 icons_loaded = state.icons_loaded;
-
-    // Debug output to see what's happening
-    static b8 debug_logged = false;
-    if (!debug_logged) {
-        CORE_DEBUG(
-            "Titlebar logo debug: app_icon=%p, icons_loaded=%s",
-            (void*)app_icon,
-            icons_loaded ? "true" : "false");
-        debug_logged = true;
-    }
+    UI_Image_Resource* app_icon = state.app_icon.is_valid ? &state.app_icon : nullptr;
 
     // Fixed logo size (decoupled from titlebar height)
     f32 logo_size = 50.0f; // Fixed size for larger Prometheus icon
@@ -249,7 +186,7 @@ INTERNAL_FUNC void draw_titlebar_logo() {
 
     ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-    if (app_icon && icons_loaded && app_icon->is_valid) {
+    if (app_icon && app_icon->is_valid) {
         // Get descriptor set directly from resource
         VkDescriptorSet descriptor_set = (VkDescriptorSet)app_icon->descriptor_set;
         if (descriptor_set != VK_NULL_HANDLE) {
@@ -395,7 +332,7 @@ INTERNAL_FUNC void draw_titlebar_buttons() {
         ImVec2 close_size = ImVec2(button_size, button_size);
 
         UI_Image_Resource* close_icon =
-            state.icons_loaded ? state.close_icon : nullptr;
+            state.close_icon.is_valid ? &state.close_icon : nullptr;
         if (draw_titlebar_image_button(close_icon,
                 "×",
                 close_pos,
@@ -417,8 +354,8 @@ INTERNAL_FUNC void draw_titlebar_buttons() {
         b8 is_maximized = platform_is_window_maximized();
         UI_Image_Resource* max_icon =
             is_maximized
-                ? (state.icons_loaded ? state.restore_icon : nullptr)
-                : (state.icons_loaded ? state.maximize_icon : nullptr);
+                ? (state.restore_icon.is_valid ? &state.restore_icon : nullptr)
+                : (state.maximize_icon.is_valid ? &state.maximize_icon : nullptr);
         const char* fallback_text = is_maximized ? "🗗" : "□";
 
         if (draw_titlebar_image_button(max_icon,
@@ -445,7 +382,7 @@ INTERNAL_FUNC void draw_titlebar_buttons() {
         ImVec2 min_size = ImVec2(button_size, button_size);
 
         UI_Image_Resource* min_icon =
-            state.icons_loaded ? state.minimize_icon : nullptr;
+            state.minimize_icon.is_valid ? &state.minimize_icon : nullptr;
 
         if (draw_titlebar_image_button(min_icon, "−", min_pos, min_size)) {
 
@@ -516,7 +453,7 @@ INTERNAL_FUNC b8 draw_titlebar_image_button(UI_Image_Resource* image_resource,
         ImVec2(pos.x + size.x, pos.y + size.y),
         button_color);
 
-    if (image_resource && state.icons_loaded && image_resource->is_valid) {
+    if (image_resource && image_resource->is_valid) {
         // Get descriptor set directly from resource
         VkDescriptorSet descriptor_set = (VkDescriptorSet)image_resource->descriptor_set;
         if (descriptor_set != VK_NULL_HANDLE) {
@@ -588,9 +525,9 @@ button_fallback:
         static b8 button_debug_logged = false;
         if (!button_debug_logged) {
             CORE_DEBUG(
-                "Button fallback: image_resource=%p, icons_loaded=%s",
+                "Button fallback: image_resource=%p, valid=%s",
                 (void*)image_resource,
-                state.icons_loaded ? "true" : "false");
+                (image_resource && image_resource->is_valid) ? "true" : "false");
             button_debug_logged = true;
         }
 
@@ -790,4 +727,39 @@ INTERNAL_FUNC void handle_titlebar_hover() {
 
 b8 ui_is_titlebar_hovered() {
     return state.is_titlebar_hovered;
+}
+
+// Helper function to load UI images directly using image loader + renderer
+INTERNAL_FUNC b8 load_ui_image(const char* image_name, UI_Image_Resource* image_resource) {
+    if (!image_name || !image_resource) {
+        CORE_ERROR("Invalid parameters for image loading");
+        return false;
+    }
+
+    // Load and decode image data
+    Image_Load_Result result = image_loader_load(image_name);
+    if (!result.success) {
+        CORE_ERROR("Failed to load image '%s': %s", image_name, result.error_message);
+        return false;
+    }
+
+    // Create GPU resource through renderer using pre-allocated resource
+    b8 success = renderer_create_ui_image(
+        result.width,
+        result.height,
+        result.pixel_data,
+        result.pixel_data_size,
+        image_resource);
+
+    // Clean up decoded pixel data (renderer has copied it)
+    stbi_image_free(result.pixel_data);
+
+    if (!success) {
+        CORE_ERROR("Failed to create GPU image resource for '%s'", image_name);
+        return false;
+    }
+
+    CORE_DEBUG("Successfully loaded image resource: %s (%ux%u)",
+        image_name, result.width, result.height);
+    return true;
 }

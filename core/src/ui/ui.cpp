@@ -1,9 +1,9 @@
 #include "ui.hpp"
 #include "renderer/vulkan/vulkan_ui.hpp"
-#include "ui_dockspace.hpp"
 #include "ui_fonts.hpp"
 #include "ui_themes.hpp"
 #include "ui_titlebar.hpp"
+#include "ui_viewport.hpp"
 
 #include "core/logger.hpp"
 #include "events/events.hpp"
@@ -27,6 +27,11 @@ struct UI_State {
     // Vulkan backend initialization info (prepared in
     // ui_setup_vulkan_resources)
     ImGui_ImplVulkan_InitInfo vulkan_init_info;
+
+    // Dockspace state
+    unsigned int dockspace_id;
+    b8 dockspace_open;
+    b8 window_began; // Track if ImGui::Begin() was called this frame
 };
 
 internal_variable UI_State ui_state;
@@ -36,6 +41,7 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window);
 INTERNAL_FUNC b8 ui_event_handler(const Event* event);
 INTERNAL_FUNC ImGuiKey engine_key_to_imgui_key(Key_Code key);
 INTERNAL_FUNC int engine_mouse_to_imgui_button(Mouse_Button button);
+INTERNAL_FUNC void ui_dockspace_render();
 
 b8 ui_initialize(UI_Theme theme,
     Auto_Array<UI_Layer>* layers,
@@ -83,6 +89,11 @@ b8 ui_initialize(UI_Theme theme,
 
     ui_state.is_initialized = true;
 
+    // Initialize dockspace state
+    ui_state.dockspace_id = 0;    // Will be set on first render
+    ui_state.dockspace_open = true;
+    ui_state.window_began = false;
+
     // Initialize font system
     if (!ui_fonts_initialize()) {
         CORE_ERROR("Failed to initialize font system");
@@ -92,9 +103,13 @@ b8 ui_initialize(UI_Theme theme,
     // Load default fonts
     ui_fonts_register_defaults();
 
-    // Initialize infrastructure components
-    ui_dockspace_initialize();
-    ui_titlebar_initialize(menu_callback, app_name); // No config needed
+    // Setup ImGui docking
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    CORE_DEBUG("ImGui docking enabled");
+
+    // Setup infrastructure components
+    ui_titlebar_setup(menu_callback, app_name);
 
     // Register UI event callbacks with LOWEST priority so canvas can override
     events_register_callback(Event_Type::KEY_PRESSED,
@@ -142,22 +157,8 @@ void ui_shutdown() {
     events_unregister_callback(Event_Type::MOUSE_WHEEL_SCROLLED,
         ui_get_event_callback());
 
-    // Shutdown infrastructure components
-    ui_titlebar_shutdown();
-    CORE_DEBUG("UI titlebar shutdown complete.");
-
-    ui_dockspace_shutdown();
-    CORE_DEBUG("UI dockspace shutdown complete.");
-
-    ui_fonts_shutdown();
-    CORE_DEBUG("UI fonts shutdown complete.");
-
-    // Shutdown ImGui SDL3 backend (Vulkan backend is shut down by renderer)
-    ImGui_ImplSDL3_Shutdown();
-    CORE_DEBUG("ImGui backends shutdown complete.");
-
-    ImGui::DestroyContext();
-    CORE_DEBUG("ImGui context destroyed.");
+    // Note: All ImGui cleanup happens in ui_cleanup_vulkan_resources after Vulkan synchronization
+    CORE_DEBUG("ImGui backends and context will be destroyed by renderer during Vulkan cleanup");
 
     // Cleanup component system
     if (!ui_state.layers->empty()) {
@@ -177,9 +178,11 @@ void ui_shutdown() {
 
     // Reset state
     ui_state.is_initialized = false;
-
     ui_state.current_theme = UI_Theme::DARK;
     ui_state.menu_callback = nullptr;
+
+    // Clear any remaining ImGui state pointers to prevent access after shutdown
+    // Note: Actual ImGui context destruction happens in ui_cleanup_vulkan_resources
 
     CORE_DEBUG("UI subsystem shut down successfully");
 }
@@ -399,10 +402,22 @@ void ui_cleanup_vulkan_resources(Vulkan_Context* context) {
     CORE_DEBUG("Cleaning up UI Vulkan resources...");
 
     // Clean up all UI component Vulkan resources first
-    ui_titlebar_cleanup_vulkan_resources();
+    ui_titlebar_cleanup_renderer_resources();
+    ui_viewport_cleanup_vulkan_resources(context);
 
-    // Shutdown ImGui Vulkan backend AFTER component cleanup
+    // Shutdown ImGui backends AFTER component cleanup and Vulkan synchronization
     ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    CORE_DEBUG("ImGui backends shutdown complete after Vulkan synchronization");
+
+    // Clear backend user data manually to prevent assertion
+    ImGuiIO& io = ImGui::GetIO();
+    io.BackendRendererUserData = nullptr;
+    io.BackendPlatformUserData = nullptr;
+
+    // Destroy ImGui context after backend shutdown
+    ImGui::DestroyContext();
+    CORE_DEBUG("ImGui context destroyed after Vulkan cleanup");
 
     if (context->ui_linear_sampler) {
         vkDestroySampler(context->device.logical_device,
@@ -455,7 +470,7 @@ b8 ui_draw_components(Vulkan_Command_Buffer* command_buffer) {
 
     // Render all UI components using the component system
     // Render dockspace first - it provides the container for other windows
-    ui_dockspace_begin(&ui_state);
+    ui_dockspace_render();
 
     // Render custom titlebar if enabled
     ui_titlebar_draw();
@@ -467,9 +482,6 @@ b8 ui_draw_components(Vulkan_Command_Buffer* command_buffer) {
         if (layer->on_render)
             layer->on_render(layer->component_state);
     }
-
-    // End dockspace if it was started
-    ui_dockspace_end();
 
     // Finalize rendering and get draw data
     ImGui::Render();
@@ -729,5 +741,75 @@ INTERNAL_FUNC int engine_mouse_to_imgui_button(Mouse_Button button) {
         return 4;
     default:
         return -1;
+    }
+}
+
+// Internal dockspace rendering function
+INTERNAL_FUNC void ui_dockspace_render() {
+    // Reset the window_began flag at the start of each frame
+    ui_state.window_began = false;
+
+    // Generate dockspace ID on first use (when ImGui context is ready)
+    if (ui_state.dockspace_id == 0) {
+        ui_state.dockspace_id = ImGui::GetID("MainDockspace");
+        CORE_DEBUG("Generated dockspace ID: %u", ui_state.dockspace_id);
+    }
+
+    // Setup viewport for fullscreen dockspace
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImVec2 work_pos = viewport->WorkPos;
+    ImVec2 work_size = viewport->WorkSize;
+
+    // Adjust for custom titlebar if enabled
+    f32 titlebar_height = TITLEBAR_HEIGHT;
+    work_pos.y += titlebar_height;
+    work_size.y -= titlebar_height;
+
+    // Set up the main dockspace window
+    ImGui::SetNextWindowPos(work_pos);
+    ImGui::SetNextWindowSize(work_size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    // Configure window for fullscreen dockspace
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+    // Setup window flags for dockspace
+    ImGuiWindowFlags window_flags =
+        ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+
+    // Begin the main dockspace window
+    const char* window_name = "DockSpace";
+    ImGui::Begin(window_name, &ui_state.dockspace_open, window_flags);
+    ui_state.window_began = true;
+
+    // Pop style vars
+    ImGui::PopStyleVar(3);
+
+    // Create the dockspace
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+        // Set minimum window size for better docking experience
+        ImGuiStyle& style = ImGui::GetStyle();
+        float minWinSizeX = style.WindowMinSize.x;
+        style.WindowMinSize.x = 300.0f;
+
+        // Create dockspace
+        ImGui::DockSpace(ui_state.dockspace_id);
+
+        // Restore original window size
+        style.WindowMinSize.x = minWinSizeX;
+    } else {
+        CORE_ERROR("ImGui docking is not enabled!");
+    }
+
+    // End the dockspace window
+    if (ui_state.window_began) {
+        ImGui::End(); // End DockSpace window
+        ui_state.window_began = false;
     }
 }

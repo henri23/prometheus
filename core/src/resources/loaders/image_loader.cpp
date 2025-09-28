@@ -38,14 +38,6 @@ INTERNAL_FUNC const Embedded_Image_Asset* find_image_asset(const char* name) {
     return nullptr;
 }
 
-b8 image_loader_initialize() {
-    CORE_DEBUG("Image loader initialized");
-    return true;
-}
-
-void image_loader_shutdown() {
-    CORE_DEBUG("Image loader shut down");
-}
 
 Image_Load_Result image_loader_load(const char* image_name) {
     Image_Load_Result result = {};

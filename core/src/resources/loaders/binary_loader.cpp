@@ -34,14 +34,6 @@ INTERNAL_FUNC const Embedded_Binary_Asset* find_binary_asset(const char* name) {
     return nullptr;
 }
 
-b8 binary_loader_initialize() {
-    CORE_DEBUG("Binary loader initialized");
-    return true;
-}
-
-void binary_loader_shutdown() {
-    CORE_DEBUG("Binary loader shut down");
-}
 
 const u8* binary_loader_get_data(const char* asset_name, u64* out_size) {
     RUNTIME_ASSERT_MSG(asset_name, "Asset name cannot be null");

@@ -42,11 +42,6 @@ enum class UI_Font_Style {
 PROMETHEUS_API b8 ui_fonts_initialize();
 
 /**
- * Shutdown the font management system
- */
-PROMETHEUS_API void ui_fonts_shutdown();
-
-/**
  * Register an embedded font
  * @param name - unique font identifier
  * @param family - font family name

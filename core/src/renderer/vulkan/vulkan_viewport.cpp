@@ -5,7 +5,6 @@
 #include "vulkan_framebuffer.hpp"
 #include "vulkan_image.hpp"
 #include "vulkan_renderpass.hpp"
-#include "vulkan_sampler.hpp"
 #include <cmath>
 
 // Size tolerance for resize optimization (avoid micro-resizes during window
@@ -33,12 +32,16 @@ void vulkan_viewport_shutdown(Vulkan_Context* context) {
     CORE_DEBUG("Shutting down viewport rendering system...");
 
     // Destroy main renderer resources
-    if (context->main_target.descriptor_set != VK_NULL_HANDLE) {
-        ImGui_ImplVulkan_RemoveTexture(context->main_target.descriptor_set);
-        context->main_target.descriptor_set = VK_NULL_HANDLE;
+    // Note: Descriptor set cleanup is now handled by UI layer
+    // Destroy sampler
+    if (context->main_target.sampler != VK_NULL_HANDLE) {
+        vkDestroySampler(
+            context->device.logical_device,
+            context->main_target.sampler,
+            context->allocator);
+        CORE_DEBUG("Sampler destroyed");
+        context->main_target.sampler = VK_NULL_HANDLE;
     }
-
-    vulkan_sampler_destroy(context, context->main_target.sampler);
     vulkan_framebuffer_destroy(context, &context->main_target.framebuffer);
     vulkan_image_destroy(context, &context->main_target.color_attachment);
     vulkan_image_destroy(context, &context->main_target.depth_attachment);
@@ -130,7 +133,15 @@ void vulkan_viewport_resize(Vulkan_Context* context, u32 width, u32 height) {
         context->main_target.descriptor_set = VK_NULL_HANDLE;
     }
 
-    vulkan_sampler_destroy(context, context->main_target.sampler);
+    // Destroy sampler
+    if (context->main_target.sampler != VK_NULL_HANDLE) {
+        vkDestroySampler(
+            context->device.logical_device,
+            context->main_target.sampler,
+            context->allocator);
+        CORE_DEBUG("Sampler destroyed");
+        context->main_target.sampler = VK_NULL_HANDLE;
+    }
     vulkan_framebuffer_destroy(context, &context->main_target.framebuffer);
     vulkan_image_destroy(context, &context->main_target.color_attachment);
     vulkan_image_destroy(context, &context->main_target.depth_attachment);
@@ -172,7 +183,26 @@ void vulkan_viewport_resize(Vulkan_Context* context, u32 width, u32 height) {
         attachments_views,
         &context->main_target.framebuffer);
 
-    vulkan_sampler_create_linear(context, &context->main_target.sampler);
+    // Create linear sampler for main render target
+    VkSamplerCreateInfo sampler_info = {};
+    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_info.magFilter = VK_FILTER_LINEAR;
+    sampler_info.minFilter = VK_FILTER_LINEAR;
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_info.minLod = 0.0f;
+    sampler_info.maxLod = 1.0f;
+    sampler_info.maxAnisotropy = 1.0f;
+
+    VK_CHECK(vkCreateSampler(
+        context->device.logical_device,
+        &sampler_info,
+        context->allocator,
+        &context->main_target.sampler));
+
+    CORE_DEBUG("Linear sampler created successfully");
 
     context->main_target.width = width;
     context->main_target.height = height;

@@ -35,6 +35,9 @@ PROMETHEUS_API b8 ui_viewport_initialize();
 // Shutdown viewport layer
 PROMETHEUS_API void ui_viewport_shutdown();
 
+// Clean up viewport Vulkan resources (descriptor sets, etc.)
+PROMETHEUS_API void ui_viewport_cleanup_vulkan_resources(struct Vulkan_Context* context);
+
 // Draw the viewport (called from UI layer)
 PROMETHEUS_API void ui_viewport_draw(void* component_state);
 

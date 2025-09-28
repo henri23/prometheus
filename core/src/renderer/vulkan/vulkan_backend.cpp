@@ -9,14 +9,12 @@
 #include "vulkan_image.hpp"
 #include "vulkan_platform.hpp"
 #include "vulkan_renderpass.hpp"
-#include "vulkan_sampler.hpp"
 #include "vulkan_swapchain.hpp"
 #include "vulkan_types.hpp"
 #include "vulkan_utils.hpp"
 
 #include "containers/auto_array.hpp"
 
-#include "imgui_impl_vulkan.h"
 #include "vulkan_ui.hpp"
 
 #include "shaders/vulkan_object_shader.hpp"
@@ -43,7 +41,7 @@ INTERNAL_FUNC b8 vulkan_enable_validation_layers(
 INTERNAL_FUNC s32 find_memory_index(u32 type_filter, u32 property_flags);
 
 // Graphics presentation operations
-INTERNAL_FUNC void create_command_buffers(Renderer_Backend* backend);
+INTERNAL_FUNC void create_ui_command_buffers(Renderer_Backend* backend);
 INTERNAL_FUNC void create_main_command_buffers(Vulkan_Context* context);
 INTERNAL_FUNC void create_framebuffers(Renderer_Backend* backend,
     Vulkan_Swapchain* swapchain,
@@ -233,7 +231,7 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
 
     create_framebuffers(backend, &context.swapchain, &context.ui_renderpass, Renderpass_Type::UI);
 
-    create_command_buffers(backend);
+    create_ui_command_buffers(backend);
 
     // Create main renderer command buffers
     create_main_command_buffers(&context);
@@ -332,8 +330,26 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
         attachments_views,
         &context.main_target.framebuffer);
 
-    // Create sampler for main render target
-    vulkan_sampler_create_linear(&context, &context.main_target.sampler);
+    // Create linear sampler for main render target
+    VkSamplerCreateInfo sampler_info = {};
+    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_info.magFilter = VK_FILTER_LINEAR;
+    sampler_info.minFilter = VK_FILTER_LINEAR;
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_info.minLod = 0.0f;
+    sampler_info.maxLod = 1.0f;
+    sampler_info.maxAnisotropy = 1.0f;
+
+    VK_CHECK(vkCreateSampler(
+        context.device.logical_device,
+        &sampler_info,
+        context.allocator,
+        &context.main_target.sampler));
+
+    CORE_DEBUG("Linear sampler created successfully");
 
     // Initialize render target fields
     context.main_target.width = default_width;
@@ -372,29 +388,19 @@ void vulkan_shutdown(Renderer_Backend* backend) {
         context.device.graphics_command_pool,
         0);
 
-    // Clean up viewport descriptor set BEFORE ImGui shutdown
-    if (context.main_target.descriptor_set != VK_NULL_HANDLE) {
-        ImGui_ImplVulkan_RemoveTexture(
-            context.main_target.descriptor_set);
-        context.main_target.descriptor_set = VK_NULL_HANDLE;
-        CORE_DEBUG("Viewport descriptor set cleaned up early");
-    }
-
     // Wait for device to finish all operations before cleanup
     CORE_DEBUG("Waiting for device to finish operations before UI cleanup...");
     vkDeviceWaitIdle(context.device.logical_device);
 
-    // Cleanup UI Vulkan resources (includes ImGui shutdown and component cleanup)
+    // Cleanup UI Vulkan resources using new interface (includes ImGui shutdown and all UI component cleanup)
     ui_cleanup_vulkan_resources(&context);
 
-    // Destroy main render target resources
-    if (context.main_target.descriptor_set != VK_NULL_HANDLE) {
-        ImGui_ImplVulkan_RemoveTexture(context.main_target.descriptor_set);
-        context.main_target.descriptor_set = VK_NULL_HANDLE;
-    }
-
     if (context.main_target.sampler != VK_NULL_HANDLE) {
-        vulkan_sampler_destroy(&context, context.main_target.sampler);
+        vkDestroySampler(
+            context.device.logical_device,
+            context.main_target.sampler,
+            context.allocator);
+        CORE_DEBUG("Sampler destroyed");
         context.main_target.sampler = VK_NULL_HANDLE;
     }
 
@@ -836,7 +842,7 @@ s32 find_memory_index(u32 type_filter, u32 requested_property_flags) {
     return -1;
 }
 
-void create_command_buffers(Renderer_Backend* backend) {
+void create_ui_command_buffers(Renderer_Backend* backend) {
     // For each of our swapchain images, we need to create a command buffer,
     // since the images can be handled asynchronously, so while presenting one
     // image we can draw to the other
@@ -1030,7 +1036,7 @@ b8 recreate_swapchain(Renderer_Backend* backend, b8 is_resized_event) {
 
     create_framebuffers(backend, &context.swapchain, &context.ui_renderpass, Renderpass_Type::UI);
 
-    create_command_buffers(backend);
+    create_ui_command_buffers(backend);
 
     // Recreate main renderer command buffers
     create_main_command_buffers(&context);
@@ -1099,7 +1105,6 @@ b8 present_frame(Renderer_Backend* backend) {
 
     return true;
 }
-
 
 VkDescriptorSet vulkan_get_main_texture() {
     return vulkan_viewport_get_texture(&context);

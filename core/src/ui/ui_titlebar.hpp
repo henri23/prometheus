@@ -15,23 +15,17 @@ const f32 TITLEBAR_HEIGHT = 58.0f;
  */
 
 /**
- * Initialize the custom titlebar system
- * @return true if successful, false otherwise
+ * Setup the custom titlebar with configuration and load icons
  */
-PROMETHEUS_API b8 ui_titlebar_initialize(
+PROMETHEUS_API void ui_titlebar_setup(
 	PFN_menu_callback callback,
 	const char* app_name);
 
 /**
- * Clean up Vulkan resources before ImGui backend shutdown
+ * Clean up renderer resources before backend shutdown
  * Called by renderer to prevent crashes during shutdown
  */
-PROMETHEUS_API void ui_titlebar_cleanup_vulkan_resources();
-
-/**
- * Shutdown the custom titlebar system
- */
-PROMETHEUS_API void ui_titlebar_shutdown();
+PROMETHEUS_API void ui_titlebar_cleanup_renderer_resources();
 
 /**
  * Draw the custom titlebar

@@ -61,11 +61,11 @@ b8 platform_startup(Platform_State* state,
     CORE_DEBUG("Window created successfully");
 
     // Enable native window dragging and resizing for borderless window
-    int hit_test_result = SDL_SetWindowHitTest(state_ptr->window,
+    bool hit_test_result = SDL_SetWindowHitTest(state_ptr->window,
         platform_hit_test_callback,
         nullptr);
 
-    if (hit_test_result == 0) {
+    if (hit_test_result) {
         CORE_DEBUG("SDL hit test callback registered successfully");
     } else {
         CORE_ERROR("Failed to register SDL hit test callback: %s", SDL_GetError());

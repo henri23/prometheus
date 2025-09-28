@@ -1,6 +1,5 @@
 #include "application.hpp"
 
-#include "resources/resource_manager.hpp"
 #include "client_types.hpp"
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
@@ -110,11 +109,6 @@ b8 application_init(Client* client_state) {
 
     if (!renderer_startup(client_state->config.name)) {
         CORE_FATAL("Failed to initialize renderer");
-        return false;
-    }
-
-    if (!resource_manager_initialize()) {
-        CORE_FATAL("Failed to initialize resource system");
         return false;
     }
 
@@ -241,14 +235,11 @@ void application_shutdown() {
         CORE_DEBUG("Client shutdown complete.");
     }
 
-    CORE_DEBUG("Shutting down resource manager...");
-    resource_manager_shutdown();
+    CORE_DEBUG("Shutting down UI subsystem...");
+    ui_shutdown();
 
     CORE_DEBUG("Shutting down renderer subsystem...");
     renderer_shutdown();
-
-    CORE_DEBUG("Shutting down UI subsystem...");
-    ui_shutdown();
 
     CORE_DEBUG("Shutting down input and event subsystems...");
     input_shutdown();

@@ -2,7 +2,9 @@
 #include "core/logger.hpp"
 #include "defines.hpp"
 #include "imgui.h"
+#include "imgui_impl_vulkan.h"
 #include "renderer/vulkan/vulkan_backend.hpp"
+#include "renderer/vulkan/vulkan_types.hpp"
 #include <cmath>
 
 // Global viewport state
@@ -38,6 +40,17 @@ b8 ui_viewport_initialize() {
 void ui_viewport_shutdown() {
     CORE_DEBUG("Shutting down viewport layer...");
     // Nothing to clean up for now
+}
+
+void ui_viewport_cleanup_vulkan_resources(Vulkan_Context* context) {
+    CORE_DEBUG("Cleaning up viewport Vulkan resources...");
+
+    // Clean up viewport descriptor set
+    if (context && context->main_target.descriptor_set != VK_NULL_HANDLE) {
+        ImGui_ImplVulkan_RemoveTexture(context->main_target.descriptor_set);
+        context->main_target.descriptor_set = VK_NULL_HANDLE;
+        CORE_DEBUG("Viewport descriptor set cleaned up");
+    }
 }
 
 void ui_viewport_draw(void* component_state) {

@@ -4,7 +4,7 @@
 
 /**
  * Image Asset Loader
- * Handles loading and decoding of image assets using STB
+ * Stateless utility for loading and decoding image assets using STB
  * Provides decoded pixel data for GPU resource creation
  */
 
@@ -18,12 +18,6 @@ struct Image_Load_Result {
     b8 success;
     const char* error_message;
 };
-
-// Initialize image loader
-b8 image_loader_initialize();
-
-// Shutdown image loader
-void image_loader_shutdown();
 
 // Load and decode image asset
 Image_Load_Result image_loader_load(const char* image_name);
