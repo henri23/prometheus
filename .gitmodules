@@ -8,3 +8,6 @@
 [submodule "external/spdlog"]
 	path = external/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "external/cglm"]
+	path = external/cglm
+	url = https://github.com/recp/cglm

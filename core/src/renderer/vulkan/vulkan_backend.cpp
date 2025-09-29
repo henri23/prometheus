@@ -20,7 +20,7 @@
 #include "shaders/vulkan_object_shader.hpp"
 #include "vulkan_viewport.hpp"
 
-#include <cstring>
+#include "core/string.hpp"
 
 internal_variable Vulkan_Context context;
 internal_variable u32 cached_framebuffer_width = 0;
@@ -721,7 +721,7 @@ b8 vulkan_enable_validation_layers(
 
         b8 found = false;
         for (u32 j = 0; j < available_layer_count; ++j) {
-            if (strcmp(required_layers_array->data[i],
+            if (string_check_equal(required_layers_array->data[i],
                     available_layers_array[j].layerName)) {
                 found = true;
                 CORE_INFO("Found.");

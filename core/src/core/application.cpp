@@ -1,6 +1,7 @@
 #include "application.hpp"
 
 #include "client_types.hpp"
+#include "core/absolute_clock.hpp"
 #include "core/asserts.hpp"
 #include "core/logger.hpp"
 #include "events/events.hpp"
@@ -20,7 +21,9 @@ struct Internal_App_State {
     b8 is_suspended;
     u16 width;
     u16 height;
+
     Platform_State plat_state;
+    Absolute_Clock clock;
 };
 
 // Internal pointer to application state for easy access
@@ -151,6 +154,9 @@ void application_run() {
 
     internal_state->is_running = true;
 
+    absolute_clock_start(&internal_state->clock);
+    absolute_clock_update(&internal_state->clock);
+
     // Call client initialize if provided
     if (internal_state->client->initialize) {
         if (!internal_state->client->initialize(internal_state->client)) {
@@ -160,20 +166,23 @@ void application_run() {
     }
 
     // Frame rate limiting variables
-    f64 frame_start_time = platform_get_absolute_time();
+    f64 last_time = internal_state->clock.elapsed_time;
 
     while (internal_state->is_running) {
-        f64 current_time = platform_get_absolute_time();
-        f64 delta_time = current_time - frame_start_time;
-        frame_start_time = current_time;
 
         // Process platform events (will forward to UI via callback)
         if (!platform_message_pump()) {
             internal_state->is_running = false;
         }
 
-        // Call client update if provided
+        // Frame
         if (!internal_state->is_suspended) {
+
+            absolute_clock_update(&internal_state->clock);
+            f64 current_time = internal_state->clock.elapsed_time;
+            f64 delta_time = current_time - last_time;
+
+			f64 frame_start_time = platform_get_absolute_time();
 
             if (internal_state->client->update) {
                 if (!internal_state->client->update(internal_state->client,
@@ -213,6 +222,8 @@ void application_run() {
 
             // Update input state each frame
             input_update();
+			
+			last_time = current_time;
         }
     }
 

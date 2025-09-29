@@ -2,18 +2,30 @@
 
 # Usage function
 show_usage() {
-    echo "Usage: $0 [--dynamic]"
-    echo "  --dynamic    Build with dynamic linking (DLL)"
-    echo "  (default)    Build with static linking (single executable)"
+    echo "Usage: $0 [--dynamic] [--skip-tests] [--asan]"
+    echo "  --dynamic      Build with dynamic linking (DLL)"
+    echo "  --skip-tests   Skip building and running tests"
+    echo "  --asan         Enable AddressSanitizer for debugging"
+    echo "  (default)      Build with static linking and run tests"
     exit 1
 }
 
 # Parse command line arguments
 LINKING_MODE="STATIC"
+RUN_TESTS=true
+USE_ASAN=false
 for arg in "$@"; do
     case $arg in
         --dynamic)
             LINKING_MODE="DYNAMIC"
+            shift
+            ;;
+        --skip-tests)
+            RUN_TESTS=false
+            shift
+            ;;
+        --asan)
+            USE_ASAN=true
             shift
             ;;
         --help|-h)
@@ -128,6 +140,15 @@ else
     LIBRARIES_DESC="Core, SDL3 → shared | spdlog, ImGui → static"
 fi
 
+# Set AddressSanitizer flags
+if [ "$USE_ASAN" = true ]; then
+    CMAKE_SANITIZER_FLAGS="-DCMAKE_CXX_FLAGS=-fsanitize=address -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address"
+    ASAN_DESC="Enabled (debugging mode)"
+else
+    CMAKE_SANITIZER_FLAGS=""
+    ASAN_DESC="Disabled"
+fi
+
 # Run CMake with Ninja generator and Clang++
 print_status "step" "Configuring project with CMake..."
 echo -e "${BLUE}${ARROW} Generator:${NC} Ninja"
@@ -135,6 +156,10 @@ echo -e "${BLUE}${ARROW} Compiler:${NC} clang++"
 echo -e "${BLUE}${ARROW} Build Type:${NC} Debug"
 echo -e "${BLUE}${ARROW} Linking Mode:${NC} $LINKING_DESC"
 echo -e "${BLUE}${ARROW} Libraries:${NC} $LIBRARIES_DESC"
+echo -e "${BLUE}${ARROW} AddressSanitizer:${NC} $ASAN_DESC"
+if [ "$USE_ASAN" = true ]; then
+    echo -e "${YELLOW}${ARROW} Warning:${NC} Performance will be significantly reduced"
+fi
 echo
 
 if time cmake -G Ninja \
@@ -143,6 +168,7 @@ if time cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=Debug \
 	-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     $CMAKE_LINKING_FLAG \
+    $CMAKE_SANITIZER_FLAGS \
     -B bin \
     .; then
     print_status "success" "CMake configuration completed"
@@ -222,6 +248,62 @@ else
     exit 1
 fi
 echo
+
+# Test building and running
+if [ "$RUN_TESTS" = true ]; then
+    print_status "step" "Building prometheus tests..."
+    echo -e "${BLUE}${ARROW} Target:${NC} prometheus_tests"
+    echo
+
+    if time ninja prometheus_tests; then
+        print_status "success" "Test build completed successfully"
+    else
+        print_status "error" "Test build failed with exit code $?"
+        exit 1
+    fi
+    echo
+
+    print_status "step" "Running prometheus tests..."
+
+    echo
+    echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}${BOLD}║               ${YELLOW}RUNNING TESTS...${CYAN}               ║${NC}"
+    echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${NC}"
+    echo
+
+    test_start_time=$(date +%s%3N)
+
+    if ./tests/prometheus_tests; then
+        test_end_time=$(date +%s%3N)
+        test_time=$(expr $test_end_time - $test_start_time)
+
+        # Convert test time to readable format
+        if [ $test_time -gt 1000 ]; then
+            test_seconds=$((test_time / 1000))
+            test_ms=$((test_time % 1000))
+            test_time_str="${test_seconds}.${test_ms}s"
+        else
+            test_time_str="${test_time}ms"
+        fi
+
+        print_status "success" "All tests passed in $test_time_str"
+
+        echo
+        echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${NC}"
+        echo -e "${CYAN}${BOLD}║               ${GREEN}TESTS COMPLETED!${CYAN}               ║${NC}"
+        echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${NC}"
+        echo
+    else
+        TEST_EXIT_CODE=$?
+        print_status "error" "Tests failed with exit code $TEST_EXIT_CODE"
+        print_status "error" "Aborting build due to test failure"
+        exit 1
+    fi
+    echo
+else
+    print_status "warning" "Skipping tests as requested"
+    echo
+fi
 
 # echo "=============================================="
 # echo "[BUILDER]: Compiling shaders..."

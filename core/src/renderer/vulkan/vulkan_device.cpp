@@ -4,7 +4,7 @@
 #include "core/logger.hpp"
 #include "memory/memory.hpp"
 #include "renderer/vulkan/vulkan_types.hpp"
-#include <cstring>
+#include "core/string.hpp"
 
 struct Device_Queue_Indices {
     u32 graphics_family_index;
@@ -522,9 +522,8 @@ b8 is_device_suitable(VkPhysicalDevice device,
                 b8 found = false;
 
                 for (u32 j = 0; j < available_extensions_count; ++j) {
-                    if (strcmp(extension_properties[j].extensionName,
-                            requirements->device_extension_names->data[i]) ==
-                        0) {
+                    if (string_check_equal(extension_properties[j].extensionName,
+                            requirements->device_extension_names->data[i])) {
                         found = true;
                         break;
                     }

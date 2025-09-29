@@ -2,6 +2,7 @@
 #include "vulkan_image.hpp"
 #include "vulkan_command_buffer.hpp"
 #include "core/logger.hpp"
+#include "memory/memory.hpp"
 #include "imgui_impl_vulkan.h"
 
 void vulkan_ui_image_create(
@@ -90,7 +91,7 @@ void vulkan_ui_image_create(
             pixel_data_size,
             0,
             &data);
-        memcpy(data, pixel_data, pixel_data_size);
+        memory_copy(data, pixel_data, pixel_data_size);
         vkUnmapMemory(context->device.logical_device, staging_buffer_memory);
 
         // Transition image layout for transfer destination
