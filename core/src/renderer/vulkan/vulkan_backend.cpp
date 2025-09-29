@@ -278,10 +278,10 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
 
     // Create builtin shaders
     // TODO: Temporarily disabled shader loading
-    // if (!vulkan_object_shader_create(&context, &context.object_shader)) {
-    //     CORE_ERROR("Error loading built-in object shader");
-    //     return false;
-    // }
+    if (!vulkan_object_shader_create(&context, &context.object_shader)) {
+        CORE_ERROR("Error loading built-in object shader");
+        return false;
+    }
 
     // Initialize UI Vulkan resources using new interface
     if (!ui_setup_vulkan_resources(&context)) {
