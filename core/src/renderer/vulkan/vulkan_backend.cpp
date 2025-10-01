@@ -2,6 +2,7 @@
 
 #include "platform/platform.hpp"
 #include "renderer/renderer_types.hpp"
+#include "vulkan_buffer.hpp"
 #include "vulkan_command_buffer.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_fence.hpp"
@@ -21,6 +22,7 @@
 #include "vulkan_viewport.hpp"
 
 #include "core/string.hpp"
+#include "math/math_types.hpp"
 
 internal_variable Vulkan_Context context;
 internal_variable u32 cached_framebuffer_width = 0;
@@ -40,6 +42,7 @@ INTERNAL_FUNC b8 vulkan_enable_validation_layers(
 
 // Needed for z-buffer image format selection in vulkan_device
 INTERNAL_FUNC s32 find_memory_index(u32 type_filter, u32 property_flags);
+INTERNAL_FUNC b8 create_buffers(Vulkan_Context* context);
 
 // Graphics presentation operations
 INTERNAL_FUNC void create_ui_command_buffers(Renderer_Backend* backend);
@@ -51,7 +54,6 @@ INTERNAL_FUNC void create_framebuffers(Renderer_Backend* backend,
 INTERNAL_FUNC b8 present_frame(Renderer_Backend* backend);
 INTERNAL_FUNC b8 get_next_image_index(Renderer_Backend* backend);
 
-
 // The recreate_swapchain function is called both when a window resize event
 // has ocurred and was published by the platform layer, or when a graphics ops.
 // (i.e. present or get_next_image_index) finished with a non-optimal result
@@ -61,6 +63,42 @@ INTERNAL_FUNC b8 get_next_image_index(Renderer_Backend* backend);
 // occur.
 INTERNAL_FUNC b8 recreate_swapchain(Renderer_Backend* backend,
     b8 is_resized_event);
+
+// TODO: Temporary. Will move later
+INTERNAL_FUNC void upload_data_range(Vulkan_Context* context,
+    VkCommandPool pool,
+    VkFence fence,
+    VkQueue queue,
+    Vulkan_Buffer* buffer,
+    u64 offset,
+    u64 size,
+    void* data) {
+
+    VkBufferUsageFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    Vulkan_Buffer staging;
+
+    vulkan_buffer_create(context,
+        size,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        flags,
+        true,
+        &staging);
+
+    vulkan_buffer_load_data(context, &staging, 0, size, 0, data);
+
+    vulkan_buffer_copy_to(context,
+        pool,
+        fence,
+        queue,
+        staging.handle,
+        0,
+        buffer->handle,
+        offset,
+        size);
+
+    vulkan_buffer_destroy(context, &staging);
+}
 
 b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
 
@@ -208,9 +246,9 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
         0,
         default_width,
         default_height,
-        0.15f,
-        0.15f,
-        0.15f,
+        0.11f,  // dark catppuccin mocha base color #1e1e2e
+        0.11f,
+        0.18f,
         1.0f,
         1.0f,
         0);
@@ -232,7 +270,10 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     // Allocate the framebuffers
     context.swapchain.framebuffers.resize(context.swapchain.image_count);
 
-    create_framebuffers(backend, &context.swapchain, &context.ui_renderpass, Renderpass_Type::UI);
+    create_framebuffers(backend,
+        &context.swapchain,
+        &context.ui_renderpass,
+        Renderpass_Type::UI);
 
     create_ui_command_buffers(backend);
 
@@ -277,7 +318,6 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     }
 
     // Create builtin shaders
-    // TODO: Temporarily disabled shader loading
     if (!vulkan_object_shader_create(&context, &context.object_shader)) {
         CORE_ERROR("Error loading built-in object shader");
         return false;
@@ -289,11 +329,51 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
         return false;
     }
 
+    create_buffers(&context);
+    CORE_INFO("Vulkan buffers created.");
+
+    // TODO: Temp code. Will remove later
+    constexpr u32 vert_count = 3;
+    vertex_3d verts[vert_count];
+    memory_zero(verts, sizeof(vertex_3d) * vert_count);
+
+    verts[0].position[0] = 0.0f;
+    verts[0].position[1] = 0.8f;
+    verts[0].position[2] = 0.0f;
+
+    verts[1].position[0] = -0.8f;
+    verts[1].position[1] = -0.8f;
+    verts[1].position[2] = 0.0f;
+
+    verts[2].position[0] = 0.8f;
+    verts[2].position[1] = -0.8f;
+    verts[2].position[2] = 0.0f;
+
+    constexpr u32 index_count = 3;
+    u32 indices[index_count] = {0, 1, 2};
+
+    upload_data_range(&context,
+        context.device.graphics_command_pool,
+        0,
+        context.device.graphics_queue,
+        &context.object_vertex_buffer,
+        0,
+        sizeof(vertex_3d) * vert_count,
+        verts);
+
+    upload_data_range(&context,
+        context.device.graphics_command_pool,
+        0,
+        context.device.graphics_queue,
+        &context.object_index_buffer,
+        0,
+        sizeof(u32) * index_count,
+        indices);
+
     // Initialize main render target (off-screen rendering)
 
     // Create color attachment for main render target
-    vulkan_image_create(
-        &context,
+    vulkan_image_create(&context,
         VK_IMAGE_TYPE_2D,
         default_width,
         default_height,
@@ -306,8 +386,7 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
         &context.main_target.color_attachment);
 
     // Create depth attachment for main render target
-    vulkan_image_create(
-        &context,
+    vulkan_image_create(&context,
         VK_IMAGE_TYPE_2D,
         default_width,
         default_height,
@@ -322,8 +401,7 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     // Create framebuffer for main render target
     VkImageView attachments_views[] = {
         context.main_target.color_attachment.view,
-        context.main_target.depth_attachment.view
-    };
+        context.main_target.depth_attachment.view};
 
     vulkan_framebuffer_create(&context,
         &context.main_renderpass,
@@ -346,8 +424,7 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     sampler_info.maxLod = 1.0f;
     sampler_info.maxAnisotropy = 1.0f;
 
-    VK_CHECK(vkCreateSampler(
-        context.device.logical_device,
+    VK_CHECK(vkCreateSampler(context.device.logical_device,
         &sampler_info,
         context.allocator,
         &context.main_target.sampler));
@@ -362,8 +439,7 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     context.main_target.descriptor_set = VK_NULL_HANDLE;
 
     // Transition color attachment to shader read-only layout
-    vulkan_image_transition_layout(
-        &context,
+    vulkan_image_transition_layout(&context,
         context.main_target.color_attachment.handle,
         VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED,
@@ -395,12 +471,12 @@ void vulkan_shutdown(Renderer_Backend* backend) {
     CORE_DEBUG("Waiting for device to finish operations before UI cleanup...");
     vkDeviceWaitIdle(context.device.logical_device);
 
-    // Cleanup UI Vulkan resources using new interface (includes ImGui shutdown and all UI component cleanup)
+    // Cleanup UI Vulkan resources using new interface (includes ImGui shutdown
+    // and all UI component cleanup)
     ui_cleanup_vulkan_resources(&context);
 
     if (context.main_target.sampler != VK_NULL_HANDLE) {
-        vkDestroySampler(
-            context.device.logical_device,
+        vkDestroySampler(context.device.logical_device,
             context.main_target.sampler,
             context.allocator);
         CORE_DEBUG("Sampler destroyed");
@@ -412,9 +488,11 @@ void vulkan_shutdown(Renderer_Backend* backend) {
     vulkan_image_destroy(&context, &context.main_target.color_attachment);
     vulkan_image_destroy(&context, &context.main_target.depth_attachment);
 
+    vulkan_buffer_destroy(&context, &context.object_vertex_buffer);
+    vulkan_buffer_destroy(&context, &context.object_index_buffer);
+
     // Destroy shader modules
-    // TODO: Temporarily disabled shader cleanup
-    // vulkan_object_shader_destroy(&context, &context.object_shader);
+    vulkan_object_shader_destroy(&context, &context.object_shader);
 
     // Destroy sync objects
     for (u8 i = 0; i < context.swapchain.max_in_flight_frames; ++i) {
@@ -436,7 +514,8 @@ void vulkan_shutdown(Renderer_Backend* backend) {
         context.ui_graphics_command_buffers[i].handle = nullptr;
     }
 
-    // Clear main renderer command buffer handles (already invalidated by pool reset)
+    // Clear main renderer command buffer handles (already invalidated by pool
+    // reset)
     for (u32 i = 0; i < context.swapchain.max_in_flight_frames; ++i) {
         context.main_command_buffers[i].handle = nullptr;
     }
@@ -613,9 +692,9 @@ b8 vulkan_frame_present(Renderer_Backend* backend, f32 delta_t) {
         &context.ui_graphics_command_buffers[context.image_index];
 
     // Render UI components using new interface
-    if(!ui_draw_components(ui_cmd_buffer)) {
-		return false;
-	}
+    if (!ui_draw_components(ui_cmd_buffer)) {
+        return false;
+    }
 
     // End the renderpass
     vulkan_renderpass_end(ui_cmd_buffer, &context.ui_renderpass);
@@ -677,7 +756,7 @@ b8 vulkan_frame_present(Renderer_Backend* backend, f32 delta_t) {
             context.in_flight_fences[context.current_frame].handle);
 
     if (result != VK_SUCCESS) {
-        CORE_ERROR("vkQueueSubmit failed with result: '%s'",
+        CORE_ERROR("vkQueueSubmit for ui failed with result: '%s'",
             vulkan_result_string(result, true));
         return false;
     }
@@ -850,7 +929,8 @@ void create_ui_command_buffers(Renderer_Backend* backend) {
     // since the images can be handled asynchronously, so while presenting one
     // image we can draw to the other
     if (!context.ui_graphics_command_buffers.data) {
-        context.ui_graphics_command_buffers.resize(context.swapchain.image_count);
+        context.ui_graphics_command_buffers.resize(
+            context.swapchain.image_count);
 
         for (u32 i = 0; i < context.swapchain.image_count; ++i) {
             memory_zero(&context.ui_graphics_command_buffers[i],
@@ -879,7 +959,8 @@ void create_ui_command_buffers(Renderer_Backend* backend) {
 
 void create_main_command_buffers(Vulkan_Context* context) {
     // Create command buffers for main renderer off-screen rendering
-    // We only need one command buffer per frame in flight for main renderer rendering
+    // We only need one command buffer per frame in flight for main renderer
+    // rendering
     if (!context->main_command_buffers.data) {
         context->main_command_buffers.resize(
             context->swapchain.max_in_flight_frames);
@@ -1037,7 +1118,10 @@ b8 recreate_swapchain(Renderer_Backend* backend, b8 is_resized_event) {
     context.ui_renderpass.x = 0;
     context.ui_renderpass.y = 0;
 
-    create_framebuffers(backend, &context.swapchain, &context.ui_renderpass, Renderpass_Type::UI);
+    create_framebuffers(backend,
+        &context.swapchain,
+        &context.ui_renderpass,
+        Renderpass_Type::UI);
 
     create_ui_command_buffers(backend);
 
@@ -1117,11 +1201,60 @@ void vulkan_resize_main_target(u32 width, u32 height) {
     vulkan_viewport_resize(&context, width, height);
 }
 
-// UI Image Management Implementation
-#include "vulkan_ui_image.hpp"
-#include "renderer/renderer_frontend.hpp"
+INTERNAL_FUNC b8 create_buffers(Vulkan_Context* context) {
 
-// Internal Vulkan UI image resource - contains both public interface and Vulkan specifics
+    // When using device local memory, it means that this memory will not be
+    // accesable from the host CPU, however we can copy from or copy to this
+    // buffer with/from other buffers. That is why the flag of TRANSFER_DST and
+    // SRC is set when creating, so that temporary buffers with the wanted data
+    // can be created, and subsequently their data can be copied into these
+    // buffers
+    VkMemoryPropertyFlagBits memory_property_flags =
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    constexpr u64 vertex_buffer_size = sizeof(vertex_3d) * 1024 * 1024; // 64mb
+
+    if (!vulkan_buffer_create(context,
+            vertex_buffer_size,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            memory_property_flags,
+            true,
+            &context->object_vertex_buffer)) {
+        CORE_ERROR("Error creating vertex buffer.");
+        return false;
+    }
+
+    context->geometry_vertex_offset = 0;
+    CORE_INFO("Created vertex buffer");
+
+    constexpr u64 index_buffer_size = sizeof(u32) * 1024 * 1024; // 64mb
+
+    if (!vulkan_buffer_create(context,
+            index_buffer_size,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            memory_property_flags,
+            true,
+            &context->object_index_buffer)) {
+        CORE_ERROR("Error creating vertex buffer.");
+        return false;
+    }
+
+    CORE_INFO("Created index buffer");
+
+    context->geometry_index_offset = 0;
+
+    return true;
+}
+
+// UI Image Management Implementation
+#include "renderer/renderer_frontend.hpp"
+#include "vulkan_ui_image.hpp"
+
+// Internal Vulkan UI image resource - contains both public interface and Vulkan
+// specifics
 struct Vulkan_UI_Image_Resource {
     UI_Image_Resource public_resource; // What users see
     Vulkan_UI_Image vulkan_image;      // Internal Vulkan implementation
@@ -1130,7 +1263,12 @@ struct Vulkan_UI_Image_Resource {
 internal_variable Auto_Array<Vulkan_UI_Image_Resource> ui_image_resources;
 internal_variable u32 next_ui_image_handle = 1;
 
-b8 vulkan_create_ui_image(Renderer_Backend* backend, u32 width, u32 height, const void* pixel_data, u32 pixel_data_size, UI_Image_Resource* out_image_resource) {
+b8 vulkan_create_ui_image(Renderer_Backend* backend,
+    u32 width,
+    u32 height,
+    const void* pixel_data,
+    u32 pixel_data_size,
+    UI_Image_Resource* out_image_resource) {
     if (!out_image_resource) {
         CORE_ERROR("Output image resource pointer cannot be null");
         return false;
@@ -1144,8 +1282,7 @@ b8 vulkan_create_ui_image(Renderer_Backend* backend, u32 width, u32 height, cons
     resource.public_resource.is_valid = false; // Will be set to true on success
 
     // Create Vulkan UI image using the existing function
-    vulkan_ui_image_create(
-        &context,
+    vulkan_ui_image_create(&context,
         width,
         height,
         VK_FORMAT_R8G8B8A8_UNORM,
@@ -1160,7 +1297,8 @@ b8 vulkan_create_ui_image(Renderer_Backend* backend, u32 width, u32 height, cons
     }
 
     // Set the descriptor set in the public interface
-    resource.public_resource.descriptor_set = (void*)(intptr_t)resource.vulkan_image.descriptor_set;
+    resource.public_resource.descriptor_set =
+        (void*)(intptr_t)resource.vulkan_image.descriptor_set;
     resource.public_resource.is_valid = true;
 
     // Store resource
@@ -1169,32 +1307,41 @@ b8 vulkan_create_ui_image(Renderer_Backend* backend, u32 width, u32 height, cons
     // Copy the public resource data to the output parameter
     *out_image_resource = resource.public_resource;
 
-    CORE_DEBUG("Created UI image resource: %ux%u (handle=%u)", width, height, resource.public_resource.handle);
+    CORE_DEBUG("Created UI image resource: %ux%u (handle=%u)",
+        width,
+        height,
+        resource.public_resource.handle);
     return true;
 }
 
-void vulkan_destroy_ui_image(Renderer_Backend* backend, UI_Image_Resource* public_resource) {
+void vulkan_destroy_ui_image(Renderer_Backend* backend,
+    UI_Image_Resource* public_resource) {
     if (!public_resource) {
         CORE_ERROR("Invalid UI image resource pointer");
         return;
     }
 
-    // Find the Vulkan resource by handle (since pointers don't match due to copying)
+    // Find the Vulkan resource by handle (since pointers don't match due to
+    // copying)
     s32 resource_index = -1;
     for (u32 i = 0; i < ui_image_resources.size(); ++i) {
-        if (ui_image_resources[i].public_resource.handle == public_resource->handle) {
+        if (ui_image_resources[i].public_resource.handle ==
+            public_resource->handle) {
             resource_index = (s32)i;
             break;
         }
     }
 
     if (resource_index == -1) {
-        CORE_ERROR("UI image resource with handle %u not found in Vulkan backend", public_resource->handle);
+        CORE_ERROR(
+            "UI image resource with handle %u not found in Vulkan backend",
+            public_resource->handle);
         return;
     }
 
     // Destroy Vulkan UI image using the existing function
-    vulkan_ui_image_destroy(&context, &ui_image_resources[resource_index].vulkan_image);
+    vulkan_ui_image_destroy(&context,
+        &ui_image_resources[resource_index].vulkan_image);
 
     // Remove the resource from the array
     ui_image_resources.erase(&ui_image_resources[resource_index]);
@@ -1203,5 +1350,6 @@ void vulkan_destroy_ui_image(Renderer_Backend* backend, UI_Image_Resource* publi
     public_resource->is_valid = false;
     public_resource->descriptor_set = nullptr;
 
-    CORE_DEBUG("Destroyed UI image resource (handle=%u)", public_resource->handle);
+    CORE_DEBUG("Destroyed UI image resource (handle=%u)",
+        public_resource->handle);
 }

@@ -140,7 +140,7 @@ INTERNAL_FUNC void vulkan_renderpass_create_main_internal(Vulkan_Context* contex
     color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    color_attachment.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     // After render pass, the image will be ready for shader sampling
     color_attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -277,6 +277,8 @@ void vulkan_renderpass_begin(Vulkan_Command_Buffer* command_buffer,
         clear_values[0].color.float32[3] = renderpass->a;
         clear_values[1].depthStencil.depth = renderpass->depth;
         clear_values[1].depthStencil.stencil = renderpass->stencil;
+        CORE_DEBUG("Main renderpass clear color: (%.2f, %.2f, %.2f, %.2f)",
+            renderpass->r, renderpass->g, renderpass->b, renderpass->a);
         break;
 
     case Renderpass_Type::UI:

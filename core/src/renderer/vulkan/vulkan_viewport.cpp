@@ -1,6 +1,7 @@
 #include "vulkan_viewport.hpp"
 #include "core/logger.hpp"
 #include "imgui_impl_vulkan.h"
+#include "renderer/vulkan/shaders/vulkan_object_shader.hpp"
 #include "vulkan_command_buffer.hpp"
 #include "vulkan_framebuffer.hpp"
 #include "vulkan_image.hpp"
@@ -63,6 +64,9 @@ void vulkan_viewport_render(Vulkan_Context* context) {
     vulkan_command_buffer_begin(main_command_buffer, false, false, false);
 
     // Begin rendering to the main render target
+    // The renderpass will automatically transition from SHADER_READ_ONLY_OPTIMAL
+    // to COLOR_ATTACHMENT_OPTIMAL at the beginning, and back to SHADER_READ_ONLY_OPTIMAL
+    // at the end (configured in renderpass creation)
     vulkan_renderpass_begin(main_command_buffer,
         &context->main_renderpass,
         context->main_target.framebuffer.handle);
@@ -75,6 +79,8 @@ void vulkan_viewport_render(Vulkan_Context* context) {
     viewport.height = (f32)context->main_target.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
+
+    CORE_DEBUG("Setting viewport: %ux%u", context->main_target.width, context->main_target.height);
     vkCmdSetViewport(main_command_buffer->handle, 0, 1, &viewport);
 
     // Set scissor for main render target
@@ -83,11 +89,32 @@ void vulkan_viewport_render(Vulkan_Context* context) {
     scissor.extent = {context->main_target.width, context->main_target.height};
     vkCmdSetScissor(main_command_buffer->handle, 0, 1, &scissor);
 
+    CORE_DEBUG("Drawing triangle in viewport...");
+    vulkan_object_shader_use(context, &context->object_shader);
+
+    VkDeviceSize offsets[1] = {0};
+
+    vkCmdBindVertexBuffers(main_command_buffer->handle,
+        0,
+        1,
+        &context->object_vertex_buffer.handle,
+        (VkDeviceSize*)offsets);
+
+    vkCmdBindIndexBuffer(main_command_buffer->handle,
+        context->object_index_buffer.handle,
+        0,
+        VK_INDEX_TYPE_UINT32);
+
+	vkCmdDrawIndexed(main_command_buffer->handle, 3, 1, 0, 0, 0);
+    CORE_DEBUG("Triangle draw call issued");
     // For now, just clear the render target - we'll add actual rendering later
     // TODO: Add grid rendering, shape rendering, etc.
 
     // End rendering to the render target
     vulkan_renderpass_end(main_command_buffer, &context->main_renderpass);
+
+    // The renderpass automatically transitions the image to SHADER_READ_ONLY_OPTIMAL
+    // No manual transition needed
 
     // End command buffer recording
     vulkan_command_buffer_end(main_command_buffer);
@@ -102,6 +129,8 @@ void vulkan_viewport_render(Vulkan_Context* context) {
         &submit_info,
         VK_NULL_HANDLE // No fence for now
         ));
+
+    vulkan_command_buffer_update_submitted(main_command_buffer);
 
     // Wait for main rendering to complete before UI rendering
     vkQueueWaitIdle(context->device.graphics_queue);
@@ -240,6 +269,10 @@ void vulkan_viewport_update_descriptor(Vulkan_Context* context) {
             context->main_target.color_attachment.view,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    CORE_DEBUG("Viewport descriptor set updated: %p",
-        (void*)context->main_target.descriptor_set);
+    if (context->main_target.descriptor_set == VK_NULL_HANDLE) {
+        CORE_ERROR("Failed to create ImGui descriptor set for viewport texture!");
+    } else {
+        CORE_DEBUG("Viewport descriptor set updated: %p",
+            (void*)context->main_target.descriptor_set);
+    }
 }

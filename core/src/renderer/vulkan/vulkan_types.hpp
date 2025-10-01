@@ -15,6 +15,15 @@ enum class Renderpass_Type {
     UI      // UI overlay rendering, color only
 };
 
+struct Vulkan_Buffer {
+	u64 total_size;
+	VkBuffer handle;
+	VkBufferUsageFlags usage;
+	b8 is_locked;
+	VkDeviceMemory memory;
+	s32 memory_index;
+	u32 memory_property_flags;
+};
 
 struct Vulkan_Swapchain_Support_Info {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -191,8 +200,12 @@ struct Vulkan_Context {
 
     Vulkan_Swapchain swapchain;
     Vulkan_Device device;
+
     Vulkan_Renderpass main_renderpass;
     Vulkan_Renderpass ui_renderpass;
+
+	Vulkan_Buffer object_vertex_buffer;
+	Vulkan_Buffer object_index_buffer;
 
     // Main off-screen rendering target
     Vulkan_Offscreen_Target main_target;
@@ -217,6 +230,9 @@ struct Vulkan_Context {
     VkDescriptorPool ui_descriptor_pool;
     VkDescriptorSetLayout ui_descriptor_set_layout;
     VkSampler ui_linear_sampler;
+
+	u64 geometry_vertex_offset;
+	u64 geometry_index_offset;
 
     s32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 };
