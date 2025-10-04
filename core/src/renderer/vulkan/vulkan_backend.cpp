@@ -333,24 +333,24 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     CORE_INFO("Vulkan buffers created.");
 
     // TODO: Temp code. Will remove later
-    constexpr u32 vert_count = 3;
+    constexpr u32 vert_count = 4;
     vertex_3d verts[vert_count];
     memory_zero(verts, sizeof(vertex_3d) * vert_count);
 
-    verts[0].position[0] = 0.0f;
-    verts[0].position[1] = 0.8f;
-    verts[0].position[2] = 0.0f;
+    verts[0].position[0] = 0.0;
+    verts[0].position[1] = -0.5;
 
-    verts[1].position[0] = -0.8f;
-    verts[1].position[1] = -0.8f;
-    verts[1].position[2] = 0.0f;
+    verts[1].position[0] = 0.5;
+    verts[1].position[1] = 0.5;
 
-    verts[2].position[0] = 0.8f;
-    verts[2].position[1] = -0.8f;
-    verts[2].position[2] = 0.0f;
+    verts[2].position[0] = 0;
+    verts[2].position[1] = 0.5;
 
-    constexpr u32 index_count = 3;
-    u32 indices[index_count] = {0, 1, 2};
+    verts[3].position[0] = 0.5;
+    verts[3].position[1] = -0.5;
+
+    constexpr u32 index_count = 6;
+    u32 indices[index_count] = {0, 1, 2, 0, 3, 1};
 
     upload_data_range(&context,
         context.device.graphics_command_pool,

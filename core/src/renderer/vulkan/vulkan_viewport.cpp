@@ -80,7 +80,7 @@ void vulkan_viewport_render(Vulkan_Context* context) {
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
-    CORE_DEBUG("Setting viewport: %ux%u", context->main_target.width, context->main_target.height);
+    // CORE_DEBUG("Setting viewport: %ux%u", context->main_target.width, context->main_target.height);
     vkCmdSetViewport(main_command_buffer->handle, 0, 1, &viewport);
 
     // Set scissor for main render target
@@ -89,7 +89,6 @@ void vulkan_viewport_render(Vulkan_Context* context) {
     scissor.extent = {context->main_target.width, context->main_target.height};
     vkCmdSetScissor(main_command_buffer->handle, 0, 1, &scissor);
 
-    CORE_DEBUG("Drawing triangle in viewport...");
     vulkan_object_shader_use(context, &context->object_shader);
 
     VkDeviceSize offsets[1] = {0};
@@ -105,8 +104,7 @@ void vulkan_viewport_render(Vulkan_Context* context) {
         0,
         VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(main_command_buffer->handle, 3, 1, 0, 0, 0);
-    CORE_DEBUG("Triangle draw call issued");
+	vkCmdDrawIndexed(main_command_buffer->handle, 6, 1, 0, 0, 0);
     // For now, just clear the render target - we'll add actual rendering later
     // TODO: Add grid rendering, shape rendering, etc.
 

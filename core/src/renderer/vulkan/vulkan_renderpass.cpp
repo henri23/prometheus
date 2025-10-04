@@ -277,8 +277,7 @@ void vulkan_renderpass_begin(Vulkan_Command_Buffer* command_buffer,
         clear_values[0].color.float32[3] = renderpass->a;
         clear_values[1].depthStencil.depth = renderpass->depth;
         clear_values[1].depthStencil.stencil = renderpass->stencil;
-        CORE_DEBUG("Main renderpass clear color: (%.2f, %.2f, %.2f, %.2f)",
-            renderpass->r, renderpass->g, renderpass->b, renderpass->a);
+
         break;
 
     case Renderpass_Type::UI:

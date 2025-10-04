@@ -84,7 +84,7 @@ void ui_viewport_draw(void* component_state) {
 
         // Display the off-screen rendered content as a texture
         if (main_texture != VK_NULL_HANDLE) {
-            CORE_DEBUG("Displaying viewport texture with descriptor set: %p", (void*)main_texture);
+            // CORE_DEBUG("Displaying viewport texture with descriptor set: %p", (void*)main_texture);
             ImGui::Image((ImTextureID)main_texture, canvas_sz);
         } else {
             CORE_ERROR("No viewport texture available - descriptor set is NULL");
