@@ -337,17 +337,17 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     vertex_3d verts[vert_count];
     memory_zero(verts, sizeof(vertex_3d) * vert_count);
 
-    verts[0].position[0] = 0.0;
-    verts[0].position[1] = -0.5;
+    verts[0].position.x = 0.0;
+    verts[0].position.y = -0.5;
 
-    verts[1].position[0] = 0.5;
-    verts[1].position[1] = 0.5;
+    verts[1].position.x = 0.5;
+    verts[1].position.y = 0.5;
 
-    verts[2].position[0] = 0;
-    verts[2].position[1] = 0.5;
+    verts[2].position.x = 0;
+    verts[2].position.y = 0.5;
 
-    verts[3].position[0] = 0.5;
-    verts[3].position[1] = -0.5;
+    verts[3].position.x = 0.5;
+    verts[3].position.y = -0.5;
 
     constexpr u32 index_count = 6;
     u32 indices[index_count] = {0, 1, 2, 0, 3, 1};

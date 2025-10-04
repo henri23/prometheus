@@ -19,10 +19,6 @@ if(PROMETHEUS_STATIC_LINKING)
     # Force spdlog to build static library
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 
-    # Force cglm to build static library
-    set(CGLM_SHARED OFF CACHE BOOL "" FORCE)
-    set(CGLM_STATIC ON CACHE BOOL "" FORCE)
-
 else()
     message(STATUS "Prometheus: Dynamic linking mode - using shared libraries where available")
 
@@ -32,11 +28,6 @@ else()
 
     # Allow spdlog to build shared library
     set(SPDLOG_BUILD_SHARED ON CACHE BOOL "" FORCE)
-
-    # Allow cglm to build shared library
-    set(CGLM_SHARED ON CACHE BOOL "" FORCE)
-    set(CGLM_STATIC OFF CACHE BOOL "" FORCE)
-
 endif()
 
 # SDL3 configuration
@@ -44,9 +35,6 @@ set(SDL_HIDAPI_LIBUSB OFF CACHE BOOL "" FORCE)
 set(SDL_HIDAPI OFF CACHE BOOL "" FORCE)      # if you don't need joystick HID
 set(SDL_LIBUSB OFF CACHE BOOL "" FORCE)
 set(SDL_INSTALL OFF CACHE BOOL "" FORCE)     # don't install SDL system-wide
-
-# cglm configuration
-set(CGLM_USE_TEST OFF CACHE BOOL "" FORCE)   # disable cglm tests
 
 option(PROMETHEUS_BUILD_TESTS "Build Prometheus unit tests" ON)
 IF (PROMETHEUS_BUILD_TESTS)
@@ -57,7 +45,6 @@ ENDIF()
 # External dependencies
 add_subdirectory(external/SDL3)
 add_subdirectory(external/spdlog)
-add_subdirectory(external/cglm)
 
 add_subdirectory(core)
 

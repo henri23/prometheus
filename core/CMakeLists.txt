@@ -46,7 +46,6 @@ endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan)
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog)
-target_link_libraries(${PROJECT_NAME} PRIVATE cglm)
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
