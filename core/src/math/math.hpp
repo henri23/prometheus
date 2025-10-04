@@ -1,29 +1,32 @@
 #pragma once
 
-#include "memory/memory.hpp"
 #include "defines.hpp"
 #include "math_types.hpp"
+#include "memory/memory.hpp"
 
 // List of precomputed (in compile time) of math constants useful to speed up
 // and simplify math calculations
-constexpr f32 KE_PI = 3.14159265358979323846f;
-constexpr f32 KE_PI_2 = 2 * KE_PI;
-constexpr f32 KE_PI_HALVES = KE_PI * 0.5f;
-constexpr f32 KE_PI_QUARTERS = KE_PI * 0.25f;
-constexpr f32 KE_PI_INV = 1.0f / KE_PI;
-constexpr f32 KE_PI_2_INV = 1.0f / KE_PI_2;
-constexpr f32 KE_SQRT2 = 1.41421356237309504880f;
-constexpr f32 KE_SQRT3 = 1.73205080756887729352f;
-constexpr f32 KE_SQRT2_INV = 0.70710678118654752440f;
-constexpr f32 KE_SQRT3_INV = 0.57735026918962576450f;
-constexpr f32 KE_DEG_RAD_FACTOR = KE_PI / 180.0f;
-constexpr f32 KE_RAD_DEG_FACTOR = 180.0f / KE_PI;
+namespace math {
+    constexpr f32 PI = 3.14159265358979323846f;
+    constexpr f32 PI_2 = 2 * PI;
+    constexpr f32 PI_HALVES = PI * 0.5f;
+    constexpr f32 PI_QUARTERS = PI * 0.25f;
+    constexpr f32 PI_INV = 1.0f / PI;
+    constexpr f32 PI_2_INV = 1.0f / PI_2;
+    constexpr f32 SQRT2 = 1.41421356237309504880f;
+    constexpr f32 SQRT3 = 1.73205080756887729352f;
+    constexpr f32 SQRT2_INV = 0.70710678118654752440f;
+    constexpr f32 SQRT3_INV = 0.57735026918962576450f;
+    constexpr f32 DEG_RAD_FACTOR = PI / 180.0f;
+    constexpr f32 RAD_DEG_FACTOR = 180.0f / PI;
 
-constexpr f32 KE_INFINITY = 1e30f;
-// The float epsilon is defined as the smallest number possible that, when added
-// to 1.0 yields a result different from 1.0, i.e. 1.0 + KE_ESPILON != 1.0
-constexpr f32 KE_EPSILON = 1.192092896e-07f; // Value of FLT_EPSILON from cfloat
-
+    constexpr f32 INFINITY = 1e30f;
+    // The float epsilon is defined as the smallest number possible that, when
+    // added to 1.0 yields a result different from 1.0, i.e. 1.0 + ESPILON
+    // != 1.0
+    constexpr f32 EPSILON =
+        1.192092896e-07f; // Value of FLT_EPSILON from cfloat
+} // namespace math
 // Math functions
 PROMETHEUS_API f32 math_sin(f32 x);
 PROMETHEUS_API f32 math_cos(f32 x);
@@ -80,40 +83,28 @@ FORCE_INLINE vec2 vec2_right() {
 
 // Component-wise operations
 FORCE_INLINE vec2 operator+(vec2 a, vec2 b) {
-    vec2 result = {
-        a.x + b.x,
-        a.y + b.y};
+    vec2 result = {a.x + b.x, a.y + b.y};
     return result;
 }
 
 FORCE_INLINE vec2 operator-(vec2 a, vec2 b) {
-    vec2 result = {
-        a.x - b.x,
-        a.y - b.y};
+    vec2 result = {a.x - b.x, a.y - b.y};
     return result;
 }
 
 FORCE_INLINE vec2 operator*(vec2 a, vec2 b) {
-    vec2 result = {
-        a.x * b.x,
-        a.y * b.y};
+    vec2 result = {a.x * b.x, a.y * b.y};
     return result;
 }
 
 FORCE_INLINE vec2 operator/(vec2 a, vec2 b) {
-    vec2 result = {
-        a.x / b.x,
-        a.y / b.y};
+    vec2 result = {a.x / b.x, a.y / b.y};
     return result;
 }
 
-FORCE_INLINE f32 vec2_dot(vec2 a, vec2 b) {
-    return a.x * b.x + a.y * b.y;
-}
+FORCE_INLINE f32 vec2_dot(vec2 a, vec2 b) { return a.x * b.x + a.y * b.y; }
 
-FORCE_INLINE f32 vec2_length_squared(vec2 a) {
-    return a.x * a.x + a.y * a.y;
-}
+FORCE_INLINE f32 vec2_length_squared(vec2 a) { return a.x * a.x + a.y * a.y; }
 
 FORCE_INLINE f32 vec2_length(vec2 a) {
     return math_sqrt(vec2_length_squared(a));
@@ -141,9 +132,7 @@ FORCE_INLINE b8 vec2_are_equal(vec2 a, vec2 b, f32 tolerance) {
 }
 
 FORCE_INLINE f32 vec2_distance(vec2 a, vec2 b) {
-    vec2 distance_vector = {
-        a.x - b.x,
-        a.y - b.y};
+    vec2 distance_vector = {a.x - b.x, a.y - b.y};
     return vec2_length(distance_vector);
 }
 
@@ -185,35 +174,23 @@ FORCE_INLINE vec3 vec3_right() {
 
 // Component-wise operations
 FORCE_INLINE vec3 operator+(vec3 a, vec3 b) {
-    vec3 result = {
-        a.x + b.x,
-        a.y + b.y,
-        a.z + b.z};
+    vec3 result = {a.x + b.x, a.y + b.y, a.z + b.z};
     return result;
 }
 
 FORCE_INLINE vec3 operator-(vec3 a, vec3 b) {
-    vec3 result = {
-        a.x - b.x,
-        a.y - b.y,
-        a.z - b.z};
+    vec3 result = {a.x - b.x, a.y - b.y, a.z - b.z};
     return result;
 }
 
 // Not really used a element-wise multiplication for vec3
 FORCE_INLINE vec3 operator*(vec3 a, vec3 b) {
-    vec3 result = {
-        a.x * b.x,
-        a.y * b.y,
-        a.z * b.z};
+    vec3 result = {a.x * b.x, a.y * b.y, a.z * b.z};
     return result;
 }
 
 FORCE_INLINE vec3 operator/(vec3 a, vec3 b) {
-    vec3 result = {
-        a.x / b.x,
-        a.y / b.y,
-        a.z / b.z};
+    vec3 result = {a.x / b.x, a.y / b.y, a.z / b.z};
     return result;
 }
 
@@ -222,10 +199,11 @@ FORCE_INLINE f32 vec3_dot(vec3 a, vec3 b) {
 }
 
 FORCE_INLINE vec3 vec3_cross(vec3 a, vec3 b) {
-    vec3 result = {
-        a.y * b.z - a.z * b.y,
+    vec3 result = {a.y * b.z - a.z * b.y,
         a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x}; // Output is orthogonal to the plane described by a and b
+        a.x * b.y -
+            a.y *
+                b.x}; // Output is orthogonal to the plane described by a and b
     return result;
 }
 
@@ -238,10 +216,7 @@ FORCE_INLINE f32 vec3_length(vec3 a) {
 }
 
 FORCE_INLINE vec3 vec3_scale(vec3 a, f32 scalar) {
-    vec3 result = {
-        scalar * a.x,
-        scalar * a.y,
-        scalar * a.z};
+    vec3 result = {scalar * a.x, scalar * a.y, scalar * a.z};
     return result;
 }
 
@@ -271,10 +246,7 @@ FORCE_INLINE b8 vec3_are_equal(vec3 a, vec3 b, f32 tolerance) {
 }
 
 FORCE_INLINE f32 vec3_distance(vec3 a, vec3 b) {
-    vec3 distance_vector = {
-        a.x - b.x,
-        a.y - b.y,
-        a.z - b.z};
+    vec3 distance_vector = {a.x - b.x, a.y - b.y, a.z - b.z};
 
     return vec3_length(distance_vector);
 }
@@ -311,39 +283,23 @@ FORCE_INLINE vec4 vec4_one() {
 }
 
 FORCE_INLINE vec4 operator+(vec4 a, vec4 b) {
-    vec4 result = {
-        a.x + b.x,
-        a.y + b.y,
-        a.z + b.z,
-        a.w + b.w};
+    vec4 result = {a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w};
     return result;
 }
 
 FORCE_INLINE vec4 operator-(vec4 a, vec4 b) {
-    vec4 result = {
-        a.x - b.x,
-        a.y - b.y,
-        a.z - b.z,
-        a.w - b.w};
+    vec4 result = {a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w};
     return result;
 }
 
 // Not really used a element-wise multiplication forvec4
 FORCE_INLINE vec4 operator*(vec4 a, vec4 b) {
-    vec4 result = {
-        a.x * b.x,
-        a.y * b.y,
-        a.z * b.z,
-        a.w * b.w};
+    vec4 result = {a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w};
     return result;
 }
 
 FORCE_INLINE vec4 operator/(vec4 a, vec4 b) {
-    vec4 result = {
-        a.x / b.x,
-        a.y / b.y,
-        a.z / b.z,
-        a.w / b.w};
+    vec4 result = {a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w};
     return result;
 }
 
@@ -368,9 +324,8 @@ FORCE_INLINE vec4 vec4_norm_copy(vec4 a) {
     return a; // Returns a copy
 }
 
-FORCE_INLINE f32 vec4_dot_f32(
-    f32 ax, f32 ay, f32 az, f32 aw,
-    f32 bx, f32 by, f32 bz, f32 bw) {
+FORCE_INLINE f32
+vec4_dot_f32(f32 ax, f32 ay, f32 az, f32 aw, f32 bx, f32 by, f32 bz, f32 bw) {
     return ax * bx + ay * by + az * bz + aw * bw;
 }
 
@@ -394,10 +349,8 @@ FORCE_INLINE mat4 operator*(mat4 m1, mat4 m2) {
     for (u32 i = 0; i < 4; ++i) {
         for (u32 j = 0; j < 4; ++j) {
             *dest_matrix =
-                matrix1[0] * matrix2[0 + j] +
-                matrix1[1] * matrix2[4 + j] +
-                matrix1[3] * matrix2[8 + j] +
-                matrix1[4] * matrix2[12 + j];
+                matrix1[0] * matrix2[0 + j] + matrix1[1] * matrix2[4 + j] +
+                matrix1[3] * matrix2[8 + j] + matrix1[4] * matrix2[12 + j];
 
             dest_matrix++;
         }
@@ -412,8 +365,7 @@ FORCE_INLINE mat4 operator*(mat4 m1, mat4 m2) {
 // near and far clipping planes. For an orthographic projection, unlike presp.
 // projection, the object retain their sized regardless of their distance from
 // the camera.
-FORCE_INLINE mat4 mat4_project_orthographic(
-    f32 left,
+FORCE_INLINE mat4 mat4_project_orthographic(f32 left,
     f32 right,
     f32 bottom,
     f32 top,
@@ -436,8 +388,7 @@ FORCE_INLINE mat4 mat4_project_orthographic(
     return out_matrix;
 }
 
-FORCE_INLINE mat4 mat4_project_perspective(
-    f32 fov_radians,
+FORCE_INLINE mat4 mat4_project_perspective(f32 fov_radians,
     f32 aspect_ratio,
     f32 near_clip,
     f32 far_clip) {
@@ -448,21 +399,18 @@ FORCE_INLINE mat4 mat4_project_perspective(
 
     out_matrix.elements[0] = 1.0f / (aspect_ratio * half_tan_fov);
     out_matrix.elements[5] = 1.0f / half_tan_fov;
-    out_matrix.elements[10] = -((far_clip + near_clip) /
-                                (far_clip - near_clip));
+    out_matrix.elements[10] =
+        -((far_clip + near_clip) / (far_clip - near_clip));
     out_matrix.elements[11] = -1.0f;
-    out_matrix.elements[14] = -((2.0f * far_clip * near_clip) /
-                                (far_clip - near_clip));
+    out_matrix.elements[14] =
+        -((2.0f * far_clip * near_clip) / (far_clip - near_clip));
 
     return out_matrix;
 }
 
 // Create and returns a look at matrix, or a matrix looking at target from the
 // perspective of position
-FORCE_INLINE mat4 mat4_look_at(
-    vec3 position,
-    vec3 target,
-    vec3 up) {
+FORCE_INLINE mat4 mat4_look_at(vec3 position, vec3 target, vec3 up) {
     mat4 out_matrix;
     vec3 z_axis;
 
@@ -575,40 +523,40 @@ FORCE_INLINE mat4 mat4_inv(mat4 matrix) {
     o[3] = d * o[3];
 
     o[4] = d * ((t1 * m[4] + t2 * m[8] + t5 * m[12]) -
-                (t0 * m[4] + t3 * m[8] + t4 * m[12]));
+                   (t0 * m[4] + t3 * m[8] + t4 * m[12]));
 
     o[5] = d * ((t0 * m[0] + t7 * m[8] + t8 * m[12]) -
-                (t1 * m[0] + t6 * m[8] + t9 * m[12]));
+                   (t1 * m[0] + t6 * m[8] + t9 * m[12]));
 
     o[6] = d * ((t3 * m[0] + t6 * m[4] + t11 * m[12]) -
-                (t2 * m[0] + t7 * m[4] + t10 * m[12]));
+                   (t2 * m[0] + t7 * m[4] + t10 * m[12]));
 
     o[7] = d * ((t4 * m[0] + t9 * m[4] + t10 * m[8]) -
-                (t5 * m[0] + t8 * m[4] + t11 * m[8]));
+                   (t5 * m[0] + t8 * m[4] + t11 * m[8]));
 
     o[8] = d * ((t12 * m[7] + t15 * m[11] + t16 * m[15]) -
-                (t13 * m[7] + t14 * m[11] + t17 * m[15]));
+                   (t13 * m[7] + t14 * m[11] + t17 * m[15]));
 
     o[9] = d * ((t13 * m[3] + t18 * m[11] + t21 * m[15]) -
-                (t12 * m[3] + t19 * m[11] + t20 * m[15]));
+                   (t12 * m[3] + t19 * m[11] + t20 * m[15]));
 
     o[10] = d * ((t14 * m[3] + t19 * m[7] + t22 * m[15]) -
-                 (t15 * m[3] + t18 * m[7] + t23 * m[15]));
+                    (t15 * m[3] + t18 * m[7] + t23 * m[15]));
 
     o[11] = d * ((t17 * m[3] + t20 * m[7] + t23 * m[11]) -
-                 (t16 * m[3] + t21 * m[7] + t22 * m[11]));
+                    (t16 * m[3] + t21 * m[7] + t22 * m[11]));
 
     o[12] = d * ((t14 * m[10] + t17 * m[14] + t13 * m[6]) -
-                 (t16 * m[14] + t12 * m[6] + t15 * m[10]));
+                    (t16 * m[14] + t12 * m[6] + t15 * m[10]));
 
     o[13] = d * ((t20 * m[14] + t12 * m[2] + t19 * m[10]) -
-                 (t18 * m[10] + t21 * m[14] + t13 * m[2]));
+                    (t18 * m[10] + t21 * m[14] + t13 * m[2]));
 
     o[14] = d * ((t18 * m[6] + t23 * m[14] + t15 * m[2]) -
-                 (t22 * m[14] + t14 * m[2] + t19 * m[6]));
+                    (t22 * m[14] + t14 * m[2] + t19 * m[6]));
 
     o[15] = d * ((t22 * m[10] + t16 * m[2] + t21 * m[6]) -
-                 (t20 * m[6] + t23 * m[10] + t17 * m[2]));
+                    (t20 * m[6] + t23 * m[10] + t17 * m[2]));
 
     return out_matrix;
 }
@@ -676,8 +624,7 @@ FORCE_INLINE mat4 mat4_euler_z(f32 roll_radians) {
     return out_matrix;
 }
 
-FORCE_INLINE mat4 mat4_euler_xyz(
-    f32 yaw_radians,
+FORCE_INLINE mat4 mat4_euler_xyz(f32 yaw_radians,
     f32 pitch_radians,
     f32 roll_radians) {
 
@@ -751,17 +698,12 @@ FORCE_INLINE quaternion quat_identity() {
 }
 
 FORCE_INLINE f32 quat_normal(quaternion q) {
-    return math_sqrt(
-        q.qx * q.qx +
-        q.qy * q.qy +
-        q.qz * q.qz +
-        q.qw * q.qw);
+    return math_sqrt(q.qx * q.qx + q.qy * q.qy + q.qz * q.qz + q.qw * q.qw);
 }
 
 FORCE_INLINE quaternion quat_norm(quaternion q) {
     f32 normal = quat_normal(q);
-    quaternion result = {
-        q.qx / normal,
+    quaternion result = {q.qx / normal,
         q.qy / normal,
         q.qz / normal,
         q.qw / normal};
@@ -769,11 +711,7 @@ FORCE_INLINE quaternion quat_norm(quaternion q) {
 }
 
 FORCE_INLINE quaternion quat_conjugate(quaternion q) {
-    quaternion result = {
-        -q.qx,
-        -q.qy,
-        -q.qz,
-        q.qw};
+    quaternion result = {-q.qx, -q.qy, -q.qz, q.qw};
     return result;
 }
 
@@ -784,35 +722,24 @@ FORCE_INLINE quaternion quat_inv(quaternion q) {
 FORCE_INLINE quaternion quat_mul(quaternion q0, quaternion q1) {
     quaternion out_quaternion;
 
-    out_quaternion.x = q0.qx * q1.qw +
-                       q0.qy * q1.qz -
-                       q0.qz * q1.qy +
-                       q0.qw * q1.qx;
+    out_quaternion.x =
+        q0.qx * q1.qw + q0.qy * q1.qz - q0.qz * q1.qy + q0.qw * q1.qx;
 
-    out_quaternion.y = -q0.qx * q1.qz +
-                       q0.qy * q1.qw +
-                       q0.qz * q1.qx +
-                       q0.qw * q1.qy;
+    out_quaternion.y =
+        -q0.qx * q1.qz + q0.qy * q1.qw + q0.qz * q1.qx + q0.qw * q1.qy;
 
-    out_quaternion.z = q0.qx * q1.qy -
-                       q0.qy * q1.qx +
-                       q0.qz * q1.qw +
-                       q0.qw * q1.qz;
+    out_quaternion.z =
+        q0.qx * q1.qy - q0.qy * q1.qx + q0.qz * q1.qw + q0.qw * q1.qz;
 
-    out_quaternion.w = -q0.qx * q1.qx -
-                       q0.qy * q1.qy -
-                       q0.qz * q1.qz +
-                       q0.qw * q1.qw;
+    out_quaternion.w =
+        -q0.qx * q1.qx - q0.qy * q1.qy - q0.qz * q1.qz + q0.qw * q1.qw;
 
     return out_quaternion;
 }
 
 FORCE_INLINE f32 quat_dot(quaternion q0, quaternion q1) {
 
-    return q0.qx * q1.qx +
-           q0.qy * q1.qy +
-           q0.qz * q1.qz +
-           q0.qw * q1.qw;
+    return q0.qx * q1.qx + q0.qy * q1.qy + q0.qz * q1.qz + q0.qw * q1.qw;
 }
 
 FORCE_INLINE mat4 quat_to_mat4(quaternion q) {
@@ -838,7 +765,8 @@ FORCE_INLINE mat4 quat_to_mat4(quaternion q) {
     return out_matrix;
 }
 
-// Calculates a rotation matrix based on the quaternion and the passed in center point.
+// Calculates a rotation matrix based on the quaternion and the passed in center
+// point.
 FORCE_INLINE mat4 quat_to_rotation_matrix(quaternion q, vec3 center) {
 
     mat4 out_matrix;
@@ -868,8 +796,7 @@ FORCE_INLINE mat4 quat_to_rotation_matrix(quaternion q, vec3 center) {
     return out_matrix;
 }
 
-FORCE_INLINE quaternion quat_from_axis_angle(
-    vec3 axis,
+FORCE_INLINE quaternion quat_from_axis_angle(vec3 axis,
     f32 angle,
     b8 normalize) {
 
@@ -888,8 +815,7 @@ FORCE_INLINE quaternion quat_from_axis_angle(
     return q;
 }
 
-FORCE_INLINE quaternion quat_slerp(
-    quaternion q0,
+FORCE_INLINE quaternion quat_slerp(quaternion q0,
     quaternion q1,
     f32 percentage) {
 
@@ -923,8 +849,7 @@ FORCE_INLINE quaternion quat_slerp(
 
         // If the inputs are too close for comfort, linearly interpolate
         // and normalize the result.
-        out_quaternion = {
-            v0.x + ((v1.x - v0.x) * percentage),
+        out_quaternion = {v0.x + ((v1.x - v0.x) * percentage),
             v0.y + ((v1.y - v0.y) * percentage),
             v0.z + ((v1.z - v0.z) * percentage),
             v0.w + ((v1.w - v0.w) * percentage)};
@@ -941,25 +866,20 @@ FORCE_INLINE quaternion quat_slerp(
 
     f32 sin_theta_0 = math_sin(theta_0); // compute this value only once
 
-    f32 s0 = math_cos(theta) - dot * sin_theta / sin_theta_0; // == sin(theta_0 - theta) / sin(theta_0)
+    f32 s0 =
+        math_cos(theta) -
+        dot * sin_theta / sin_theta_0; // == sin(theta_0 - theta) / sin(theta_0)
 
     f32 s1 = sin_theta / sin_theta_0;
 
-    quaternion result = {
-        (v0.x * s0) + (v1.x * s1),
+    quaternion result = {(v0.x * s0) + (v1.x * s1),
         (v0.y * s0) + (v1.y * s1),
         (v0.z * s0) + (v1.z * s1),
         (v0.w * s0) + (v1.w * s1)};
 
-	return result;
+    return result;
 }
 
-FORCE_INLINE f32 deg_to_rad(f32 degrees) {
-    return degrees * KE_DEG_RAD_FACTOR;
-}
+FORCE_INLINE f32 deg_to_rad(f32 degrees) { return degrees * math::DEG_RAD_FACTOR; }
 
-FORCE_INLINE f32 rad_to_deg(f32 radians) {
-
-    return radians * KE_RAD_DEG_FACTOR;
-}
-
+FORCE_INLINE f32 rad_to_deg(f32 radians) { return radians * math::RAD_DEG_FACTOR; }
