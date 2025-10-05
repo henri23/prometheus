@@ -20,10 +20,10 @@ add_compile_definitions(DEBUG_BUILD)
 if(WIN32)
     # Disable some MSVC warnings
     if(MSVC)
-        add_compile_options(/W4)  # High warning level
-        add_compile_definitions(_CRT_SECURE_NO_WARNINGS)  # Disable security warnings for standard C functions
-        add_compile_definitions(NOMINMAX)  # Prevent windows.h from defining min/max macros
-        add_compile_definitions(WIN32_LEAN_AND_MEAN)  # Reduce Windows header bloat
+        add_compile_options(/W4) # High warning level
+        add_compile_definitions(_CRT_SECURE_NO_WARNINGS) # Disable security warnings for standard C functions
+        add_compile_definitions(NOMINMAX) # Prevent windows.h from defining min/max macros
+        add_compile_definitions(WIN32_LEAN_AND_MEAN) # Reduce Windows header bloat
     endif()
 endif()
 
@@ -50,7 +50,10 @@ target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog)
 # Include directories
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
 target_include_directories(${PROJECT_NAME} PRIVATE ${VULKAN_SDK}/Include)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/external/stb_image)
+target_include_directories(
+    ${PROJECT_NAME}
+    PRIVATE ${CMAKE_SOURCE_DIR}/external/stb_image
+)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/assets)
 
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/external/imgui)
@@ -60,7 +63,7 @@ set(IMGUI_SRC
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_demo.cpp  # optional
+    ${IMGUI_DIR}/imgui_demo.cpp # optional
     ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
     ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
 )
@@ -71,4 +74,3 @@ target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 
 # Link imgui into core (PUBLIC so client can access ImGui headers)
 target_link_libraries(${PROJECT_NAME} PUBLIC imgui)
-

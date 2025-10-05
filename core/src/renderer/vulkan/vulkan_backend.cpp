@@ -246,7 +246,7 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
         0,
         default_width,
         default_height,
-        0.11f,  // dark catppuccin mocha base color #1e1e2e
+        0.11f, // dark catppuccin mocha base color #1e1e2e
         0.11f,
         0.18f,
         1.0f,
