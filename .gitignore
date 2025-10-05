@@ -6,3 +6,4 @@ build/
 obj/
 out/
 bin-vs/
+.envrc
