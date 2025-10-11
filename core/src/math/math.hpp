@@ -880,6 +880,10 @@ FORCE_INLINE quaternion quat_slerp(quaternion q0,
     return result;
 }
 
-FORCE_INLINE f32 deg_to_rad(f32 degrees) { return degrees * math::DEG_RAD_FACTOR; }
+FORCE_INLINE f32 deg_to_rad(f32 degrees) {
+    return degrees * math::DEG_RAD_FACTOR;
+}
 
-FORCE_INLINE f32 rad_to_deg(f32 radians) { return radians * math::RAD_DEG_FACTOR; }
+FORCE_INLINE f32 rad_to_deg(f32 radians) {
+    return radians * math::RAD_DEG_FACTOR;
+}

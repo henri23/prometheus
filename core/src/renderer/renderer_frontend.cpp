@@ -1,7 +1,10 @@
 #include "renderer/renderer_frontend.hpp"
+#include "defines.hpp"
 #include "renderer/renderer_backend.hpp"
 
 #include "core/logger.hpp"
+#include "math/math.hpp"
+#include "math/math_types.hpp"
 
 // Renderer frontend will manage the backend interface state
 struct Renderer_System_State {
@@ -52,6 +55,21 @@ b8 renderer_end_frame(f32 delta_t) {
 b8 renderer_draw_frame(Render_Packet* packet) {
     if (renderer_begin_frame(packet->delta_time)) {
 
+        // TODO: test temp
+        mat4 projection = mat4_project_perspective(deg_to_rad(45.0f),
+            1280 / 720.0f,
+            0.1f,
+            1000.0f);
+        local_persist f32 z = -1.0f;
+        z -= 0.01f;
+        mat4 view = mat4_translation((vec3){0, 0, z});
+
+        state.backend.update_global_state(projection,
+            view,
+            vec3_zero(),
+            vec4_one(),
+            0);
+
         b8 result = renderer_end_frame(packet->delta_time);
 
         if (!result) {
@@ -64,13 +82,17 @@ b8 renderer_draw_frame(Render_Packet* packet) {
     return true;
 }
 
-b8 renderer_create_ui_image(
-    u32 width,
+b8 renderer_create_ui_image(u32 width,
     u32 height,
     const void* pixel_data,
     u32 pixel_data_size,
     UI_Image_Resource* out_image_resource) {
-    return state.backend.create_ui_image(&state.backend, width, height, pixel_data, pixel_data_size, out_image_resource);
+    return state.backend.create_ui_image(&state.backend,
+        width,
+        height,
+        pixel_data,
+        pixel_data_size,
+        out_image_resource);
 }
 
 void renderer_destroy_ui_image(UI_Image_Resource* resource) {

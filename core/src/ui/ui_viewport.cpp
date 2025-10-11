@@ -45,11 +45,15 @@ void ui_viewport_shutdown() {
 void ui_viewport_cleanup_vulkan_resources(Vulkan_Context* context) {
     CORE_DEBUG("Cleaning up viewport Vulkan resources...");
 
-    // Clean up viewport descriptor set
-    if (context && context->main_target.descriptor_set != VK_NULL_HANDLE) {
-        ImGui_ImplVulkan_RemoveTexture(context->main_target.descriptor_set);
-        context->main_target.descriptor_set = VK_NULL_HANDLE;
-        CORE_DEBUG("Viewport descriptor set cleaned up");
+    // Clean up viewport descriptor sets (all framebuffers)
+    if (context) {
+        for (u32 i = 0; i < context->main_target.framebuffer_count; ++i) {
+            if (context->main_target.descriptor_sets[i] != VK_NULL_HANDLE) {
+                ImGui_ImplVulkan_RemoveTexture(context->main_target.descriptor_sets[i]);
+                context->main_target.descriptor_sets[i] = VK_NULL_HANDLE;
+            }
+        }
+        CORE_DEBUG("Viewport descriptor sets cleaned up");
     }
 }
 

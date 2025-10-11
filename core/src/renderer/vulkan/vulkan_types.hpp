@@ -4,6 +4,7 @@
 #include "defines.hpp"
 
 #include "containers/auto_array.hpp"
+#include "renderer/renderer_types.hpp"
 
 #include <vulkan/vulkan.h>
 
@@ -11,18 +12,18 @@
 
 // Forward declarations and enums
 enum class Renderpass_Type {
-    MAIN,   // Main 3D scene rendering with depth buffer
-    UI      // UI overlay rendering, color only
+    MAIN, // Main 3D scene rendering with depth buffer
+    UI    // UI overlay rendering, color only
 };
 
 struct Vulkan_Buffer {
-	u64 total_size;
-	VkBuffer handle;
-	VkBufferUsageFlags usage;
-	b8 is_locked;
-	VkDeviceMemory memory;
-	s32 memory_index;
-	u32 memory_property_flags;
+    u64 total_size;
+    VkBuffer handle;
+    VkBufferUsageFlags usage;
+    b8 is_locked;
+    VkDeviceMemory memory;
+    s32 memory_index;
+    u32 memory_property_flags;
 };
 
 struct Vulkan_Swapchain_Support_Info {
@@ -87,7 +88,8 @@ struct Vulkan_Renderpass {
     f32 depth;
     u32 stencil;
 
-    Renderpass_Type type;  // Store renderpass type for attachment count optimization
+    Renderpass_Type
+        type; // Store renderpass type for attachment count optimization
     Renderpass_State state;
 };
 
@@ -99,20 +101,24 @@ struct Vulkan_Framebuffer {
 };
 
 // Off-screen rendering target (groups related resources like Vulkan_Swapchain)
+// Uses same number of framebuffers as swapchain and synchronizes with image_index
 struct Vulkan_Offscreen_Target {
     u32 width;
     u32 height;
     VkFormat color_format;
     VkFormat depth_format;
 
-    // Rendering attachments
-    Vulkan_Image color_attachment;
-    Vulkan_Image depth_attachment;
-    Vulkan_Framebuffer framebuffer;
+    // Dynamic count matching swapchain image_count
+    u32 framebuffer_count;
 
-    // Texture sampling resources
-    VkSampler sampler;
-    VkDescriptorSet descriptor_set;
+    // Rendering attachments (one per swapchain image)
+    Vulkan_Image* color_attachments;
+    Vulkan_Image* depth_attachments;
+    Vulkan_Framebuffer* framebuffers;
+
+    // Texture sampling resources (one per swapchain image)
+    VkSampler* samplers;
+    VkDescriptorSet* descriptor_sets;
 };
 
 struct Vulkan_Swapchain {
@@ -169,6 +175,17 @@ struct Vulkan_Object_Shader {
     Vulkan_Shader_Stage stages[OBJECT_SHADER_STAGE_COUNT];
 
     Vulkan_Pipeline pipeline;
+
+    VkDescriptorPool global_descriptor_pool;
+
+    VkDescriptorSetLayout global_descriptor_set_layout;
+
+    // One descriptor set per frame
+    VkDescriptorSet global_descriptor_sets[3];
+
+    Vulkan_Buffer global_uniform_buffer;
+
+    Global_Uniform_Object global_ubo;
 };
 
 struct Vulkan_Context {
@@ -204,13 +221,13 @@ struct Vulkan_Context {
     Vulkan_Renderpass main_renderpass;
     Vulkan_Renderpass ui_renderpass;
 
-	Vulkan_Buffer object_vertex_buffer;
-	Vulkan_Buffer object_index_buffer;
+    Vulkan_Buffer object_vertex_buffer;
+    Vulkan_Buffer object_index_buffer;
 
     // Main off-screen rendering target
     Vulkan_Offscreen_Target main_target;
 
-	// Command buffers for rendering ui components
+    // Command buffers for rendering ui components
     Auto_Array<Vulkan_Command_Buffer> ui_graphics_command_buffers;
 
     // Main renderer command buffers for off-screen rendering
@@ -231,8 +248,8 @@ struct Vulkan_Context {
     VkDescriptorSetLayout ui_descriptor_set_layout;
     VkSampler ui_linear_sampler;
 
-	u64 geometry_vertex_offset;
-	u64 geometry_index_offset;
+    u64 geometry_vertex_offset;
+    u64 geometry_index_offset;
 
     s32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 };

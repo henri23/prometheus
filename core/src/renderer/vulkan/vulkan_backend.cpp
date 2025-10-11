@@ -337,17 +337,19 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     vertex_3d verts[vert_count];
     memory_zero(verts, sizeof(vertex_3d) * vert_count);
 
-    verts[0].position.x = 0.0;
-    verts[0].position.y = -0.5;
+    constexpr f32 f = 10.0f;
 
-    verts[1].position.x = 0.5;
-    verts[1].position.y = 0.5;
+    verts[0].position.x = 0.0 * f;
+    verts[0].position.y = -0.5 * f;
 
-    verts[2].position.x = 0;
-    verts[2].position.y = 0.5;
+    verts[1].position.x = 0.5 * f;
+    verts[1].position.y = 0.5 * f;
 
-    verts[3].position.x = 0.5;
-    verts[3].position.y = -0.5;
+    verts[2].position.x = 0 * f;
+    verts[2].position.y = 0.5 * f;
+
+    verts[3].position.x = 0.5 * f;
+    verts[3].position.y = -0.5 * f;
 
     constexpr u32 index_count = 6;
     u32 indices[index_count] = {0, 1, 2, 0, 3, 1};
@@ -371,47 +373,37 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
         indices);
 
     // Initialize main render target (off-screen rendering)
+    // Match swapchain image_count for synchronization
 
-    // Create color attachment for main render target
-    vulkan_image_create(&context,
-        VK_IMAGE_TYPE_2D,
-        default_width,
-        default_height,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        true,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        &context.main_target.color_attachment);
+    // Initialize render target fields
+    context.main_target.width = default_width;
+    context.main_target.height = default_height;
+    context.main_target.color_format = VK_FORMAT_R8G8B8A8_UNORM;
+    context.main_target.depth_format = context.device.depth_format;
+    context.main_target.framebuffer_count = context.swapchain.image_count;
 
-    // Create depth attachment for main render target
-    vulkan_image_create(&context,
-        VK_IMAGE_TYPE_2D,
-        default_width,
-        default_height,
-        context.device.depth_format,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        true,
-        VK_IMAGE_ASPECT_DEPTH_BIT,
-        &context.main_target.depth_attachment);
+    // Allocate arrays matching swapchain image_count
+    context.main_target.color_attachments =
+        static_cast<Vulkan_Image*>(memory_allocate(
+            sizeof(Vulkan_Image) * context.main_target.framebuffer_count,
+            Memory_Tag::RENDERER));
+    context.main_target.depth_attachments =
+        static_cast<Vulkan_Image*>(memory_allocate(
+            sizeof(Vulkan_Image) * context.main_target.framebuffer_count,
+            Memory_Tag::RENDERER));
+    context.main_target.framebuffers =
+        static_cast<Vulkan_Framebuffer*>(memory_allocate(
+            sizeof(Vulkan_Framebuffer) * context.main_target.framebuffer_count,
+            Memory_Tag::RENDERER));
+    context.main_target.samplers = static_cast<VkSampler*>(memory_allocate(
+        sizeof(VkSampler) * context.main_target.framebuffer_count,
+        Memory_Tag::RENDERER));
+    context.main_target.descriptor_sets =
+        static_cast<VkDescriptorSet*>(memory_allocate(
+            sizeof(VkDescriptorSet) * context.main_target.framebuffer_count,
+            Memory_Tag::RENDERER));
 
-    // Create framebuffer for main render target
-    VkImageView attachments_views[] = {
-        context.main_target.color_attachment.view,
-        context.main_target.depth_attachment.view};
-
-    vulkan_framebuffer_create(&context,
-        &context.main_renderpass,
-        default_width,
-        default_height,
-        2,
-        attachments_views,
-        &context.main_target.framebuffer);
-
-    // Create linear sampler for main render target
+    // Create sampler info (reused for all frames)
     VkSamplerCreateInfo sampler_info = {};
     sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     sampler_info.magFilter = VK_FILTER_LINEAR;
@@ -424,26 +416,66 @@ b8 vulkan_initialize(Renderer_Backend* backend, const char* app_name) {
     sampler_info.maxLod = 1.0f;
     sampler_info.maxAnisotropy = 1.0f;
 
-    VK_CHECK(vkCreateSampler(context.device.logical_device,
-        &sampler_info,
-        context.allocator,
-        &context.main_target.sampler));
+    // Create resources for each swapchain image
+    for (u32 i = 0; i < context.main_target.framebuffer_count; ++i) {
+        // Create color attachment
+        vulkan_image_create(&context,
+            VK_IMAGE_TYPE_2D,
+            default_width,
+            default_height,
+            VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            true,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            &context.main_target.color_attachments[i]);
 
-    CORE_DEBUG("Linear sampler created successfully");
+        // Create depth attachment
+        vulkan_image_create(&context,
+            VK_IMAGE_TYPE_2D,
+            default_width,
+            default_height,
+            context.device.depth_format,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            true,
+            VK_IMAGE_ASPECT_DEPTH_BIT,
+            &context.main_target.depth_attachments[i]);
 
-    // Initialize render target fields
-    context.main_target.width = default_width;
-    context.main_target.height = default_height;
-    context.main_target.color_format = VK_FORMAT_R8G8B8A8_UNORM;
-    context.main_target.depth_format = context.device.depth_format;
-    context.main_target.descriptor_set = VK_NULL_HANDLE;
+        // Create framebuffer
+        VkImageView attachments_views[] = {
+            context.main_target.color_attachments[i].view,
+            context.main_target.depth_attachments[i].view};
 
-    // Transition color attachment to shader read-only layout
-    vulkan_image_transition_layout(&context,
-        context.main_target.color_attachment.handle,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        vulkan_framebuffer_create(&context,
+            &context.main_renderpass,
+            default_width,
+            default_height,
+            2,
+            attachments_views,
+            &context.main_target.framebuffers[i]);
+
+        // Create sampler
+        VK_CHECK(vkCreateSampler(context.device.logical_device,
+            &sampler_info,
+            context.allocator,
+            &context.main_target.samplers[i]));
+
+        // Initialize descriptor set to null (will be created lazily)
+        context.main_target.descriptor_sets[i] = VK_NULL_HANDLE;
+
+        // Transition color attachment to shader read-only layout
+        vulkan_image_transition_layout(&context,
+            context.main_target.color_attachments[i].handle,
+            VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+
+    CORE_DEBUG("Offscreen render targets created (count=%u)",
+        context.main_target.framebuffer_count);
 
     CORE_INFO("Vulkan backend initialized");
 
@@ -475,18 +507,41 @@ void vulkan_shutdown(Renderer_Backend* backend) {
     // and all UI component cleanup)
     ui_cleanup_vulkan_resources(&context);
 
-    if (context.main_target.sampler != VK_NULL_HANDLE) {
-        vkDestroySampler(context.device.logical_device,
-            context.main_target.sampler,
-            context.allocator);
-        CORE_DEBUG("Sampler destroyed");
-        context.main_target.sampler = VK_NULL_HANDLE;
+    // Destroy all offscreen render target resources
+    for (u32 i = 0; i < context.main_target.framebuffer_count; ++i) {
+        if (context.main_target.samplers[i] != VK_NULL_HANDLE) {
+            vkDestroySampler(context.device.logical_device,
+                context.main_target.samplers[i],
+                context.allocator);
+        }
+
+        vulkan_framebuffer_destroy(&context,
+            &context.main_target.framebuffers[i]);
+
+        vulkan_image_destroy(&context,
+            &context.main_target.color_attachments[i]);
+        vulkan_image_destroy(&context,
+            &context.main_target.depth_attachments[i]);
     }
 
-    vulkan_framebuffer_destroy(&context, &context.main_target.framebuffer);
+    // Free dynamically allocated arrays
+    memory_deallocate(context.main_target.color_attachments,
+        sizeof(Vulkan_Image) * context.main_target.framebuffer_count,
+        Memory_Tag::RENDERER);
+    memory_deallocate(context.main_target.depth_attachments,
+        sizeof(Vulkan_Image) * context.main_target.framebuffer_count,
+        Memory_Tag::RENDERER);
+    memory_deallocate(context.main_target.framebuffers,
+        sizeof(Vulkan_Framebuffer) * context.main_target.framebuffer_count,
+        Memory_Tag::RENDERER);
+    memory_deallocate(context.main_target.samplers,
+        sizeof(VkSampler) * context.main_target.framebuffer_count,
+        Memory_Tag::RENDERER);
+    memory_deallocate(context.main_target.descriptor_sets,
+        sizeof(VkDescriptorSet) * context.main_target.framebuffer_count,
+        Memory_Tag::RENDERER);
 
-    vulkan_image_destroy(&context, &context.main_target.color_attachment);
-    vulkan_image_destroy(&context, &context.main_target.depth_attachment);
+    CORE_DEBUG("Offscreen render targets destroyed");
 
     vulkan_buffer_destroy(&context, &context.object_vertex_buffer);
     vulkan_buffer_destroy(&context, &context.object_index_buffer);
@@ -571,7 +626,7 @@ void vulkan_on_resized(Renderer_Backend* backend, u16 width, u16 height) {
     ui_on_vulkan_resize(&context, width, height);
 }
 
-b8 vulkan_frame_render(Renderer_Backend* backend, f32 delta_t) {
+b8 vulkan_begin_frame(Renderer_Backend* backend, f32 delta_t) {
 
     Vulkan_Device* device = &context.device;
 
@@ -686,8 +741,69 @@ b8 vulkan_frame_render(Renderer_Backend* backend, f32 delta_t) {
     return true;
 }
 
-b8 vulkan_frame_present(Renderer_Backend* backend, f32 delta_t) {
+void vulkan_update_global_state(mat4 projection,
+    mat4 view,
+    vec3 view_position,
+    vec4 ambient_colour,
+    s32 mode) {
+    Vulkan_Command_Buffer* cmd_buffer =
+        &context.main_command_buffers[context.image_index];
 
+    // Bind pipeline
+    vulkan_object_shader_use(&context, &context.object_shader);
+
+    // Update uniform buffer data
+    context.object_shader.global_ubo.projection = projection;
+    context.object_shader.global_ubo.view = view;
+
+    // Bind descriptor sets
+    vulkan_object_shader_update_global_state(&context, &context.object_shader);
+
+    // Bind vertex and index buffers
+    VkDeviceSize offsets[1] = {0};
+    vkCmdBindVertexBuffers(cmd_buffer->handle,
+        0,
+        1,
+        &context.object_vertex_buffer.handle,
+        offsets);
+
+    vkCmdBindIndexBuffer(cmd_buffer->handle,
+        context.object_index_buffer.handle,
+        0,
+        VK_INDEX_TYPE_UINT32);
+
+    // Draw the quad
+    vkCmdDrawIndexed(cmd_buffer->handle, 6, 1, 0, 0, 0);
+}
+
+b8 vulkan_end_frame(Renderer_Backend* backend, f32 delta_t) {
+
+    // First, finish recording and submit the viewport command buffer
+    Vulkan_Command_Buffer* main_cmd_buffer =
+        &context.main_command_buffers[context.image_index];
+
+    // End the main renderpass
+    vulkan_renderpass_end(main_cmd_buffer, &context.main_renderpass);
+
+    // End command buffer recording
+    vulkan_command_buffer_end(main_cmd_buffer);
+
+    // Submit the viewport command buffer
+    VkSubmitInfo viewport_submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    viewport_submit_info.commandBufferCount = 1;
+    viewport_submit_info.pCommandBuffers = &main_cmd_buffer->handle;
+
+    VK_CHECK(vkQueueSubmit(context.device.graphics_queue,
+        1,
+        &viewport_submit_info,
+        VK_NULL_HANDLE));
+
+    vulkan_command_buffer_update_submitted(main_cmd_buffer);
+
+    // Wait for viewport rendering to complete before UI rendering
+    vkQueueWaitIdle(context.device.graphics_queue);
+
+    // Now proceed with UI rendering
     Vulkan_Command_Buffer* ui_cmd_buffer =
         &context.ui_graphics_command_buffers[context.image_index];
 
@@ -959,18 +1075,16 @@ void create_ui_command_buffers(Renderer_Backend* backend) {
 
 void create_main_command_buffers(Vulkan_Context* context) {
     // Create command buffers for main renderer off-screen rendering
-    // We only need one command buffer per frame in flight for main renderer
-    // rendering
+    // Match swapchain image_count for synchronization with image_index
     if (!context->main_command_buffers.data) {
-        context->main_command_buffers.resize(
-            context->swapchain.max_in_flight_frames);
-        for (u32 i = 0; i < context->swapchain.max_in_flight_frames; ++i) {
+        context->main_command_buffers.resize(context->swapchain.image_count);
+        for (u32 i = 0; i < context->swapchain.image_count; ++i) {
             memory_zero(&context->main_command_buffers[i],
                 sizeof(Vulkan_Command_Buffer));
         }
     }
 
-    for (u32 i = 0; i < context->swapchain.max_in_flight_frames; ++i) {
+    for (u32 i = 0; i < context->swapchain.image_count; ++i) {
         if (context->main_command_buffers[i].handle) {
             vulkan_command_buffer_free(context,
                 context->device.graphics_command_pool,
@@ -983,7 +1097,8 @@ void create_main_command_buffers(Vulkan_Context* context) {
             true,
             &context->main_command_buffers[i]);
     }
-    CORE_DEBUG("main renderer command buffers created");
+    CORE_DEBUG("Main renderer command buffers created (count=%u)",
+        context->swapchain.image_count);
 }
 
 // We need a framebuffer per swapchain image
