@@ -12,7 +12,7 @@
 #include "ui/ui.hpp"
 
 // Application configuration
-constexpr u32 TARGET_FPS = 120;
+constexpr u32 TARGET_FPS = 140;
 constexpr f64 TARGET_FRAME_TIME = 1 / (f64)TARGET_FPS;
 
 struct Internal_App_State {
@@ -166,7 +166,7 @@ void application_run() {
     }
 
     // Frame rate limiting variables
-    f64 last_time = internal_state->clock.elapsed_time;
+    f64 last_time = platform_get_absolute_time();
 
     while (internal_state->is_running) {
 
@@ -178,11 +178,8 @@ void application_run() {
         // Frame
         if (!internal_state->is_suspended) {
 
-            absolute_clock_update(&internal_state->clock);
-            f64 current_time = internal_state->clock.elapsed_time;
-            f64 delta_time = current_time - last_time;
-
-			f64 frame_start_time = platform_get_absolute_time();
+            f64 frame_start_time = platform_get_absolute_time();
+            f64 delta_time = frame_start_time - last_time;
 
             if (internal_state->client->update) {
                 if (!internal_state->client->update(internal_state->client,
@@ -209,7 +206,7 @@ void application_run() {
 
             // Frame rate limiting
             f64 frame_end_time = platform_get_absolute_time();
-            f64 frame_duration = frame_end_time - current_time;
+            f64 frame_duration = frame_end_time - frame_start_time;
 
             if (frame_duration < TARGET_FRAME_TIME) {
                 u64 sleep_ms =
@@ -222,8 +219,9 @@ void application_run() {
 
             // Update input state each frame
             input_update();
-			
-			last_time = current_time;
+
+            // Update last_time to include sleep for accurate frame timing
+            last_time = platform_get_absolute_time();
         }
     }
 

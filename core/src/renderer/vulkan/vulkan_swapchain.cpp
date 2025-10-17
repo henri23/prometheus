@@ -69,7 +69,6 @@ void create_swapchain(Vulkan_Context* context,
 
     if (!found)
         selected_present_mode = VK_PRESENT_MODE_FIFO_KHR;
-    // selected_present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 
     // Log the selected presentation mode
     const char* present_mode_name = "UNKNOWN";
