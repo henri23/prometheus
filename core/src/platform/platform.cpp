@@ -32,6 +32,18 @@ b8 platform_startup(Platform_State* state,
 
     CORE_DEBUG("Starting platform subsystem...");
 
+#ifdef PLATFORM_LINUX
+    // On Linux, prefer Wayland over X11 if Wayland is available
+    // SDL will automatically fall back to X11 if Wayland is not available
+    const char* wayland_display = getenv("WAYLAND_DISPLAY");
+    if (wayland_display && wayland_display[0] != '\0') {
+        SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
+        CORE_DEBUG("Wayland detected, preferring Wayland video driver with X11 fallback");
+    } else {
+        CORE_DEBUG("Wayland not detected, using default X11 video driver");
+    }
+#endif
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         CORE_ERROR("SDL_Init() failed with message:'%s'", SDL_GetError());
 
