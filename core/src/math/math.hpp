@@ -82,22 +82,22 @@ FORCE_INLINE vec2 vec2_right() {
 }
 
 // Component-wise operations
-FORCE_INLINE vec2 operator+(vec2 a, vec2 b) {
+INLINE_OPERATOR vec2 operator+(vec2 a, vec2 b) {
     vec2 result = {a.x + b.x, a.y + b.y};
     return result;
 }
 
-FORCE_INLINE vec2 operator-(vec2 a, vec2 b) {
+INLINE_OPERATOR vec2 operator-(vec2 a, vec2 b) {
     vec2 result = {a.x - b.x, a.y - b.y};
     return result;
 }
 
-FORCE_INLINE vec2 operator*(vec2 a, vec2 b) {
+INLINE_OPERATOR vec2 operator*(vec2 a, vec2 b) {
     vec2 result = {a.x * b.x, a.y * b.y};
     return result;
 }
 
-FORCE_INLINE vec2 operator/(vec2 a, vec2 b) {
+INLINE_OPERATOR vec2 operator/(vec2 a, vec2 b) {
     vec2 result = {a.x / b.x, a.y / b.y};
     return result;
 }
@@ -163,7 +163,7 @@ FORCE_INLINE vec3 vec3_down() {
 }
 
 FORCE_INLINE vec3 vec3_left() {
-    vec3 result = {-1.0f, 0.0f, 0.0};
+    vec3 result = {-1.0f, 0.0f, 0.0f};
     return result;
 }
 
@@ -173,29 +173,29 @@ FORCE_INLINE vec3 vec3_right() {
 }
 
 // Component-wise operations
-FORCE_INLINE vec3 operator+(vec3 a, vec3 b) {
+INLINE_OPERATOR vec3 operator+(vec3 a, vec3 b) {
     vec3 result = {a.x + b.x, a.y + b.y, a.z + b.z};
     return result;
 }
 
-FORCE_INLINE vec3 operator-(vec3 a, vec3 b) {
+INLINE_OPERATOR vec3 operator-(vec3 a, vec3 b) {
     vec3 result = {a.x - b.x, a.y - b.y, a.z - b.z};
     return result;
 }
 
 // Not really used a element-wise multiplication for vec3
-FORCE_INLINE vec3 operator*(vec3 a, vec3 b) {
+INLINE_OPERATOR vec3 operator*(vec3 a, vec3 b) {
     vec3 result = {a.x * b.x, a.y * b.y, a.z * b.z};
     return result;
 }
 
-FORCE_INLINE vec3 operator/(vec3 a, vec3 b) {
+INLINE_OPERATOR vec3 operator/(vec3 a, vec3 b) {
     vec3 result = {a.x / b.x, a.y / b.y, a.z / b.z};
     return result;
 }
 
 FORCE_INLINE f32 vec3_dot(vec3 a, vec3 b) {
-    return a.x * b.x + a.y * b.y + a.z + b.z;
+    return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 FORCE_INLINE vec3 vec3_cross(vec3 a, vec3 b) {
@@ -282,23 +282,23 @@ FORCE_INLINE vec4 vec4_one() {
     return result;
 }
 
-FORCE_INLINE vec4 operator+(vec4 a, vec4 b) {
+INLINE_OPERATOR vec4 operator+(vec4 a, vec4 b) {
     vec4 result = {a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w};
     return result;
 }
 
-FORCE_INLINE vec4 operator-(vec4 a, vec4 b) {
+INLINE_OPERATOR vec4 operator-(vec4 a, vec4 b) {
     vec4 result = {a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w};
     return result;
 }
 
 // Not really used a element-wise multiplication forvec4
-FORCE_INLINE vec4 operator*(vec4 a, vec4 b) {
+INLINE_OPERATOR vec4 operator*(vec4 a, vec4 b) {
     vec4 result = {a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w};
     return result;
 }
 
-FORCE_INLINE vec4 operator/(vec4 a, vec4 b) {
+INLINE_OPERATOR vec4 operator/(vec4 a, vec4 b) {
     vec4 result = {a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w};
     return result;
 }
@@ -339,7 +339,7 @@ FORCE_INLINE mat4 mat4_identity() {
     return out_matrix;
 }
 
-FORCE_INLINE mat4 operator*(mat4 m1, mat4 m2) {
+INLINE_OPERATOR mat4 operator*(mat4 m1, mat4 m2) {
     mat4 out_matrix = mat4_identity();
 
     const f32* matrix1 = m1.elements;
@@ -350,7 +350,7 @@ FORCE_INLINE mat4 operator*(mat4 m1, mat4 m2) {
         for (u32 j = 0; j < 4; ++j) {
             *dest_matrix =
                 matrix1[0] * matrix2[0 + j] + matrix1[1] * matrix2[4 + j] +
-                matrix1[3] * matrix2[8 + j] + matrix1[4] * matrix2[12 + j];
+                matrix1[2] * matrix2[8 + j] + matrix1[3] * matrix2[12 + j];
 
             dest_matrix++;
         }
@@ -382,8 +382,8 @@ FORCE_INLINE mat4 mat4_project_orthographic(f32 left,
     out_matrix.elements[10] = -2.0f * nf;
 
     out_matrix.elements[12] = (left + right) * lr;
-    out_matrix.elements[13] = (top + bottom) * lr;
-    out_matrix.elements[14] = (far_clip + near_clip) * lr;
+    out_matrix.elements[13] = (top + bottom) * bt;
+    out_matrix.elements[14] = (far_clip + near_clip) * nf;
 
     return out_matrix;
 }

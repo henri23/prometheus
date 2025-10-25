@@ -114,7 +114,7 @@ constexpr u64 KIB (1 << 10);
 
 // Inlining - An inline function is substituted at compile time, by the compiler
 // to the location is has been called, but rather than storing the function in
-// memory and copying the result values into the destination, it completelly 
+// memory and copying the result values into the destination, it completelly
 // copies the logic into that destination, so there is no overhead from function
 // calls or result copying. Usually the compiler tries to always achieve this
 // but by using the forcing keywords, we make the compiler "try harder"
@@ -125,3 +125,7 @@ constexpr u64 KIB (1 << 10);
 #define FORCE_INLINE inline
 #define FORCE_NOT_INLINE
 #endif
+
+// For operator overloading in headers - must use 'inline' (not __forceinline)
+// to satisfy One Definition Rule (ODR) across all compilers
+#define INLINE_OPERATOR inline
