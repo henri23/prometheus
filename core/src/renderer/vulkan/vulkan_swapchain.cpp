@@ -32,18 +32,23 @@ void create_swapchain(Vulkan_Context* context,
 
     b8 found = false;
     for (u32 i = 0; i < swapchain_info->formats_count; ++i) {
-        if (swapchain_info->formats[i].format == VK_FORMAT_B8G8R8_SRGB &&
+        if (swapchain_info->formats[i].format == VK_FORMAT_B8G8R8A8_UNORM &&
             swapchain_info->formats[i].colorSpace ==
                 VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             out_swapchain->image_format = swapchain_info->formats[i];
             found = true;
+            CORE_INFO("Selected swapchain format: B8G8R8A8_UNORM with SRGB_NONLINEAR color space");
             break;
         }
     }
 
     // If the requested format was not found then pick the first one available
-    if (!found)
+    if (!found) {
         out_swapchain->image_format = swapchain_info->formats[0];
+        CORE_WARN("Preferred format not found, using fallback: format=%d, colorSpace=%d",
+            out_swapchain->image_format.format,
+            out_swapchain->image_format.colorSpace);
+    }
 
     // From the time we get initially the swapchain support during device
     // selection, until the renderer comes here, the present modes may have
