@@ -62,7 +62,8 @@ b8 renderer_draw_frame(Render_Packet* packet) {
             1000.0f);
         local_persist f32 z = -1.0f;
         z -= 0.01f;
-        mat4 view = mat4_translation((vec3){0, 0, z});
+        vec3 vec = {0, 0, z};
+        mat4 view = mat4_translation(vec);
 
         state.backend.update_global_state(projection,
             view,
