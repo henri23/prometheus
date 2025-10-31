@@ -50,7 +50,10 @@ static const UI_Theme_Palette dark_palette = {
     IM_COL32(130, 130, 130, 255), // scrollbar_grab_active
 
     // Separator colors
-    IM_COL32(39, 185, 242, 150) // separator_hovered
+    IM_COL32(39, 185, 242, 150), // separator_hovered
+
+    // Docking colors
+    IM_COL32(39, 185, 242, 255) // docking_preview (blue)
 };
 
 // Catppuccin Mocha theme palette - C++17 compatible
@@ -102,7 +105,10 @@ static const UI_Theme_Palette catppuccin_mocha_palette = {
     IM_COL32(127, 132, 156, 255), // scrollbar_grab_active (Subtext0)
 
     // Separator colors (Catppuccin Mocha)
-    IM_COL32(137, 180, 250, 150) // separator_hovered (Blue with alpha)
+    IM_COL32(137, 180, 250, 150), // separator_hovered (Blue with alpha)
+
+    // Docking colors (Catppuccin Mocha)
+    IM_COL32(245, 194, 231, 255) // docking_preview (Pink)
 };
 
 // Theme palette array
@@ -208,6 +214,10 @@ void ui_themes_apply(UI_Theme theme, ImGuiStyle& style) {
     colors[ImGuiCol_TableBorderLight] =
         ImGui::ColorConvertU32ToFloat4(palette.background_dark);
     colors[ImGuiCol_MenuBarBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+
+    // Docking colors - now theme-specific
+    colors[ImGuiCol_DockingPreview] =
+        ImGui::ColorConvertU32ToFloat4(palette.docking_preview);
 
     // Apply style tweaks
     style.FrameRounding = 2.5f;

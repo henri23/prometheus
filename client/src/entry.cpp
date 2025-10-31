@@ -1,6 +1,6 @@
+#include "app_viewport_layer.hpp"
 #include "imgui.h"
 #include "ui/client_ui.hpp"
-#include "app_viewport_layer.hpp"
 
 // Interfaces from core library
 #include <core/logger.hpp>
@@ -12,7 +12,7 @@
 #include <ui/ui_types.hpp>
 
 #if defined(PLATFORM_WINDOWS) && !defined(PROMETHEUS_STATIC_LINKING)
-#include <imgui.h>
+#    include <imgui.h>
 #endif
 
 // Client-specific state structure
@@ -46,8 +46,7 @@ b8 client_initialize(Client* client_state) {
 #endif
 
     // Register memory debug event listener - press 'M' to show allocation count
-    events_register_callback(
-        Event_Type::KEY_PRESSED,
+    events_register_callback(Event_Type::KEY_PRESSED,
         client_memory_debug_callback,
         Event_Priority::LOW);
 

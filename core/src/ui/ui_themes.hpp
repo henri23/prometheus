@@ -66,6 +66,9 @@ struct UI_Theme_Palette {
 
     // Separator colors
     u32 separator_hovered;
+
+    // Docking colors
+    u32 docking_preview;
 };
 
 /**
