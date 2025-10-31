@@ -101,7 +101,8 @@ struct Vulkan_Framebuffer {
 };
 
 // Off-screen rendering target (groups related resources like Vulkan_Swapchain)
-// Uses same number of framebuffers as swapchain and synchronizes with image_index
+// Uses same number of framebuffers as swapchain and synchronizes with
+// image_index
 struct Vulkan_Offscreen_Target {
     u32 width;
     u32 height;
@@ -180,8 +181,10 @@ struct Vulkan_Object_Shader {
 
     VkDescriptorSetLayout global_descriptor_set_layout;
 
-    // One descriptor set per frame
-    VkDescriptorSet global_descriptor_sets[3];
+    // One descriptor set per vulkan_image
+    // Dynamic arrays because I need 1 for each swapchain image
+    VkDescriptorSet* global_descriptor_sets;
+    b8* is_updated_list;
 
     Vulkan_Buffer global_uniform_buffer;
 

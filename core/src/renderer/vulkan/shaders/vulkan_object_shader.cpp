@@ -135,7 +135,7 @@ b8 vulkan_object_shader_create(Vulkan_Context* context,
     }
 
     if (!vulkan_buffer_create(context,
-            sizeof(Global_Uniform_Object),
+            sizeof(Global_Uniform_Object) * context->swapchain.image_count,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
@@ -148,16 +148,27 @@ b8 vulkan_object_shader_create(Vulkan_Context* context,
         return false;
     }
 
-    VkDescriptorSetLayout global_layouts[3] = {
-        out_shader->global_descriptor_set_layout,
-        out_shader->global_descriptor_set_layout,
-        out_shader->global_descriptor_set_layout};
+    Auto_Array<VkDescriptorSetLayout> global_layouts;
+
+    for (u32 i = 0; i < context->swapchain.image_count; ++i)
+        global_layouts.push_back(out_shader->global_descriptor_set_layout);
 
     VkDescriptorSetAllocateInfo alloc_info = {
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     alloc_info.descriptorPool = out_shader->global_descriptor_pool;
-    alloc_info.descriptorSetCount = 3;
-    alloc_info.pSetLayouts = global_layouts;
+    alloc_info.descriptorSetCount = context->swapchain.image_count;
+    alloc_info.pSetLayouts = global_layouts.data;
+
+    // Reserve memory in the global_descriptor_sets array equal to the number
+    // of swapchain images
+    out_shader->global_descriptor_sets =
+        static_cast<VkDescriptorSet*>(memory_allocate(
+            sizeof(VkDescriptorSet) * context->swapchain.image_count,
+            Memory_Tag::RENDERER));
+
+    out_shader->is_updated_list = static_cast<b8*>(
+        memory_allocate(sizeof(b8) * context->swapchain.image_count,
+            Memory_Tag::RENDERER));
 
     VK_CHECK(vkAllocateDescriptorSets(context->device.logical_device,
         &alloc_info,
@@ -168,6 +179,14 @@ b8 vulkan_object_shader_create(Vulkan_Context* context,
 
 void vulkan_object_shader_destroy(Vulkan_Context* context,
     Vulkan_Object_Shader* shader) {
+
+    memory_deallocate(shader->global_descriptor_sets,
+        sizeof(VkDescriptorSet) * context->swapchain.image_count,
+        Memory_Tag::RENDERER);
+
+    memory_deallocate(shader->is_updated_list,
+        sizeof(b8) * context->swapchain.image_count,
+        Memory_Tag::RENDERER);
 
     VkDevice logical_device = context->device.logical_device;
 
@@ -193,12 +212,14 @@ void vulkan_object_shader_destroy(Vulkan_Context* context,
 void vulkan_object_shader_use(Vulkan_Context* context,
     Vulkan_Object_Shader* shader) {
     u32 image_index = context->image_index;
-    vulkan_graphics_pipeline_bind(
-        &context->main_command_buffers[image_index],
+    vulkan_graphics_pipeline_bind(&context->main_command_buffers[image_index],
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         &shader->pipeline);
 }
 
+// Not all GPUs are capable of performing an update operation after a bind
+// operation for the descriptor sets for instead I need to implement the updated
+// pattern, because nertheless I need to just bind once
 void vulkan_object_shader_update_global_state(Vulkan_Context* context,
     Vulkan_Object_Shader* shader) {
 
@@ -208,43 +229,47 @@ void vulkan_object_shader_update_global_state(Vulkan_Context* context,
     VkDescriptorSet global_descriptor =
         shader->global_descriptor_sets[image_index];
 
+    if (!shader->is_updated_list[image_index]) {
+        u32 range = sizeof(Global_Uniform_Object);
+        u64 offset = 0;
+
+        vulkan_buffer_load_data(context,
+            &shader->global_uniform_buffer,
+            offset,
+            range,
+            0,
+            &shader->global_ubo);
+
+        VkDescriptorBufferInfo bufferInfo;
+        bufferInfo.buffer = shader->global_uniform_buffer.handle;
+        bufferInfo.offset = offset;
+        bufferInfo.range = range;
+
+        // Update descriptor sets
+        VkWriteDescriptorSet descriptor_write = {
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        descriptor_write.dstSet = shader->global_descriptor_sets[image_index];
+        descriptor_write.dstBinding = 0;
+        descriptor_write.dstArrayElement = 0;
+        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptor_write.descriptorCount = 1;
+        descriptor_write.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(context->device.logical_device,
+            1,
+            &descriptor_write,
+            0,
+            0);
+
+        shader->is_updated_list[image_index] = true;
+    }
+
     vkCmdBindDescriptorSets(command_buffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         shader->pipeline.pipeline_layout,
         0,
         1,
         &global_descriptor,
-        0,
-        0);
-
-    u32 range = sizeof(Global_Uniform_Object);
-    u64 offset = 0;
-
-    vulkan_buffer_load_data(context,
-        &shader->global_uniform_buffer,
-        offset,
-        range,
-        0,
-        &shader->global_ubo);
-
-    VkDescriptorBufferInfo bufferInfo;
-    bufferInfo.buffer = shader->global_uniform_buffer.handle;
-    bufferInfo.offset = offset;
-    bufferInfo.range = range;
-
-    // Update descriptor sets
-    VkWriteDescriptorSet descriptor_write = {
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    descriptor_write.dstSet = shader->global_descriptor_sets[image_index];
-    descriptor_write.dstBinding = 0;
-    descriptor_write.dstArrayElement = 0;
-    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptor_write.descriptorCount = 1;
-    descriptor_write.pBufferInfo = &bufferInfo;
-
-    vkUpdateDescriptorSets(context->device.logical_device,
-        1,
-        &descriptor_write,
         0,
         0);
 }

@@ -38,7 +38,9 @@ b8 platform_startup(Platform_State* state,
     const char* wayland_display = getenv("WAYLAND_DISPLAY");
     if (wayland_display && wayland_display[0] != '\0') {
         SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "wayland,x11");
-        CORE_DEBUG("Wayland detected, preferring Wayland video driver with X11 fallback");
+        CORE_DEBUG(
+            "Wayland detected, preferring Wayland video driver with X11 "
+            "fallback");
     } else {
         CORE_DEBUG("Wayland not detected, using default X11 video driver");
     }
@@ -80,7 +82,8 @@ b8 platform_startup(Platform_State* state,
     if (hit_test_result) {
         CORE_DEBUG("SDL hit test callback registered successfully");
     } else {
-        CORE_ERROR("Failed to register SDL hit test callback: %s", SDL_GetError());
+        CORE_ERROR("Failed to register SDL hit test callback: %s",
+            SDL_GetError());
     }
 
     SDL_SetWindowPosition(state_ptr->window,
@@ -337,23 +340,22 @@ INTERNAL_FUNC SDL_HitTestResult platform_hit_test_callback(SDL_Window* win,
     const SDL_Point* area,
     void* data) {
 
-
     int window_width, window_height;
     SDL_GetWindowSize(win, &window_width, &window_height);
 
     int window_width_pixels, window_height_pixels;
     SDL_GetWindowSizeInPixels(win, &window_width_pixels, &window_height_pixels);
 
-
-    // Check if we're in titlebar drag area first (should work even when maximized)
-    // Scale titlebar height for DPI - SDL hit test uses pixel coordinates
+    // Check if we're in titlebar drag area first (should work even when
+    // maximized) Scale titlebar height for DPI - SDL hit test uses pixel
+    // coordinates
     f32 scale_y = (f32)window_height_pixels / window_height;
     const int TITLEBAR_HEIGHT_LOGICAL = 58;
     const int TITLEBAR_HEIGHT_PIXELS = (int)(TITLEBAR_HEIGHT_LOGICAL * scale_y);
 
-
     if (area->y <= TITLEBAR_HEIGHT_PIXELS) {
-        // Call UI function to check if we're hovering the titlebar (not buttons)
+        // Call UI function to check if we're hovering the titlebar (not
+        // buttons)
         b8 titlebar_hovered = ui_is_titlebar_hovered();
 
         if (titlebar_hovered) {
@@ -361,7 +363,8 @@ INTERNAL_FUNC SDL_HitTestResult platform_hit_test_callback(SDL_Window* win,
         }
     }
 
-    // Don't allow resizing when window is maximized, but allow titlebar dragging above
+    // Don't allow resizing when window is maximized, but allow titlebar
+    // dragging above
     if (platform_is_window_maximized()) {
         return SDL_HITTEST_NORMAL;
     }
