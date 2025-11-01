@@ -28,22 +28,22 @@ namespace math {
         1.192092896e-07f; // Value of FLT_EPSILON from cfloat
 } // namespace math
 // Math functions
-PROMETHEUS_API f32 math_sin(f32 x);
-PROMETHEUS_API f32 math_cos(f32 x);
-PROMETHEUS_API f32 math_tan(f32 x);
-PROMETHEUS_API f32 math_arccos(f32 x);
-PROMETHEUS_API f32 math_sqrt(f32 x);
-PROMETHEUS_API f32 math_abs_value(f32 x);
+VOLTRUM_API f32 math_sin(f32 x);
+VOLTRUM_API f32 math_cos(f32 x);
+VOLTRUM_API f32 math_tan(f32 x);
+VOLTRUM_API f32 math_arccos(f32 x);
+VOLTRUM_API f32 math_sqrt(f32 x);
+VOLTRUM_API f32 math_abs_value(f32 x);
 
 FORCE_INLINE b8 math_is_power_of_2(u64 value) {
     return (value != 0) && ((value & (value - 1)) == 0);
 };
 
-PROMETHEUS_API s32 math_random_signed();
-PROMETHEUS_API f32 math_random_float();
+VOLTRUM_API s32 math_random_signed();
+VOLTRUM_API f32 math_random_float();
 
-PROMETHEUS_API s32 math_random_signed_in_range(s32 min, s32 max);
-PROMETHEUS_API f32 math_random_float_in_range(f32 min, f32 max);
+VOLTRUM_API s32 math_random_signed_in_range(s32 min, s32 max);
+VOLTRUM_API f32 math_random_float_in_range(f32 min, f32 max);
 
 // Vector 2 functions and operators
 FORCE_INLINE vec2 vec2_create(float x, float y) {

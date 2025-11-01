@@ -29,7 +29,7 @@ enum class Log_Scope : u8 {
 b8 log_init();
 void log_shutdown();
 
-PROMETHEUS_API void log_output(
+VOLTRUM_API void log_output(
     Log_Scope scope,
     Log_Level level,
     const char* message, ...);

@@ -1,18 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(prometheus)
+project(voltrum)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_SUPPRESS_REGENERATION ON)
 
 # Flexible linking option - default to static for better deployment
-option(PROMETHEUS_STATIC_LINKING "Link core and dependencies statically" ON)
+option(VOLTRUM_STATIC_LINKING "Link core and dependencies statically" ON)
 
 # Configure external dependencies based on linking mode
-if(PROMETHEUS_STATIC_LINKING)
+if(VOLTRUM_STATIC_LINKING)
     message(
         STATUS
-        "Prometheus: Static linking mode - all libraries will be statically linked"
+        "Voltrum: Static linking mode - all libraries will be statically linked"
     )
 
     # Force SDL3 to build static library only
@@ -24,7 +24,7 @@ if(PROMETHEUS_STATIC_LINKING)
 else()
     message(
         STATUS
-        "Prometheus: Dynamic linking mode - using shared libraries where available"
+        "Voltrum: Dynamic linking mode - using shared libraries where available"
     )
 
     # Allow SDL3 to build shared library (default behavior)
@@ -41,8 +41,8 @@ set(SDL_HIDAPI OFF CACHE BOOL "" FORCE) # if you don't need joystick HID
 set(SDL_LIBUSB OFF CACHE BOOL "" FORCE)
 set(SDL_INSTALL OFF CACHE BOOL "" FORCE) # don't install SDL system-wide
 
-option(PROMETHEUS_BUILD_TESTS "Build Prometheus unit tests" ON)
-if(PROMETHEUS_BUILD_TESTS)
+option(VOLTRUM_BUILD_TESTS "Build Voltrum unit tests" ON)
+if(VOLTRUM_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()

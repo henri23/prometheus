@@ -1,10 +1,10 @@
-# Prometheus Architecture
+# Voltrum Architecture
 
-This document provides a comprehensive overview of the Prometheus CAD application architecture, design principles, and system interactions.
+This document provides a comprehensive overview of the Voltrum CAD application architecture, design principles, and system interactions.
 
 ## High-Level Architecture
 
-Prometheus follows a **layered architecture** with clear separation between the engine core and application-specific code:
+Voltrum follows a **layered architecture** with clear separation between the engine core and application-specific code:
 
 ```
 ┌─────────────────────────────────┐
@@ -20,7 +20,7 @@ Prometheus follows a **layered architecture** with clear separation between the 
 
 ## Core Components
 
-### 1. **Core Engine** (`prometheus_core`)
+### 1. **Core Engine** (`voltrum_core`)
 
 The core engine provides fundamental systems and abstractions:
 

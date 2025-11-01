@@ -7,13 +7,13 @@
 internal_variable b8 show_demo_window;
 
 // Component implementations (migrated from core/src/ui/ui_components.cpp)
-void client_ui_render_prometheus_window(void* user_data) {
+void client_ui_render_voltrum_window(void* user_data) {
 
-    ImGui::Begin("Prometheus Engine");
+    ImGui::Begin("Voltrum Engine");
 
     // Engine info section
     ImGui::SeparatorText("Engine Information");
-    ImGui::Text("Prometheus Game Engine");
+    ImGui::Text("Voltrum Game Engine");
     ImGui::Text("Version: 1.0.0-dev");
     ImGui::Text("Architecture: Vulkan + ImGui + SDL3");
 
@@ -85,7 +85,7 @@ void client_ui_render_menus(void* user_data) {
 
     // View menu
     if (ImGui::BeginMenu("View")) {
-        ImGui::MenuItem("Prometheus Window", nullptr, nullptr);
+        ImGui::MenuItem("Voltrum Window", nullptr, nullptr);
         ImGui::MenuItem("Demo Window", nullptr, &show_demo_window);
 
         ImGui::EndMenu();

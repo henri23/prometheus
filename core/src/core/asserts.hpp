@@ -17,7 +17,7 @@ extern "C" void __builtin_debugtrap(void);
 // Need to export even though we are calling the macro
 // The editor/game must be able to access these functionalities
 // NOTE: Implemented in logger.cpp to keep the logging functionalities in one place
-PROMETHEUS_API void report_assertion_failure(
+VOLTRUM_API void report_assertion_failure(
     const char* expression,
     const char* message,
     const char* file,

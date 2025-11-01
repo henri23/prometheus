@@ -39,7 +39,7 @@ enum class UI_Font_Style {
  * Initialize the font management system
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_fonts_initialize();
+VOLTRUM_API b8 ui_fonts_initialize();
 
 /**
  * Register an embedded font
@@ -52,7 +52,7 @@ PROMETHEUS_API b8 ui_fonts_initialize();
  * @param size - font size
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_fonts_register_embedded(
+VOLTRUM_API b8 ui_fonts_register_embedded(
     const char* name,
     const char* family,
     UI_Font_Weight weight,
@@ -71,7 +71,7 @@ PROMETHEUS_API b8 ui_fonts_register_embedded(
  * @param size - font size
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_fonts_register_system(
+VOLTRUM_API b8 ui_fonts_register_system(
     const char* name,
     const char* family,
     UI_Font_Weight weight,
@@ -84,27 +84,27 @@ PROMETHEUS_API b8 ui_fonts_register_system(
  * Must be called after ImGui context is created
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_fonts_load_all();
+VOLTRUM_API b8 ui_fonts_load_all();
 
 /**
  * Set the default font by name
  * @param name - name of registered font to use as default
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_fonts_set_default(const char* name);
+VOLTRUM_API b8 ui_fonts_set_default(const char* name);
 
 /**
  * Get a font by name
  * @param name - name of font to retrieve
  * @return pointer to ImFont or nullptr if not found
  */
-PROMETHEUS_API ImFont* ui_fonts_get(const char* name);
+VOLTRUM_API ImFont* ui_fonts_get(const char* name);
 
 /**
  * Get the default font
  * @return pointer to default ImFont
  */
-PROMETHEUS_API ImFont* ui_fonts_get_default();
+VOLTRUM_API ImFont* ui_fonts_get_default();
 
 
 /**
@@ -114,7 +114,7 @@ PROMETHEUS_API ImFont* ui_fonts_get_default();
  * @param style - font style
  * @return pointer to ImFont or nullptr if not found
  */
-PROMETHEUS_API ImFont* ui_fonts_find_by_style(
+VOLTRUM_API ImFont* ui_fonts_find_by_style(
     const char* family,
     UI_Font_Weight weight,
     UI_Font_Style style);
@@ -123,7 +123,7 @@ PROMETHEUS_API ImFont* ui_fonts_find_by_style(
  * Rebuild fonts (useful for reloading after changes)
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_fonts_rebuild();
+VOLTRUM_API b8 ui_fonts_rebuild();
 
 // Built-in font helpers
 /**
@@ -131,13 +131,13 @@ PROMETHEUS_API b8 ui_fonts_rebuild();
  * Loads commonly available system fonts as fallbacks
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_fonts_load_system_defaults();
+VOLTRUM_API b8 ui_fonts_load_system_defaults();
 
 /**
  * Register default embedded fonts
  * Should include basic UI fonts embedded in the application
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_fonts_register_defaults();
+VOLTRUM_API b8 ui_fonts_register_defaults();
 
 // Font size helpers

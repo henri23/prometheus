@@ -30,16 +30,16 @@ struct Viewport_State {
 };
 
 // Initialize viewport layer
-PROMETHEUS_API b8 ui_viewport_initialize();
+VOLTRUM_API b8 ui_viewport_initialize();
 
 // Shutdown viewport layer
-PROMETHEUS_API void ui_viewport_shutdown();
+VOLTRUM_API void ui_viewport_shutdown();
 
 // Clean up viewport Vulkan resources (descriptor sets, etc.)
-PROMETHEUS_API void ui_viewport_cleanup_vulkan_resources(struct Vulkan_Context* context);
+VOLTRUM_API void ui_viewport_cleanup_vulkan_resources(struct Vulkan_Context* context);
 
 // Draw the viewport (called from UI layer)
-PROMETHEUS_API void ui_viewport_draw(void* component_state);
+VOLTRUM_API void ui_viewport_draw(void* component_state);
 
 // Viewport coordinate transformations
 ImVec2 ui_viewport_world_to_screen(const Viewport_State* viewport, ImVec2 world_pos);

@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo PROMETHEUS BUILD SYSTEM
+echo VOLTRUM BUILD SYSTEM
 echo =======================
 echo.
 
@@ -70,9 +70,9 @@ echo.
 
 :: Linking flags
 if "%LINKING_MODE%"=="STATIC" (
-    set CMAKE_LINKING_FLAG=-DPROMETHEUS_STATIC_LINKING=ON
+    set CMAKE_LINKING_FLAG=-DVOLTRUM_STATIC_LINKING=ON
 ) else (
-    set CMAKE_LINKING_FLAG=-DPROMETHEUS_STATIC_LINKING=OFF
+    set CMAKE_LINKING_FLAG=-DVOLTRUM_STATIC_LINKING=OFF
 )
 
 :: AddressSanitizer flags
@@ -106,8 +106,8 @@ if errorlevel 1 (
 
 :: Build
 cd bin
-echo Building prometheus_client...
-ninja prometheus_client
+echo Building voltrum_client...
+ninja voltrum_client
 if errorlevel 1 (
     echo ERROR: Build failed.
     exit /b 1
@@ -118,8 +118,8 @@ echo.
 
 :: Test building and running
 if "%RUN_TESTS%"=="true" (
-    echo Building prometheus tests...
-    ninja prometheus_tests
+    echo Building voltrum tests...
+    ninja voltrum_tests
     if errorlevel 1 (
         echo ERROR: Test build failed.
         exit /b 1
@@ -127,8 +127,8 @@ if "%RUN_TESTS%"=="true" (
     echo Test build completed successfully.
     echo.
 
-    echo Running prometheus tests...
-    tests\prometheus_tests.exe
+    echo Running voltrum tests...
+    tests\voltrum_tests.exe
     if errorlevel 1 (
         echo ERROR: Tests failed. Aborting build.
         exit /b 1
@@ -140,6 +140,6 @@ if "%RUN_TESTS%"=="true" (
     echo.
 )
 
-echo Launching prometheus_client...
-client\prometheus_client.exe
+echo Launching voltrum_client...
+client\voltrum_client.exe
 cd ..

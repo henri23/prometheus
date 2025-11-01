@@ -34,15 +34,15 @@ void input_process_mouse_move(s32 x, s32 y);
 void input_process_mouse_wheel(f32 delta_x, f32 delta_y);
 
 // Get the current input state (no individual getters)
-PROMETHEUS_API Input_State* input_get_state();
+VOLTRUM_API Input_State* input_get_state();
 
 // Utility functions for common input checks
-PROMETHEUS_API b8 input_is_key_down(Key_Code key_code);
-PROMETHEUS_API b8 input_is_key_up(Key_Code key_code);
-PROMETHEUS_API b8 input_was_key_pressed(Key_Code key_code);
-PROMETHEUS_API b8 input_was_key_released(Key_Code key_code);
+VOLTRUM_API b8 input_is_key_down(Key_Code key_code);
+VOLTRUM_API b8 input_is_key_up(Key_Code key_code);
+VOLTRUM_API b8 input_was_key_pressed(Key_Code key_code);
+VOLTRUM_API b8 input_was_key_released(Key_Code key_code);
 
-PROMETHEUS_API b8 input_is_mouse_button_down(Mouse_Button button);
-PROMETHEUS_API b8 input_is_mouse_button_up(Mouse_Button button);
-PROMETHEUS_API b8 input_was_mouse_button_pressed(Mouse_Button button);
-PROMETHEUS_API b8 input_was_mouse_button_released(Mouse_Button button);
+VOLTRUM_API b8 input_is_mouse_button_down(Mouse_Button button);
+VOLTRUM_API b8 input_is_mouse_button_up(Mouse_Button button);
+VOLTRUM_API b8 input_was_mouse_button_pressed(Mouse_Button button);
+VOLTRUM_API b8 input_was_mouse_button_released(Mouse_Button button);

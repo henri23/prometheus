@@ -59,7 +59,7 @@ GEAR="⚙"
 start_time=$(date +%s%3N)
 
 echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}${BOLD}║            ${WHITE}PROMETHEUS BUILD SYSTEM${CYAN}           ║${NC}"
+echo -e "${CYAN}${BOLD}║            ${WHITE}VOLTRUM BUILD SYSTEM${CYAN}           ║${NC}"
 echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${NC}"
 echo
 
@@ -131,11 +131,11 @@ mkdir -p bin
 
 # Set CMake linking option based on mode
 if [ "$LINKING_MODE" = "STATIC" ]; then
-    CMAKE_LINKING_FLAG="-DPROMETHEUS_STATIC_LINKING=ON"
+    CMAKE_LINKING_FLAG="-DVOLTRUM_STATIC_LINKING=ON"
     LINKING_DESC="Static (single self-contained executable)"
     LIBRARIES_DESC="Core, SDL3, spdlog, ImGui → all static"
 else
-    CMAKE_LINKING_FLAG="-DPROMETHEUS_STATIC_LINKING=OFF"
+    CMAKE_LINKING_FLAG="-DVOLTRUM_STATIC_LINKING=OFF"
     LINKING_DESC="Dynamic (executable + shared libraries)"
     LIBRARIES_DESC="Core, SDL3 → shared | spdlog, ImGui → static"
 fi
@@ -201,36 +201,36 @@ echo
 #     exit 1
 # fi
 
-print_status "step" "Building prometheus client..."
-echo -e "${BLUE}${ARROW} Target:${NC} prometheus_client"
+print_status "step" "Building voltrum client..."
+echo -e "${BLUE}${ARROW} Target:${NC} voltrum_client"
 echo
 
-if time ninja prometheus_client; then
+if time ninja voltrum_client; then
     print_status "success" "Build completed successfully"
 
     echo
     print_status "step" "Build verification..."
 
     # Show file sizes
-    EXECUTABLE_SIZE=$(du -h client/prometheus_client | cut -f1)
+    EXECUTABLE_SIZE=$(du -h client/voltrum_client | cut -f1)
     echo -e "${BLUE}${ARROW} Executable size:${NC} $EXECUTABLE_SIZE"
 
     if [ "$LINKING_MODE" = "STATIC" ]; then
         # Check that no shared libraries are present
-        if [ -f "core/libprometheus_core.so" ]; then
+        if [ -f "core/libvoltrum_core.so" ]; then
             print_status "warning" "Unexpected shared library found"
         else
             print_status "success" "No shared libraries generated (as expected)"
         fi
 
         # Show dependency count
-        DEPS_COUNT=$(ldd client/prometheus_client 2>/dev/null | wc -l)
+        DEPS_COUNT=$(ldd client/voltrum_client 2>/dev/null | wc -l)
         echo -e "${BLUE}${ARROW} Dynamic dependencies:${NC} $DEPS_COUNT (system libraries only)"
 
     else
         # Show shared library sizes
-        if [ -f "core/libprometheus_core.so" ]; then
-            CORE_SIZE=$(du -h core/libprometheus_core.so | cut -f1)
+        if [ -f "core/libvoltrum_core.so" ]; then
+            CORE_SIZE=$(du -h core/libvoltrum_core.so | cut -f1)
             echo -e "${BLUE}${ARROW} Core library size:${NC} $CORE_SIZE"
         fi
 
@@ -239,7 +239,7 @@ if time ninja prometheus_client; then
             echo -e "${BLUE}${ARROW} SDL3 library size:${NC} $SDL_SIZE"
         fi
 
-        DEPS_COUNT=$(ldd client/prometheus_client 2>/dev/null | wc -l)
+        DEPS_COUNT=$(ldd client/voltrum_client 2>/dev/null | wc -l)
         echo -e "${BLUE}${ARROW} Dynamic dependencies:${NC} $DEPS_COUNT (includes project libraries)"
     fi
 
@@ -251,11 +251,11 @@ echo
 
 # Test building and running
 if [ "$RUN_TESTS" = true ]; then
-    print_status "step" "Building prometheus tests..."
-    echo -e "${BLUE}${ARROW} Target:${NC} prometheus_tests"
+    print_status "step" "Building voltrum tests..."
+    echo -e "${BLUE}${ARROW} Target:${NC} voltrum_tests"
     echo
 
-    if time ninja prometheus_tests; then
+    if time ninja voltrum_tests; then
         print_status "success" "Test build completed successfully"
     else
         print_status "error" "Test build failed with exit code $?"
@@ -263,7 +263,7 @@ if [ "$RUN_TESTS" = true ]; then
     fi
     echo
 
-    print_status "step" "Running prometheus tests..."
+    print_status "step" "Running voltrum tests..."
 
     echo
     echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${NC}"
@@ -273,7 +273,7 @@ if [ "$RUN_TESTS" = true ]; then
 
     test_start_time=$(date +%s%3N)
 
-    if ./tests/prometheus_tests; then
+    if ./tests/voltrum_tests; then
         test_end_time=$(date +%s%3N)
         test_time=$(expr $test_end_time - $test_start_time)
 
@@ -343,10 +343,10 @@ print_status "success" "All assemblies built successfully"
 print_status "info" "Total build time: $time_str"
 echo
 
-print_status "step" "Launching prometheus client..."
+print_status "step" "Launching voltrum client..."
 echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}${BOLD}║              ${WHITE}APPLICATION OUTPUT${CYAN}              ║${NC}"
 echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════╝${NC}"
 echo
 
-./client/prometheus_client
+./client/voltrum_client

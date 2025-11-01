@@ -1,4 +1,4 @@
-# Prometheus
+# Voltrum
 
 A modern CAD application for microchip design built with **Vulkan**, **ImGui**, and **SDL3**. Designed with a clean core-client architecture for performance, maintainability, and extensibility.
 
@@ -24,15 +24,15 @@ A modern CAD application for microchip design built with **Vulkan**, **ImGui**, 
 
 **Linux:**
 ```bash
-git clone --recursive https://github.com/your-username/prometheus.git
-cd prometheus
+git clone --recursive https://github.com/your-username/voltrum.git
+cd voltrum
 ./build-ninja.sh
 ```
 
 **Windows:**
 ```cmd
-git clone --recursive https://github.com/your-username/prometheus.git
-cd prometheus
+git clone --recursive https://github.com/your-username/voltrum.git
+cd voltrum
 build.bat
 ```
 
@@ -43,7 +43,7 @@ For detailed platform-specific instructions, see:
 ## Project Structure
 
 ```
-prometheus/
+voltrum/
 ├── core/                  # Engine core library (~6.5k LOC)
 │   ├── src/assets/        # Asset loading and management
 │   ├── src/core/          # Application framework and entry
@@ -67,7 +67,7 @@ prometheus/
 
 ## Architecture
 
-### Core Engine (`prometheus_core.dll/so`)
+### Core Engine (`voltrum_core.dll/so`)
 
 The core engine provides fundamental systems and abstractions:
 
@@ -78,7 +78,7 @@ The core engine provides fundamental systems and abstractions:
 - **Asset Management** - Efficient resource loading with caching
 - **Memory System** - Tagged allocators and arena memory management
 
-### Client Layer (`prometheus_client`)
+### Client Layer (`voltrum_client`)
 
 The client layer implements application-specific functionality:
 
@@ -153,7 +153,7 @@ See [TODO.md](TODO.md) for the detailed project roadmap, including:
 
 This project is licensed under the [GPL-3.0 License](LICENSE) - see the LICENSE file for details.
 
-**Note**: GPL-3.0 is a copyleft license that requires derivative works to also be licensed under GPL-3.0. This ensures that improvements to Prometheus remain open source and benefit the entire community.
+**Note**: GPL-3.0 is a copyleft license that requires derivative works to also be licensed under GPL-3.0. This ensures that improvements to Voltrum remain open source and benefit the entire community.
 
 ## Contributing
 

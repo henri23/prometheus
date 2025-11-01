@@ -83,7 +83,7 @@ global_variable std::shared_ptr<spdlog::logger> default_console_logger =
 b8 log_init() {
     try {
         // Create core logger with file output
-        core_logger = create_logger("prometheus_core", "core.log");
+        core_logger = create_logger("voltrum_core", "core.log");
 
         // Create client logger with file output
         client_logger = create_logger("client_app", "client.log");
@@ -188,7 +188,7 @@ void log_output(
     }
 }
 
-PROMETHEUS_API void report_assertion_failure(
+VOLTRUM_API void report_assertion_failure(
     const char* expression,
     const char* message,
     const char* file,

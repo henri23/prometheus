@@ -71,7 +71,7 @@ void ui_titlebar_setup(PFN_menu_callback callback, const char* app_name) {
 
     // Load icons using image loader and renderer directly
     b8 icons_success = true;
-    icons_success &= load_ui_image("prometheus_icon", &state.app_icon);
+    icons_success &= load_ui_image("voltrum_icon", &state.app_icon);
     icons_success &= load_ui_image("window_minimize", &state.minimize_icon);
     icons_success &= load_ui_image("window_maximize", &state.maximize_icon);
     icons_success &= load_ui_image("window_restore", &state.restore_icon);
@@ -175,7 +175,7 @@ INTERNAL_FUNC void draw_titlebar_logo() {
     UI_Image_Resource* app_icon = state.app_icon.is_valid ? &state.app_icon : nullptr;
 
     // Fixed logo size (decoupled from titlebar height)
-    f32 logo_size = 50.0f; // Fixed size for larger Prometheus icon
+    f32 logo_size = 50.0f; // Fixed size for larger Voltrum icon
     f32 logo_margin = 4.0f;
     f32 logo_top_padding =
         2.0f; // Same top padding as menu entries and window buttons
@@ -561,7 +561,7 @@ INTERNAL_FUNC void draw_titlebar_gradient() {
     u32 gradient_start_color, gradient_end_color;
 
     if (current_theme == UI_Theme::DARK) {
-        // Orange to transparent gradient for dark theme (complements Prometheus
+        // Orange to transparent gradient for dark theme (complements Voltrum
         // branding)
         gradient_start_color =
             IM_COL32(236, 158, 36, 80); // Orange accent with transparency

@@ -1,6 +1,6 @@
 #pragma once
 
-// UI Configuration Options for Prometheus Engine
+// UI Configuration Options for Voltrum Engine
 
 // Viewport Support Configuration
 // ------------------------------
@@ -8,21 +8,21 @@
 // Enable this only if you need multi-viewport support and are willing to test stability.
 //
 // To enable viewports, uncomment the line below:
-// #define PROMETHEUS_ENABLE_VIEWPORTS
+// #define VOLTRUM_ENABLE_VIEWPORTS
 
-// When PROMETHEUS_ENABLE_VIEWPORTS is disabled:
+// When VOLTRUM_ENABLE_VIEWPORTS is disabled:
 // - Docking still works perfectly within the main window
 // - No crashes related to multi-viewport rendering
 // - Stable and reliable UI experience
 // - Windows can be docked to each other and the main viewport
 
-// When PROMETHEUS_ENABLE_VIEWPORTS is enabled:
+// When VOLTRUM_ENABLE_VIEWPORTS is enabled:
 // - Windows can be dragged outside the main window
 // - Each window becomes its own platform window
 // - May cause crashes during shutdown with SDL3
 // - Experimental feature - use at your own risk
 
-#ifdef PROMETHEUS_ENABLE_VIEWPORTS
+#ifdef VOLTRUM_ENABLE_VIEWPORTS
     #pragma message("ImGui viewports enabled - experimental SDL3 support")
 #else
     #pragma message("ImGui viewports disabled - SDL3 safe mode")

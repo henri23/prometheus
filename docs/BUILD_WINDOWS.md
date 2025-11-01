@@ -1,6 +1,6 @@
 # Windows Build Guide
 
-This guide explains how to build Prometheus Engine on Windows using the provided build scripts and tools.
+This guide explains how to build Voltrum Engine on Windows using the provided build scripts and tools.
 
 ## Prerequisites
 
@@ -44,28 +44,28 @@ This guide explains how to build Prometheus Engine on Windows using the provided
 
 ```cmd
 # Clone repository with submodules
-git clone --recursive https://github.com/your-username/prometheus.git
-cd prometheus
+git clone --recursive https://github.com/your-username/voltrum.git
+cd voltrum
 
 # Build with modern UI (progress tracking, colored output)
 build-modern.bat
 
 # Run the application
-bin\client\prometheus_client.exe
+bin\client\voltrum_client.exe
 ```
 
 ### Option 2: Ninja Build Script
 
 ```cmd
 # Clone repository
-git clone --recursive https://github.com/your-username/prometheus.git
-cd prometheus
+git clone --recursive https://github.com/your-username/voltrum.git
+cd voltrum
 
 # Build with ninja (fast and clean)
 build-ninja.bat
 
 # Run the application
-bin\client\prometheus_client.exe
+bin\client\voltrum_client.exe
 ```
 
 ## Build Scripts Explained
@@ -104,7 +104,7 @@ set BUILD_TYPE=Release & build-ninja.bat  # Release build
 ## Run the executable
    ```cmd
    cd client
-   prometheus_client.exe
+   voltrum_client.exe
    ```
 
 ## Verification and Testing
@@ -129,11 +129,11 @@ cl.exe
 
 ```cmd
 # Quick smoke test
-bin\client\prometheus_client.exe --version
+bin\client\voltrum_client.exe --version
 
 # Run with validation layers (debug builds)
 set VK_LAYER_PATH=%VULKAN_SDK%\Bin
-bin\client\prometheus_client.exe
+bin\client\voltrum_client.exe
 ```
 
 ## Troubleshooting
@@ -194,12 +194,12 @@ echo %VULKAN_SDK%
 
 ### Runtime Issues
 
-**Problem:** `prometheus_core.dll not found`
+**Problem:** `voltrum_core.dll not found`
 ```cmd
 # Solution: Library path issue
 # Run from bin directory:
 cd bin
-client\prometheus_client.exe
+client\voltrum_client.exe
 ```
 
 **Problem:** Vulkan device creation failed
@@ -216,7 +216,7 @@ client\prometheus_client.exe
 
 ```cmd
 # Enable debug output
-set PROMETHEUS_DEBUG=1
+set VOLTRUM_DEBUG=1
 
 # Vulkan debugging
 set VK_LAYER_PATH=%VULKAN_SDK%\Bin
@@ -231,7 +231,7 @@ set CMAKE_GENERATOR=Ninja
 **Visual Studio:**
 - Open project folder in Visual Studio
 - VS automatically detects CMake configuration
-- Use "Select Startup Item" to choose prometheus_client
+- Use "Select Startup Item" to choose voltrum_client
 
 **VS Code:**
 ```json
@@ -251,10 +251,10 @@ set CMAKE_GENERATOR=Ninja
 
 ```cmd
 # Build only core library
-ninja prometheus_core
+ninja voltrum_core
 
 # Build only client
-ninja prometheus_client
+ninja voltrum_client
 
 # Clean build
 ninja clean

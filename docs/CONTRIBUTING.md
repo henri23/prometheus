@@ -1,6 +1,6 @@
-# Contributing to Prometheus
+# Contributing to Voltrum
 
-Thank you for your interest in contributing to Prometheus! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Voltrum! This document provides guidelines and information for contributors.
 
 ## Quick Start
 
@@ -26,15 +26,15 @@ Thank you for your interest in contributing to Prometheus! This document provide
 
 **Linux:**
 ```bash
-git clone --recursive https://github.com/your-username/prometheus.git
-cd prometheus
+git clone --recursive https://github.com/your-username/voltrum.git
+cd voltrum
 ./build-ninja.sh
 ```
 
 **Windows:**
 ```cmd
-git clone --recursive https://github.com/your-username/prometheus.git
-cd prometheus
+git clone --recursive https://github.com/your-username/voltrum.git
+cd voltrum
 build-ninja.bat
 ```
 
@@ -82,7 +82,7 @@ We welcome code contributions! Please ensure:
 
 ## Code Style
 
-Prometheus follows a C-style C++ approach with specific conventions:
+Voltrum follows a C-style C++ approach with specific conventions:
 
 ### General Principles
 - **Readable code over clever code**
@@ -128,10 +128,10 @@ constexpr u32 MAX_FRAMES_IN_FLIGHT = 2;
 ### Running Tests
 ```bash
 # Run all tests
-./bin/client/prometheus_client
+./bin/client/voltrum_client
 
 # Run with validation layers (debug builds)
-VK_LAYER_PATH=/usr/share/vulkan/explicit_layer.d ./bin/client/prometheus_client
+VK_LAYER_PATH=/usr/share/vulkan/explicit_layer.d ./bin/client/voltrum_client
 ```
 
 ### Test Guidelines
@@ -194,10 +194,10 @@ Contributors are recognized in several ways:
 
 ## License
 
-By contributing to Prometheus, you agree that your contributions will be licensed under the GPL-3.0 License.
+By contributing to Voltrum, you agree that your contributions will be licensed under the GPL-3.0 License.
 
 ---
 
-**Thank you for contributing to Prometheus!**
+**Thank you for contributing to Voltrum!**
 
 Your contributions help make this project better for the entire CAD and open-source community.

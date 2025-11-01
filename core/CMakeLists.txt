@@ -1,17 +1,17 @@
 cmake_minimum_required(VERSION 3.16)
-project(prometheus_core)
+project(voltrum_core)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(VULKAN_SDK $ENV{VULKAN_SDK})
 
 # Set linking mode preprocessor definitions (option defined in root CMakeLists.txt)
-if(PROMETHEUS_STATIC_LINKING)
-    add_compile_definitions(PROMETHEUS_STATIC_LINKING)
-    message(STATUS "Prometheus Core: Static linking enabled")
+if(VOLTRUM_STATIC_LINKING)
+    add_compile_definitions(VOLTRUM_STATIC_LINKING)
+    message(STATUS "Voltrum Core: Static linking enabled")
 else()
     add_compile_definitions(API_EXPORT)
-    message(STATUS "Prometheus Core: Dynamic linking enabled")
+    message(STATUS "Voltrum Core: Dynamic linking enabled")
 endif()
 
 add_compile_definitions(DEBUG_BUILD)
@@ -35,8 +35,8 @@ message(STATUS "Core headers found: ${HEADERS}")
 
 find_package(Vulkan REQUIRED)
 
-# Create the prometheus core library (static or shared based on option)
-if(PROMETHEUS_STATIC_LINKING)
+# Create the voltrum core library (static or shared based on option)
+if(VOLTRUM_STATIC_LINKING)
     add_library(${PROJECT_NAME} STATIC ${ENGINE_SRC} ${HEADERS})
 else()
     add_library(${PROJECT_NAME} SHARED ${ENGINE_SRC} ${HEADERS})

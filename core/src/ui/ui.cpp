@@ -255,7 +255,7 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window) {
 
 // SDL3 viewport support is experimental and can cause crashes
 // Only enable if explicitly requested and working properly
-#ifdef PROMETHEUS_ENABLE_VIEWPORTS
+#ifdef VOLTRUM_ENABLE_VIEWPORTS
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport
                                                         // / Platform Windows
     CORE_DEBUG("ImGui viewports enabled (experimental with SDL3)");
@@ -277,7 +277,7 @@ INTERNAL_FUNC b8 setup_imgui_context(f32 main_scale, void* window) {
 
 // When viewports are enabled we tweak WindowRounding/WindowBg so platform
 // windows can look identical to regular ones.
-#ifdef PROMETHEUS_ENABLE_VIEWPORTS
+#ifdef VOLTRUM_ENABLE_VIEWPORTS
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
@@ -490,7 +490,7 @@ b8 ui_draw_components(Vulkan_Command_Buffer* command_buffer) {
 // Update and Render additional Platform Windows (for
 // ImGuiConfigFlags_ViewportsEnable) Only render viewports if they're enabled
 // and working properly
-#ifdef PROMETHEUS_ENABLE_VIEWPORTS
+#ifdef VOLTRUM_ENABLE_VIEWPORTS
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGui::UpdatePlatformWindows();

@@ -6,7 +6,7 @@
 #include "stb_image.h"
 
 // Include embedded image data
-#include "icons/prometheus_icon.embed"
+#include "icons/voltrum_icon.embed"
 #include "images/window_images.embed"
 #include <cstring>
 
@@ -19,7 +19,7 @@ struct Embedded_Image_Asset {
 
 // Image assets lookup table
 internal_variable const Embedded_Image_Asset image_assets[] = {
-    {"prometheus_icon", prometheus_icon, sizeof(prometheus_icon)},
+    {"voltrum_icon", voltrum_icon, sizeof(voltrum_icon)},
     {"window_minimize", window_minimize_icon, sizeof(window_minimize_icon)},
     {"window_maximize", window_maximize_icon, sizeof(window_maximize_icon)},
     {"window_restore", window_restore_icon, sizeof(window_restore_icon)},

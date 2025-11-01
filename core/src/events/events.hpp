@@ -90,12 +90,12 @@ void events_shutdown();
 
 // Register event callback for specific event type with priority (called by
 // application)
-PROMETHEUS_API void events_register_callback(Event_Type event_type,
+VOLTRUM_API void events_register_callback(Event_Type event_type,
     PFN_event_callback callback,
     Event_Priority priority = Event_Priority::NORMAL);
 
 // Unregister event callback for specific event type
-PROMETHEUS_API void events_unregister_callback(Event_Type event_type,
+VOLTRUM_API void events_unregister_callback(Event_Type event_type,
     PFN_event_callback callback);
 
 // Called by platform layer to dispatch events

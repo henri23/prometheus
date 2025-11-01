@@ -86,26 +86,26 @@ constexpr u64 KIB (1 << 10);
 
 /*
   Flexible linking support - static or dynamic
-  Controlled by PROMETHEUS_STATIC_LINKING preprocessor definition
+  Controlled by VOLTRUM_STATIC_LINKING preprocessor definition
 */
-#ifdef PROMETHEUS_STATIC_LINKING
+#ifdef VOLTRUM_STATIC_LINKING
     // Static linking - no export/import needed
-    #define PROMETHEUS_API
+    #define VOLTRUM_API
 #else
     // Dynamic linking - use DLL export/import
     #ifdef API_EXPORT
         // Exports when building the core DLL
         #ifdef _MSC_VER
-            #define PROMETHEUS_API __declspec(dllexport)
+            #define VOLTRUM_API __declspec(dllexport)
         #else
-            #define PROMETHEUS_API __attribute__((visibility("default")))
+            #define VOLTRUM_API __attribute__((visibility("default")))
         #endif
     #else
         // Imports when using the core DLL from client
         #ifdef _MSC_VER
-            #define PROMETHEUS_API __declspec(dllimport)
+            #define VOLTRUM_API __declspec(dllimport)
         #else
-            #define PROMETHEUS_API
+            #define VOLTRUM_API
         #endif
     #endif
 #endif

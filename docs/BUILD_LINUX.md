@@ -1,6 +1,6 @@
 # Linux Build Guide
 
-This guide explains how to build Prometheus Engine on Linux using the provided build scripts and tools.
+This guide explains how to build Voltrum Engine on Linux using the provided build scripts and tools.
 
 ## Prerequisites
 
@@ -96,28 +96,28 @@ sudo dnf install mesa-vulkan-drivers
 
 ```bash
 # Clone repository with submodules
-git clone --recursive https://github.com/your-username/prometheus.git
-cd prometheus
+git clone --recursive https://github.com/your-username/voltrum.git
+cd voltrum
 
 # Build with ninja (fast and clean output)
 ./build-ninja.sh
 
 # Run the application
-./bin/client/prometheus_client
+./bin/client/voltrum_client
 ```
 
 ### Option 2: Modern Build Script (Same as option 1 but more beautiful)
 
 ```bash
 # Clone repository
-git clone --recursive https://github.com/your-username/prometheus.git
-cd prometheus
+git clone --recursive https://github.com/your-username/voltrum.git
+cd voltrum
 
 # Build with advanced UI (progress tracking, logs)
 ./build-modern.sh
 
 # Run the application
-./bin/client/prometheus_client
+./bin/client/voltrum_client
 ```
 
 ## Build Scripts Explained
@@ -156,7 +156,7 @@ Usage:
 
 ```bash
 cd client
-./prometheus_client
+./voltrum_client
 ```
 
 ##  Verification and Testing
@@ -178,15 +178,15 @@ vkcube  # If available
 
 ```bash
 # Quick smoke test
-./bin/client/prometheus_client --version
+./bin/client/voltrum_client --version
 
 # Run with validation layers (debug builds)
 VK_LAYER_PATH=/usr/share/vulkan/explicit_layer.d \
-./bin/client/prometheus_client
+./bin/client/voltrum_client
 
 # Check for memory leaks (if valgrind is installed)
 valgrind --tool=memcheck --leak-check=full \
-./bin/client/prometheus_client
+./bin/client/voltrum_client
 ```
 
 ##  Troubleshooting
@@ -247,12 +247,12 @@ sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 100
 
 ### Runtime Issues
 
-**Problem:** `libprometheus_core.so not found`
+**Problem:** `libvoltrum_core.so not found`
 ```bash
 # Solution: Set library path
 export LD_LIBRARY_PATH="$(pwd)/bin/core:$LD_LIBRARY_PATH"
 # or run from bin directory
-cd bin && ./client/prometheus_client
+cd bin && ./client/voltrum_client
 ```
 
 **Problem:** Graphics drivers not working
@@ -271,7 +271,7 @@ sudo apt install --reinstall mesa-vulkan-drivers
 **Problem:** Low FPS or stuttering
 ```bash
 # Run with performance monitoring
-perf stat ./bin/client/prometheus_client
+perf stat ./bin/client/voltrum_client
 
 # Check GPU usage
 nvidia-smi -l 1  # NVIDIA
@@ -284,7 +284,7 @@ radeontop        # AMD
 
 ```bash
 # Enable debug output
-export PROMETHEUS_DEBUG=1
+export VOLTRUM_DEBUG=1
 
 # Vulkan debugging
 export VK_LAYER_PATH=/usr/share/vulkan/explicit_layer.d
@@ -322,10 +322,10 @@ export BUILD_TYPE=Release
 
 ```bash
 # Build only core library
-ninja prometheus_core
+ninja voltrum_core
 
 # Build only client
-ninja prometheus_client
+ninja voltrum_client
 
 # Clean build
 ninja clean

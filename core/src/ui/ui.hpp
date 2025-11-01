@@ -17,7 +17,7 @@ struct ImDrawData;
  * @param window - SDL window for ImGui initialization
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_initialize(
+VOLTRUM_API b8 ui_initialize(
     UI_Theme theme,
 	Auto_Array<UI_Layer>* layers,
 	PFN_menu_callback menu_callback,
@@ -27,14 +27,14 @@ PROMETHEUS_API b8 ui_initialize(
 /**
  * Shutdown the UI subsystem
  */
-PROMETHEUS_API void ui_shutdown();
+VOLTRUM_API void ui_shutdown();
 
 /**
  * Register a UI component with the system
  * @param component - component to register (copied internally)
  * @return true if successful, false otherwise
  */
-PROMETHEUS_API b8 ui_register_component(const UI_Layer* component);
+VOLTRUM_API b8 ui_register_component(const UI_Layer* component);
 
 // Internal functions for core components only
 /**
@@ -47,7 +47,7 @@ UI_Theme ui_get_current_theme();
  * Get the UI event callback for registration by application
  * @return PFN_event_callback for UI event handling
  */
-PROMETHEUS_API PFN_event_callback ui_get_event_callback();
+VOLTRUM_API PFN_event_callback ui_get_event_callback();
 
 /**
  * Get the ImGui context for Windows DLL compatibility
@@ -55,4 +55,4 @@ PROMETHEUS_API PFN_event_callback ui_get_event_callback();
  * The client must call ImGui::SetCurrentContext() with this value
  * @return void* - ImGui context pointer (cast to ImGuiContext*)
  */
-PROMETHEUS_API void* ui_get_imgui_context();
+VOLTRUM_API void* ui_get_imgui_context();
